@@ -69,11 +69,12 @@ erDiagram
 
 - **profiles** — the member's private draft. Status: `draft → pending_review → approved | rejected`, `approved → unpublished`. Any content edit by the member sets status back to `draft` (trigger). Moderation columns (`status`, `is_featured`, `review_note`, `github_username`, `username_locked`) have **no update grant** for members.
 - **projects** — private draft rows, `source` = `github | manual`; GitHub rows carry `github_repo_id` (unique per profile). Max 6 (trigger).
-- **published_cards** — the only table visitors read. One row per approved member: `username`, `card jsonb` (everything the public card and profile page show, including projects), `is_featured`. Written only by admin functions (ADR-002).
+- **published_cards** — the only table visitors read. One row per approved member: `username`, `card jsonb` (everything the public card and profile page show, including projects), `is_featured`, `member_no`. Written only by admin functions (ADR-002).
+- **member numbers** — `profiles.member_no` is assigned from `member_no_seq` at a member's first approval and never changes or gets reused (D-034); it is the No.### on the badge and in the QR serial.
 - **user_roles** — `member | admin`, created by trigger on sign-up; promoted only from the SQL editor (`supabase/seed_first_admin.sql`).
 - Storage: `avatars/<uid>/<uuid>.webp`, `project-covers/<uid>/<uuid>.webp`, public read, owner-only write, 2 MB limit, images only. New file name on every upload so approved snapshots keep their image. Rows store the **path** (`profiles.avatar_path`, `projects.cover_path`), never a URL; a check constraint pins it to the owner's folder, and the client builds the public URL (D-027).
 
-Source of truth: `supabase/migrations/`. Tests: `supabase/tests/security.test.mjs` (52 checks, all passing on 4 Oct).
+Source of truth: `supabase/migrations/`. Tests: `supabase/tests/security.test.mjs` (61 checks, all passing on 4 Oct).
 
 ## 5. Security model
 

@@ -15,6 +15,6 @@
 - Sign in with Google on localhost, connect GitHub, `profiles.github_username` set (after Phase 3 creates the row; until then the RPC returns the handle).
 - Visiting `/` with `VITE_DATA_SOURCE=supabase` and an empty table shows the empty-state dialogue.
 - Bundle contains no service-role key (`grep -r service_role dist` is empty).
-- All 52+ DB tests pass.
+- All 61+ DB tests pass.
 
 **Don't touch:** card visuals (Gate 1 locked them).
