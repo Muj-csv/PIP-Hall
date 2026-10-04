@@ -10,6 +10,8 @@ import { cssVarReader } from '../../lib/sprites';
 import { stepSwing, type SwingState } from '../../lib/swing';
 import { useCards } from '../../lib/useCards';
 import { useReducedMotion } from '../../lib/useReducedMotion';
+import { usePips } from '../../lib/usePips';
+import { discoverLine } from '../../lib/pips';
 import { useTheme } from '../../app/themeContext';
 import type { PublicCard } from '../../types/card';
 import { QrFullscreen } from '../cards/QrFullscreen';
@@ -63,6 +65,9 @@ export function Hall({ profile = null }: HallProps) {
   const [line, setLine] = useState<Line>({ text: HINT });
   const [flipped, setFlipped] = useState<ReadonlySet<string>>(() => new Set());
   const [coins, setCoins] = useState(0);
+  const pips = usePips();
+  /** Pip's line on the profile screen after a discovery reward (E1). */
+  const [reward, setReward] = useState<{ for: string; text: string } | null>(null);
   const [mode, setMode] = useState<'level' | 'profile' | 'missing'>('level');
   const navigate = useNavigate();
   /** Opened from inside the hall (so BACK can step back in history) rather than from a link. */
@@ -423,6 +428,22 @@ export function Hall({ profile = null }: HallProps) {
   } else if (count === 0) shown = { text: 'No players in the hall yet. Make your card and be the first!' };
 
   const current = cards[car.index];
+  // Opening someone's profile is a discovery (E1, FR-E1-02). Pays once; Pip says so on the screen.
+  const profileId = mode === 'profile' ? current?.profile_id : undefined;
+  const { discover, achievements: catalog } = pips;
+  useEffect(() => {
+    if (!profileId) return;
+    let on = true;
+    void discover(profileId).then((r) => {
+      const text = r && discoverLine(r, catalog);
+      if (!on || !text) return;
+      setReward({ for: profileId, text });
+      if (r.amount > 0 && !live.current.reduce) coinFx.current.push({ x: slotX(indexRef.current), y: CEIL_Y - 2, vy: -2.6, t: 0 });
+    });
+    return () => {
+      on = false;
+    };
+  }, [profileId, discover, catalog, indexRef]);
   const profileName = mode === 'profile' ? current?.card.full_name : null;
   useEffect(() => {
     document.title = profileName ? `${profileName} · PIP-Hall` : mode === 'missing' ? 'No card here · PIP-Hall' : HALL_TITLE;
@@ -455,12 +476,20 @@ export function Hall({ profile = null }: HallProps) {
           />
         )}
         <canvas ref={fgRef} data-layer="fg" aria-hidden="true" />
-        <Hud coins={coins} index={car.index} count={count} />
+        <Hud coins={pips.summary?.eligible ? pips.summary.balance : coins} pips={Boolean(pips.summary?.eligible)} index={car.index} count={count} />
       </div>
       <DialogueBox text={shown.text} emote={shown.emote}>
         {action}
       </DialogueBox>
-      {mode === 'profile' && current && <ProfileScreen key={current.username} card={current} onBack={closeProfile} onShowQr={() => setQrCard(current)} />}
+      {mode === 'profile' && current && (
+        <ProfileScreen
+          key={current.username}
+          card={current}
+          onBack={closeProfile}
+          onShowQr={() => setQrCard(current)}
+          reward={reward?.for === current.profile_id ? reward.text : null}
+        />
+      )}
       {mode === 'missing' && <MissingScreen username={profile ?? ''} onBack={closeProfile} />}
       <canvas ref={overlayRef} className="overlay-canvas pixelated" hidden aria-hidden="true" />
     </div>

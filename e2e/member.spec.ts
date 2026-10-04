@@ -70,3 +70,15 @@ test('a member with no projects says so', async ({ page }) => {
   await page.goto('/member/sample-player-3');
   await expect(profile(page).locator('.dialogue .sr-only')).toContainText('hasn’t added any quests yet');
 });
+
+test('with PIPs switched off, opening profiles never calls the PIP functions', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'same on both');
+  const { mockSupabase } = await import('./mockSupabase');
+  const log = await mockSupabase(page, { user: { id: '00000000-0000-4000-8000-0000000000a1', email: 'm@example.org', name: 'M', role: 'member' } });
+  await page.goto('/member/sample-player-2');
+  await expect(page.locator('#profile-name')).toHaveText('Sample Player 2');
+  await page.goto('/settings');
+  await expect(page.getByRole('heading', { level: 1, name: 'Settings' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'PIPs' })).toHaveCount(0);
+  expect(log.requests.some((r) => /my_pips|discover_card|pip_ledger|achievements/.test(r))).toBe(false);
+});

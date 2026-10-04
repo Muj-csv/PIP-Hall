@@ -1,6 +1,6 @@
 # PIP Progression — E1: PIPs core (spec)
 
-**Status:** ready for review · **Date:** 2026-10-05 · **Owner:** Jum Flores · **Decisions:** D-058…D-065
+**Status:** built on branch `feat/pips-e1` (switch off by default); evidence in `docs/build/evidence/phase-e1/` · **Date:** 2026-10-05 · **Owner:** Jum Flores · **Decisions:** D-058…D-065
 **Build brief:** `docs/build/PHASE-E1.md` · **Discovery:** `PIP-PROGRESSION-DISCOVERY.md`
 
 E1 proves the loop (do something good → earn → Pip notices) and that it can't be farmed, before anything is for sale. No Mart, no Missions, no Spotlight, no feedback in E1.

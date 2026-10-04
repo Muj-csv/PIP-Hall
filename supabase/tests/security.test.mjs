@@ -36,6 +36,11 @@ async function expectOk(client, name, uid, sql, params, check) {
   try { const r = await as(client, uid, sql, params); if (check && !check(r)) throw new Error('check failed: ' + JSON.stringify(r.rows)); ok(name); }
   catch (e) { bad(name, e); }
 }
+// Checks as the database owner (sees every row), for asserting what functions wrote.
+async function expectSu(client, name, sql, params, check) {
+  try { const r = await client.query(sql, params); if (!check(r)) throw new Error('check failed: ' + JSON.stringify(r.rows)); ok(name); }
+  catch (e) { bad(name, e); }
+}
 async function expectErr(client, name, uid, sql, params, pattern) {
   try { await as(client, uid, sql, params); bad(name, 'expected an error, got success'); }
   catch (e) { pattern.test(e.message) ? ok(name) : bad(name, e); }
@@ -143,6 +148,68 @@ try {
   await expectOk(c, 're-approval keeps member No.1', ADMIN, `select approve_profile($1)`, [A]);
   await expectOk(c, 'public card shows No.1 again', 'anon', `select member_no from published_cards where profile_id=$1`, [A], (r) => r.rows[0].member_no === 1);
   await expectErr(c, 'anon cannot write public cards', 'anon', `insert into published_cards (profile_id, username, card) values ($1,'x','{}')`, [B], /permission denied/);
+
+  console.log('PIPs (E1)');
+  // So far: A was approved with 2 projects, then re-approved with 6; B was approved with none.
+  const pips = async (uid) => (await as(c, uid, `select my_pips() as p`)).rows[0].p;
+  await expectOk(c, 'approval rewards: A has welcome + 6 projects + 3 achievements = 500', A, `select my_pips() as p`, [], (r) => r.rows[0].p.eligible === true && r.rows[0].p.balance === 500);
+  await expectOk(c, 'approval rewards: B has welcome + Card Holder = 150', B, `select my_pips() as p`, [], (r) => r.rows[0].p.balance === 150);
+  await expectSu(c, 're-approval never re-grants the welcome reward', `select count(*)::int as n from pip_ledger where member_id=$1 and ref='first_approval'`, [A], (r) => r.rows[0].n === 1);
+  await expectOk(c, 'achievements unlocked once each', ADMIN, `select count(*)::int as n from member_achievements where member_id=$1`, [A], (r) => r.rows[0].n === 3);
+  await expectErr(c, 'member cannot insert ledger rows', A, `insert into pip_ledger (member_id, amount, reason, ref) values ($1, 1000, 'discover', 'x')`, [A], /permission denied/);
+  await expectErr(c, 'member cannot change ledger rows', A, `update pip_ledger set amount = 9999 where member_id=$1`, [A], /permission denied/);
+  await expectErr(c, 'member cannot delete ledger rows', A, `delete from pip_ledger where member_id=$1`, [A], /permission denied/);
+  await expectErr(c, 'member cannot write discoveries', A, `insert into discoveries (member_id, card_id) values ($1,$2)`, [A, B], /permission denied/);
+  await expectErr(c, 'member cannot grant themselves achievements', A, `insert into member_achievements (member_id, key) values ($1,'hall_walker')`, [A], /permission denied/);
+  await expectErr(c, 'member cannot call grant_pips', A, `select grant_pips($1, 1000, 'discover', 'hack')`, [A], /permission denied/);
+  await expectErr(c, 'member cannot call check_achievements', A, `select check_achievements($1)`, [A], /permission denied/);
+  await expectErr(c, 'member cannot call reward_approval', A, `select reward_approval($1)`, [A], /permission denied/);
+  await expectErr(c, 'anon cannot discover', 'anon', `select discover_card($1)`, [A], /permission denied/);
+  await expectErr(c, 'anon cannot read balances', 'anon', `select my_pips()`, [], /permission denied/);
+  await expectErr(c, 'anon cannot read the ledger', 'anon', `select * from pip_ledger`, [], /permission denied/);
+  await expectOk(c, "member cannot read another member's ledger", A, `select * from pip_ledger where member_id=$1`, [B], (r) => r.rowCount === 0);
+  await expectOk(c, "member cannot see whom another member discovered", A, `select * from discoveries where member_id=$1`, [B], (r) => r.rowCount === 0);
+  await expectOk(c, 'achievements of members in the hall are public', 'anon', `select key from member_achievements where member_id=$1`, [A], (r) => r.rowCount === 3);
+
+  await expectOk(c, 'discovering a member grants +5', A, `select discover_card($1) as d`, [B], (r) => r.rows[0].d.granted === true && r.rows[0].d.amount === 5 && r.rows[0].d.balance === 505);
+  await expectOk(c, 'discovering them again grants nothing', A, `select discover_card($1) as d`, [B], (r) => r.rows[0].d.granted === false && r.rows[0].d.balance === 505);
+  await expectOk(c, 'discovering yourself grants nothing', A, `select discover_card($1) as d`, [A], (r) => r.rows[0].d.granted === false);
+
+  // More members: C stays a draft (not in the hall); M1..M10 get approved.
+  const C = '00000000-0000-0000-0000-00000000000c';
+  const Ms = Array.from({ length: 10 }, (_, i) => `00000000-0000-0000-0000-0000000001${String(i).padStart(2, '0')}`);
+  await c.query(`insert into auth.users (id, email) select unnest($1::uuid[]), 'm' || generate_series(1, $2) || '@x.test'`, [[C, ...Ms], Ms.length + 1]);
+  await c.query(`insert into profiles (id, username, full_name, status) select id, 'pipm' || row_number() over (), 'M', 'pending_review' from unnest($1::uuid[]) as id`, [[C, ...Ms]]);
+  await c.query(`update profiles set status='draft' where id=$1`, [C]);
+  for (const m of Ms) await as(c, ADMIN, `select approve_profile($1)`, [m]);
+  await expectOk(c, 'a member not in the hall is not eligible and has 0', C, `select my_pips() as p`, [], (r) => r.rows[0].p.eligible === false && r.rows[0].p.balance === 0);
+  await expectOk(c, 'a member not in the hall earns nothing for discovering', C, `select discover_card($1) as d`, [A], (r) => r.rows[0].d.granted === false);
+  await expectSu(c, '…and nothing is recorded for them', `select count(*)::int as n from discoveries where member_id=$1`, [C], (r) => r.rows[0].n === 0);
+  await expectOk(c, 'discovering a member not in the hall grants nothing', A, `select discover_card($1) as d`, [C], (r) => r.rows[0].d.granted === false);
+
+  // Daily cap: pretend A already earned 95 discovery PIPs today.
+  await c.query(`insert into pip_ledger (member_id, amount, reason, ref) select $1, 5, 'discover', 'cap-test-' || i from generate_series(1, 18) as i`, [A]);
+  await expectOk(c, 'the discovery that reaches the daily cap of 100 still pays', A, `select discover_card($1) as d`, [Ms[0]], (r) => r.rows[0].d.amount === 5);
+  await expectOk(c, 'past the daily cap a discovery pays 0…', A, `select discover_card($1) as d`, [Ms[1]], (r) => r.rows[0].d.granted === false && r.rows[0].d.new === true);
+  await expectSu(c, '…but still counts toward achievements', `select count(*)::int as n from discoveries where member_id=$1`, [A], (r) => r.rows[0].n === 3);
+  for (const m of Ms.slice(2, 8)) await as(c, A, `select discover_card($1)`, [m]);
+  await expectOk(c, 'the 10th discovery unlocks Explorer (+100) once', A, `select discover_card($1) as d`, [Ms[8]], (r) => r.rows[0].d.unlocked.includes('explorer'));
+  await expectSu(c, 'Explorer is recorded once', `select count(*)::int as n from pip_ledger where member_id=$1 and ref='achievement:explorer'`, [A], (r) => r.rows[0].n === 1);
+
+  // Backfill and caps run through reward_approval (the migration calls it for every card in the hall).
+  await c.query(`delete from pip_ledger where member_id=$1`, [Ms[9]]);
+  await c.query(`delete from member_achievements where member_id=$1`, [Ms[9]]);
+  await c.query(`select reward_approval($1)`, [Ms[9]]);
+  await c.query(`select reward_approval($1)`, [Ms[9]]);
+  await expectOk(c, 'backfill gives an approved member their rewards exactly once', Ms[9], `select my_pips() as p`, [], (r) => r.rows[0].p.balance === 150);
+  await c.query(`insert into pip_ledger (member_id, amount, reason, ref) select $1, 25, 'project_live', 'cap-proj-' || i from generate_series(1, 12) as i`, [Ms[9]]);
+  await c.query(`insert into projects (profile_id, title) values ($1, 'Thirteenth')`, [Ms[9]]);
+  await c.query(`select reward_approval($1)`, [Ms[9]]);
+  await expectSu(c, 'project rewards stop at 12 per member', `select count(*)::int as n from pip_ledger where member_id=$1 and reason='project_live'`, [Ms[9]], (r) => r.rows[0].n === 12);
+
+  await as(c, ADMIN, `select unpublish_profile($1)`, [Ms[0]]);
+  await expectOk(c, 'an unpublished member keeps their PIPs but stops earning', Ms[0], `select my_pips() as p`, [], (r) => r.rows[0].p.eligible === false && r.rows[0].p.balance === 150);
+  await expectOk(c, "an unpublished member's achievements are no longer public", 'anon', `select * from member_achievements where member_id=$1`, [Ms[0]], (r) => r.rowCount === 0);
 
   console.log('account deletion');
   await expectErr(c, 'anon cannot call delete_my_account', 'anon', `select delete_my_account()`, [], /permission denied/);

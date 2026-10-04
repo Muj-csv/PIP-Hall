@@ -14,7 +14,58 @@ export interface MockDb {
   githubHandle: string | null;
   /** Set once delete_my_account() ran. */
   deletedAccount?: boolean;
+  /** PIP Progression E1 (mirrors supabase/migrations/*_pips_core.sql). */
+  ledger?: Row[];
+  discoveries?: Row[];
+  memberAchievements?: Row[];
 }
+
+export const ACHIEVEMENTS = [
+  { key: 'first_card', name: 'Card Holder', description: 'Your card was approved for the first time.', reward: 50, sort: 1 },
+  { key: 'first_project', name: 'First Quest', description: 'Your first project went live.', reward: 50, sort: 2 },
+  { key: 'builder', name: 'Builder', description: '5 of your projects went live.', reward: 150, sort: 3 },
+  { key: 'explorer', name: 'Explorer', description: 'You discovered 10 members.', reward: 100, sort: 4 },
+  { key: 'hall_walker', name: 'Hall Walker', description: 'You discovered 50 members.', reward: 200, sort: 5 },
+];
+
+function grant(db: MockDb, member: string, amount: number, reason: string, ref: string): boolean {
+  db.ledger ??= [];
+  if (db.ledger.some((r) => r.member_id === member && r.ref === ref)) return false;
+  db.ledger.push({ id: db.ledger.length + 1, member_id: member, amount, reason, ref, created_at: new Date(Date.now() + db.ledger.length).toISOString() });
+  return true;
+}
+
+function checkAchievements(db: MockDb, member: string): string[] {
+  db.memberAchievements ??= [];
+  const live = (db.ledger ?? []).filter((r) => r.member_id === member && r.reason === 'project_live').length;
+  const found = (db.discoveries ?? []).filter((r) => r.member_id === member).length;
+  const hold: Record<string, boolean> = {
+    first_card: (db.ledger ?? []).some((r) => r.member_id === member && r.ref === 'first_approval'),
+    first_project: live >= 1,
+    builder: live >= 5,
+    explorer: found >= 10,
+    hall_walker: found >= 50,
+  };
+  const unlocked: string[] = [];
+  for (const a of ACHIEVEMENTS) {
+    if (!hold[a.key] || db.memberAchievements.some((r) => r.member_id === member && r.key === a.key)) continue;
+    db.memberAchievements.push({ member_id: member, key: a.key });
+    grant(db, member, a.reward, 'achievement', `achievement:${a.key}`);
+    unlocked.push(a.key);
+  }
+  return unlocked;
+}
+
+export function rewardApproval(db: MockDb, member: string): void {
+  grant(db, member, 100, 'first_approval', 'first_approval');
+  for (const p of db.projects.filter((r) => r.profile_id === member)) {
+    if ((db.ledger ?? []).filter((r) => r.member_id === member && r.reason === 'project_live').length >= 12) break;
+    grant(db, member, 25, 'project_live', `project:${String(p.id)}`);
+  }
+  checkAchievements(db, member);
+}
+
+const balanceOf = (db: MockDb, member: string) => (db.ledger ?? []).filter((r) => r.member_id === member).reduce((n, r) => n + Number(r.amount), 0);
 
 export function emptyDb(githubHandle: string | null = null): MockDb {
   return { profiles: [], projects: [], published: [], uploads: [], githubHandle };
@@ -198,6 +249,7 @@ export async function handleDb(route: Route, db: MockDb, user: DbUser): Promise<
       const row = { profile_id: p.id, username: p.username, card: buildCard(db, p), is_featured: Boolean(p.is_featured), published_at: new Date().toISOString(), member_no: no };
       if (live) Object.assign(live, row);
       else db.published.push(row);
+      rewardApproval(db, String(p.id));
     } else if (fn === 'reject_profile') {
       if (!args.p_note?.trim()) return (await err(400, 'P0001', 'NOTE_REQUIRED')), true;
       if (!p || p.status !== 'pending_review') return (await err(400, 'P0001', 'NOT_PENDING')), true;
@@ -229,6 +281,30 @@ export async function handleDb(route: Route, db: MockDb, user: DbUser): Promise<
     const p = db.profiles.find((r) => r.id === userId);
     if (p) p.github_username = db.githubHandle;
     return (await json(200, db.githubHandle)), true;
+  }
+
+  const inHall = (id: string) => db.published.some((r) => r.profile_id === id);
+  if (url.pathname === '/rest/v1/rpc/my_pips') return (await json(200, { eligible: inHall(userId), balance: balanceOf(db, userId) })), true;
+  if (url.pathname === '/rest/v1/rpc/discover_card') {
+    const card = String(body().p_card);
+    const none = { granted: false, amount: 0, unlocked: [], balance: balanceOf(db, userId) };
+    if (card === userId || !inHall(userId) || !inHall(card)) return (await json(200, none)), true;
+    db.discoveries ??= [];
+    if (db.discoveries.some((r) => r.member_id === userId && r.card_id === card)) return (await json(200, { ...none, new: false })), true;
+    db.discoveries.push({ member_id: userId, card_id: card });
+    const today = (db.ledger ?? []).filter((r) => r.member_id === userId && r.reason === 'discover').reduce((n, r) => n + Number(r.amount), 0);
+    const paid = today + 5 <= 100 && grant(db, userId, 5, 'discover', `discover:${card}`);
+    const unlocked = checkAchievements(db, userId);
+    return (await json(200, { granted: paid, new: true, amount: paid ? 5 : 0, unlocked, balance: balanceOf(db, userId) })), true;
+  }
+  if (url.pathname === '/rest/v1/pip_ledger' && method === 'GET') {
+    const rows = (db.ledger ?? []).filter((r) => r.member_id === userId).sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+    return (await json(200, rows.slice(0, Number(url.searchParams.get('limit') ?? 50)))), true;
+  }
+  if (url.pathname === '/rest/v1/achievements' && method === 'GET') return (await json(200, ACHIEVEMENTS)), true;
+  if (url.pathname === '/rest/v1/member_achievements' && method === 'GET') {
+    const rows = filterRows(db.memberAchievements ?? [], url).filter((r) => inHall(String(r.member_id)));
+    return (await json(200, rows)), true;
   }
 
   if (url.pathname === '/rest/v1/rpc/delete_my_account') {

@@ -13,7 +13,7 @@ The original spec is in `docs/spec/`. Where it conflicts with the files above, t
 - Stack: React + Vite + TypeScript (strict) + Tailwind 4 + React Router + Supabase. Carousel springs, swing and sprites are hand-written on one `requestAnimationFrame` loop (D-031); no Motion, no Embla (ADR-001), no state library, no UI kit, no paid services.
 - Styling only through `src/styles/theme.css` tokens (generated from `docs/design/tokens.json` — edit the JSON and re-export, never the CSS). No raw hex in components, no stock palette classes, no `border-radius`, no blurred shadows.
 - Only `src/services/*` import the Supabase client. Components never call Supabase or `fetch` directly.
-- Never put the service-role key, OAuth secrets, or any secret in code, `.env` committed files, or chat. Client env is `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_DATA_SOURCE`, `VITE_PUBLIC_ORIGIN`.
+- Never put the service-role key, OAuth secrets, or any secret in code, `.env` committed files, or chat. Client env is `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_DATA_SOURCE`, `VITE_PUBLIC_ORIGIN`, and the public feature switch `VITE_FEATURE_PIPS` (`on`/`off`, D-058).
 - Database changes = a new file in `supabase/migrations/` + new cases in `supabase/tests/security.test.mjs`. All tests must pass.
 - Public pages read `published_cards` only (ADR-002). Moderation happens only through the SQL functions.
 - The stage is a Mario-era *style* platformer level (D-020), but no Mario, no Nintendo characters, items, logos, sounds, music, level art, console silhouettes or button layouts. No art copied from the two references. All pixel art is original and lives in `src/lib/sprites.ts`.
