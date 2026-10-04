@@ -19,8 +19,8 @@ The build sandbox's network policy blocks the live URL and the Supabase project,
 | 9 | No secrets in the bundle or repo | ✅ full git history, tracked files and `dist/` scanned for service-role / secret keys, OAuth secrets, tokens: none. Only `.env.example` is tracked | — |
 | 10 | Loading, empty and error states seen on every route | ✅ Phase 5 audit + route error screen; e2e covers empty and error for hall, explore, member, admin, settings | — |
 | 11 | Google consent screen In production; tested with an account that isn't yours | — Google Cloud console | [ ] |
-| 12 | Keepalive workflow green | ❌ **Ran once (manual): it skipped because `SUPABASE_URL` / `SUPABASE_ANON_KEY` secrets aren't set, yet showed green.** Fixed: it now fails when they're missing | [ ] add the two secrets, Actions → Keepalive → Run workflow, see green |
-| 13 | AEGIS Council on the finished app → CLEAR or HOLD with only accepted items | **HOLD (self-reviewed)**: one P1 = row 12. See `docs/design/COUNCIL_2026-10-05_gate2.md` | clears with row 12 |
+| 12 | Keepalive workflow green | ✅ Secrets added by the owner; manual run #2 (5 Oct, 01:36 PHT) read `published_cards`: `HTTP 200`. The workflow now fails if the secrets go missing | ✅ |
+| 13 | AEGIS Council on the finished app → CLEAR or HOLD with only accepted items | **CLEAR (self-reviewed)** after row 12 cleared. See `docs/design/COUNCIL_2026-10-05_gate2.md` | — |
 | 14 | README: what it is, live URL, screenshots, how to run, credits | ✅ live URL, production screenshots, setup, credits | — |
 
 ## Checks run on latest `main`
