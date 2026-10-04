@@ -5,10 +5,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { DialogueBox } from '../components/dialogue/DialogueBox';
 import { MenuPage } from '../components/shell/MenuPage';
-import { memberPath } from '../lib/publicUrl';
+import { exhibitPath, memberPath } from '../lib/publicUrl';
 import { shuffle } from '../lib/shuffle';
 import { museumService } from '../services/museumService';
-import { publicImageUrl } from '../services/storageService';
+import { ExhibitArt } from '../components/museum/ExhibitArt';
 import type { Exhibit } from '../types/museum';
 
 type Load = { status: 'loading' } | { status: 'error' } | { status: 'ready'; exhibits: Exhibit[] };
@@ -77,22 +77,17 @@ export default function Museum() {
 
 function ExhibitFrame({ exhibit: e }: { exhibit: Exhibit }) {
   const p = e.project;
-  const cover = publicImageUrl('project-covers', p.cover_path);
   const facts = [p.language, ...p.tech_stack].filter(Boolean).slice(0, 4).join(' · ');
   return (
     <article className="exhibit" aria-labelledby={`ex-${e.project_id}`}>
-      <div className="exhibit-frame">
-        {cover ? (
-          <img src={cover} alt="" className="exhibit-art" loading="lazy" />
-        ) : (
-          <div className="exhibit-art exhibit-art-blank" aria-hidden="true">
-            <span>{p.title.slice(0, 1).toUpperCase()}</span>
-          </div>
-        )}
-      </div>
+      <Link to={exhibitPath(e.project_id)} className="exhibit-art-link" tabIndex={-1} aria-hidden="true">
+        <ExhibitArt project={p} />
+      </Link>
       <div className="exhibit-plaque">
         <h2 id={`ex-${e.project_id}`} className="m-0 font-display text-h3 font-normal">
-          {p.title}
+          <Link to={exhibitPath(e.project_id)} className="exhibit-title-link">
+            {p.title}
+          </Link>
         </h2>
         {p.description && <p className="m-0">{p.description}</p>}
         {facts && <p className="m-0 text-caption text-text-secondary">{facts}</p>}
@@ -103,21 +98,6 @@ function ExhibitFrame({ exhibit: e }: { exhibit: Exhibit }) {
           </Link>{' '}
           <span className="text-text-secondary">· No.{String(e.member_no).padStart(3, '0')}</span>
         </p>
-        {(p.project_url || p.github_url) && (
-          <p className="m-0 flex flex-wrap gap-space-3">
-            {p.project_url && (
-              <a href={p.project_url} target="_blank" rel="noopener noreferrer" className="exhibit-link">
-                Open {p.title}
-                <span className="sr-only"> (opens in a new tab)</span>
-              </a>
-            )}
-            {p.github_url && (
-              <a href={p.github_url} target="_blank" rel="noopener noreferrer" className="exhibit-link">
-                Code<span className="sr-only"> for {p.title} on GitHub (opens in a new tab)</span>
-              </a>
-            )}
-          </p>
-        )}
       </div>
     </article>
   );

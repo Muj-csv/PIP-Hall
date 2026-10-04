@@ -1400,12 +1400,43 @@ textarea.pixel-input {
   background: var(--color-surface);
   border: 3px solid var(--color-border);
 }
-.exhibit-link {
+.exhibit-art-link {
+  display: block;
+}
+.exhibit-title-link {
   display: inline-block;
-  padding: 11px 0;
-  line-height: 22px;
+  padding: 8px 0;
   text-decoration: underline;
   text-decoration-thickness: 2px;
+}
+/* /museum/:id (D-073): the exhibit large, the plaque beside it on wide screens. */
+.exhibit-page {
+  display: grid;
+  gap: 24px;
+  align-items: start;
+}
+@media (min-width: 768px) {
+  .exhibit-page {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  }
+}
+.exhibit-facts {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+}
+.exhibit-facts > div {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 8px;
+}
+.exhibit-facts dt {
+  font-family: var(--font-display);
+  letter-spacing: 0.04em;
+}
+.exhibit-facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
 }
 
 /* ---------------------------------------------------------------- hall search (FR-13, D-072) */
