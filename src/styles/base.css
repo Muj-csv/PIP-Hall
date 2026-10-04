@@ -1335,6 +1335,24 @@ textarea.pixel-input {
   border-bottom: 2px dashed var(--color-border);
 }
 
+/* Admin → Affiliations → Museum summary */
+.summary-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.summary-table th,
+.summary-table td {
+  padding: 8px 8px 8px 0;
+  text-align: left;
+  border-bottom: 2px dashed var(--color-border);
+  font-weight: normal;
+}
+.summary-table thead th {
+  font-family: var(--font-display);
+  letter-spacing: 0.04em;
+  border-bottom-style: solid;
+}
+
 /* ---------------------------------------------------------------- museum (D-069) */
 .museum-grid {
   display: grid;

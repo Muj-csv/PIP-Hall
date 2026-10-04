@@ -308,7 +308,7 @@ export function CardEditor({ user, initial, onSignOut }: Props) {
           <ManualProjectForm disabled={form.projects.length >= LIMITS.projects} onAdd={(p) => setProjects((ps) => [...ps, p])} />
         </Panel>
 
-        {mine.hasLiveCard && <MuseumPanel projects={mine.projects} />}
+        {mine.hasLiveCard && <MuseumPanel />}
 
         <Panel label="Account">
           <h2 className="panel-title">Account</h2>

@@ -77,7 +77,7 @@ Do these on the live URL and keep a screenshot of each.
 
 ## MUSEUM and affiliations
 
-1. Supabase **SQL editor:** run `supabase/migrations/20261005000100_museum.sql` (after `…_pips_core.sql`). It also adds project ids to the cards already in the hall, so their projects can go in the Museum. Then run `…_museum_relink.sql`: it links projects that were renamed after approval (by GitHub link, project link, or title ignoring case). A project deleted since approval can only come back by resubmitting the card and approving it.
+1. Supabase **SQL editor:** run `supabase/migrations/20261005000100_museum.sql` (after `…_pips_core.sql`). It also adds project ids to the cards already in the hall, so their projects can go in the Museum. Then run `…_museum_relink.sql` and `…_museum_follows_card.sql`, in that order. Together they give every project on an approved card an id (matching renamed projects by GitHub link, project link or title), and make the Museum follow the approved card: editing the draft never changes the Museum; the next approval does. Both are safe to run on a database that already has cards; `npm run test:db` proves it with an upgrade test.
 2. In the app: **Admin → Affiliations**, add e.g. "CS Student" with **Gives Museum access**, and your organization as a label. Then **Published**, pick a member, and tick their affiliations.
 3. That member opens **My card**: a **Museum** panel lists their approved projects; ticking one puts it on `/museum` straight away.
 

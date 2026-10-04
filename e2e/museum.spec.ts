@@ -95,3 +95,31 @@ test('losing access takes exhibits down; an empty Museum says so', async ({ page
   await page.goto('/museum');
   await expect(page.locator('.dialogue .sr-only')).toContainText('waiting for its first exhibit');
 });
+
+test('the panel lists the approved card: a project removed from the draft stays in the Museum until re-approval', async ({ page }) => {
+  const db = hall();
+  grantMuseum(db);
+  db.museumEntries = [{ project_id: P2, member_id: ME.id }];
+  db.projects = db.projects.filter((p) => p.id !== P2); // edited out of the draft, not yet re-approved
+  await mockSupabase(page, { user: ME, db, githubRepos: [] });
+  await page.goto('/edit');
+  const panel = page.getByRole('region', { name: 'Museum' });
+  await expect(panel.getByLabel(/Show Pixel Diary in the Museum/)).toBeChecked();
+  await expect(panel.getByLabel(/Show Tide Tables in the Museum/)).not.toBeChecked();
+
+  await page.goto('/museum');
+  await expect(exhibits(page)).toHaveCount(1);
+  await expect(exhibits(page).first()).toContainText('Pixel Diary');
+});
+
+test('admin sees who has Museum access and how many exhibits they show', async ({ page }) => {
+  const db = hall();
+  grantMuseum(db);
+  db.museumEntries = [{ project_id: P1, member_id: ME.id }];
+  await mockSupabase(page, { user: ADMIN, db });
+  await page.goto('/admin');
+  await page.getByRole('tab', { name: 'Affiliations' }).click();
+  const summary = page.getByRole('region', { name: 'Museum' });
+  await expect(summary.getByRole('status')).toHaveText('1 member has Museum access · 1 exhibit on show');
+  await expect(summary.getByRole('row', { name: /Ada Lovelace/ })).toContainText('2');
+});
