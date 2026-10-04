@@ -1,9 +1,10 @@
 // The PIP-Hall level inside the PIXENDO handheld (brief §3, §7, §15). One animation loop steps the
 // camera, swings every badge, walks and jumps Pip, and draws the world; React only re-renders when
-// the current player, flips, coins or the dialogue line change.
+// the current player, flips, coins or the dialogue line change. Search and filters (HallSearch,
+// D-072) narrow which badges hang in the level; they live in the address like /explore did.
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useLocation, useNavigate, useSearchParams } from 'react-router';
 import { memberPath } from '../../lib/publicUrl';
 import { slotLook, slotX } from '../../lib/carousel';
 import { cssVarReader } from '../../lib/sprites';
@@ -12,6 +13,7 @@ import { useCards } from '../../lib/useCards';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { usePips } from '../../lib/usePips';
 import { discoverLine } from '../../lib/pips';
+import { facets, filtersFromParams, filtersToParams, indexCards, isFiltered, NO_FILTERS, randomCard, search, type Filters } from '../../lib/search';
 import { useTheme } from '../../app/themeContext';
 import type { PublicCard } from '../../types/card';
 import { QrFullscreen } from '../cards/QrFullscreen';
@@ -36,6 +38,7 @@ import {
   type Hero,
   type WorldAssets,
 } from '../world/world';
+import { HallSearch } from './HallSearch';
 import { Hud } from './Hud';
 import { MissingScreen, ProfileScreen } from './ProfileScreen';
 
@@ -57,8 +60,26 @@ interface HallProps {
 
 export function Hall({ profile = null }: HallProps) {
   const cardsState = useCards();
-  const cards = useMemo(() => (cardsState.status === 'ready' ? cardsState.cards : []), [cardsState]);
+  const all = useMemo(() => (cardsState.status === 'ready' ? cardsState.cards : []), [cardsState]);
+
+  // ---- search and filters (D-072)
+  const [params, setParams] = useSearchParams();
+  const location = useLocation();
+  const query = params.toString();
+  const filters = useMemo(() => filtersFromParams(new URLSearchParams(query)), [query]);
+  const searchIndex = useMemo(() => indexCards(all), [all]);
+  const options = useMemo(() => facets(all), [all]);
+  const cards = useMemo(() => {
+    if (!isFiltered(filters)) return all;
+    const hits = search(searchIndex, filters);
+    // A shared /member link with filters that leave that member out still shows them.
+    const want = profile?.toLowerCase();
+    if (want && !hits.some((c) => c.username === want) && all.some((c) => c.username === want)) return all;
+    return hits;
+  }, [all, searchIndex, filters, profile]);
   const count = cards.length;
+  const setFilters = useCallback((patch: Partial<Filters>) => setParams(filtersToParams({ ...filters, ...patch }), { replace: true }), [filters, setParams]);
+  const clearFilters = useCallback(() => setParams(filtersToParams(NO_FILTERS), { replace: true }), [setParams]);
   const reduce = useReducedMotion();
   const { theme } = useTheme();
 
@@ -78,10 +99,13 @@ export function Hall({ profile = null }: HallProps) {
   const [qrCard, setQrCard] = useState<PublicCard | null>(null);
   const [ledBlink, setLedBlink] = useState(false);
 
+  /** The player at the current index, so a new search can keep them in front if they still match. */
+  const currentUser = useRef<string | null>(null);
   const onIndexChange = useCallback(
     (i: number, n: number) => {
       const c = cards[i];
       if (!c) return;
+      currentUser.current = c.username;
       if (i === n - 1 && n > 1) setLine({ text: 'Last player in this world. The flag means you met everyone.' });
       else setLine({ text: `Player ${i + 1}: ${titleCase(c.card.full_name)}. Tap to flip.` });
     },
@@ -168,16 +192,50 @@ export function Hall({ profile = null }: HallProps) {
     const c = l.cards[indexRef.current];
     if (!c || l.mode !== 'level') return;
     openedHere.current = true;
-    navigate(memberPath(c.username));
-  }, [indexRef, navigate]);
+    navigate({ pathname: memberPath(c.username), search: location.search });
+  }, [indexRef, navigate, location.search]);
 
   const closeProfile = useCallback(() => {
     if (live.current.mode === 'level') return;
     if (openedHere.current) {
       openedHere.current = false;
       navigate(-1);
-    } else navigate('/');
-  }, [navigate]);
+    } else navigate({ pathname: '/', search: location.search });
+  }, [navigate, location.search]);
+
+  // A new search changes which badges hang: stay on the same player if they still match,
+  // otherwise start at the first match. The camera cuts there instead of walking the level.
+  // A layout effect, so it runs before the carousel trims its index to the shorter list.
+  useLayoutEffect(() => {
+    if (!cards.length) return;
+    if (currentUser.current === null) {
+      currentUser.current = cards[indexRef.current]?.username ?? null; // first load: nothing to keep
+      return;
+    }
+    const i = Math.max(0, cards.findIndex((c) => c.username === currentUser.current));
+    if (i !== indexRef.current || cards[i]?.username !== currentUser.current) {
+      go(i);
+      camRef.current.x = slotX(i);
+      camRef.current.v = 0;
+    }
+    // go() reports through the carousel's options, which still hold the old list at this point.
+    const c = cards[i];
+    if (c) {
+      currentUser.current = c.username;
+      setLine({ text: `Player ${i + 1} of ${cards.length}: ${titleCase(c.card.full_name)}. Tap to flip.` });
+    }
+  }, [cards, go, indexRef, camRef]);
+
+  const randomPlayer = useCallback(() => {
+    const l = live.current;
+    if (l.mode !== 'level' || l.cards.length === 0) return;
+    const others = l.cards.length > 1 ? l.cards.filter((_, i) => i !== indexRef.current) : l.cards;
+    const pick = randomCard(others);
+    if (!pick) return;
+    go(l.cards.indexOf(pick));
+    setLine({ text: `Random player: ${titleCase(pick.card.full_name)}! Tap to flip, or OPEN for the profile.` });
+    screenRef.current?.focus({ preventScroll: true });
+  }, [go, indexRef]);
 
   // Syncs the screen to the address (an external system): state set here is the response to a
   // navigation, not derived data, so the effect is the right place for it.
@@ -425,7 +483,15 @@ export function Hall({ profile = null }: HallProps) {
         RETRY
       </button>
     );
-  } else if (count === 0) shown = { text: 'No players in the hall yet. Make your card and be the first!' };
+  } else if (all.length === 0) shown = { text: 'No players in the hall yet. Make your card and be the first!' };
+  else if (count === 0) {
+    shown = { text: 'Nobody matches that. Try fewer words, or clear a filter.', emote: 'attention' };
+    action = (
+      <button type="button" className="hw-btn" data-variant="small" onClick={clearFilters}>
+        CLEAR
+      </button>
+    );
+  }
 
   const current = cards[car.index];
   // Opening someone's profile is a discovery (E1, FR-E1-02). Pays once; Pip says so on the screen.
@@ -497,6 +563,16 @@ export function Hall({ profile = null }: HallProps) {
 
   return (
     <>
+      <HallSearch
+        filters={filters}
+        onChange={setFilters}
+        onClear={clearFilters}
+        onRandom={randomPlayer}
+        options={options}
+        shown={count}
+        total={all.length}
+        ready={cardsState.status === 'ready'}
+      />
       <HandheldShell
         screen={screen}
         onPrev={() => go(indexRef.current - 1)}

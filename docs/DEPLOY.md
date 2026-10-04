@@ -66,7 +66,7 @@ Do these on the live URL and keep a screenshot of each.
 - [ ] **Android (Chrome):** open the site, tap **Install PIP-Hall** at the bottom of the hall (or Chrome's menu → Install app). It opens full screen from the home screen icon.
 - [ ] **iPhone (Safari):** tap **Install PIP-Hall** for the steps: Share → Add to Home Screen → Add. It opens full screen.
 - [ ] **Offline:** open the hall once, turn on airplane mode, reopen the installed app: the hall and pages you've visited still load.
-- [ ] **Explore:** search for a member by name, @handle, skill and a project title.
+- [ ] **Search the hall:** search for a member by name, @handle, skill and a project title; the hall shows only the matches, and they still flip and OPEN.
 - [ ] **Delete account:** with a test account, Settings → Delete account. Its card disappears from `/` and `/member/<username>` says "No card here".
 
 ## PIP Progression (E1) — when you're ready to turn it on
