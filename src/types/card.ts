@@ -42,10 +42,12 @@ export interface PublishedCardRow {
   card: CardData;
   is_featured: boolean;
   published_at: string;
+  /** Stable member number, assigned at first approval and never reused (D-034). */
+  member_no: number;
 }
 
-/** What the UI renders: a published card plus its place in the hall. */
+/** What the UI renders: a published card plus its badge number. */
 export interface PublicCard extends PublishedCardRow {
-  /** Member number, 1-based, in approval order. */
+  /** The number printed on the badge (= member_no). */
   no: number;
 }

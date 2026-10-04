@@ -96,6 +96,9 @@ try {
   await expectErr(c, 'reject needs a note', ADMIN, `select reject_profile($1, '  ')`, [A], /NOTE_REQUIRED/);
   await expectOk(c, 'admin sees pending drafts', ADMIN, `select status from profiles where id=$1`, [A], (r) => r.rows[0].status === 'pending_review');
   await expectOk(c, 'admin approves', ADMIN, `select approve_profile($1)`, [A]);
+  await expectOk(c, 'first approval gets member No.1', 'anon', `select member_no from published_cards where profile_id=$1`, [A], (r) => r.rows[0].member_no === 1);
+  await expectErr(c, 'member cannot write member_no', A, `update profiles set member_no=99 where id=$1`, [A], /permission denied/);
+  await expectErr(c, 'member cannot use the member number sequence', A, `select nextval('member_no_seq')`, [], /permission denied/);
   await expectOk(c, 'anon sees the published card with projects', 'anon', `select card from published_cards where username='muj-csv'`, [], (r) => r.rowCount === 1 && r.rows[0].card.projects.length === 2 && r.rows[0].card.github_username === 'Muj-csv');
   await expectOk(c, 'hidden email stays out of the public card', 'anon', `select card->'public_email' as e from published_cards`, [], (r) => r.rows[0].e === null);
   await expectOk(c, 'public card carries the storage paths', 'anon', `select card from published_cards`, [], (r) => r.rows[0].card.avatar_path === `${A}/${IMG}` && r.rows[0].card.projects.some((p) => p.cover_path === `${A}/${IMG}`) && !('avatar_url' in r.rows[0].card));
@@ -120,6 +123,13 @@ try {
   await expectOk(c, 'public card follows the rename', 'anon', `select username from published_cards`, [], (r) => r.rows[0].username === 'sensei');
   await expectOk(c, 'admin unpublishes', ADMIN, `select unpublish_profile($1)`, [A]);
   await expectOk(c, 'unpublished card is gone for visitors', 'anon', `select * from published_cards`, [], (r) => r.rowCount === 0);
+  await expectOk(c, 'second member submits', B, `select submit_for_review()`, []);
+  await expectOk(c, 'second member gets member No.2', ADMIN, `select approve_profile($1)`, [B]);
+  await expectOk(c, 'No.2 is on their public card', 'anon', `select member_no from published_cards where profile_id=$1`, [B], (r) => r.rows[0].member_no === 2);
+  await expectOk(c, 'unpublished member edits and resubmits', A, `update profiles set bio='Back again' where id=$1 returning status`, [A], (r) => r.rows[0].status === 'draft');
+  await as(c, A, `select submit_for_review()`);
+  await expectOk(c, 're-approval keeps member No.1', ADMIN, `select approve_profile($1)`, [A]);
+  await expectOk(c, 'public card shows No.1 again', 'anon', `select member_no from published_cards where profile_id=$1`, [A], (r) => r.rows[0].member_no === 1);
   await expectErr(c, 'anon cannot write public cards', 'anon', `insert into published_cards (profile_id, username, card) values ($1,'x','{}')`, [B], /permission denied/);
 
   console.log('account deletion');

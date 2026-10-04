@@ -8,12 +8,15 @@ import '@fontsource/atkinson-hyperlegible-mono/400.css';
 import '@fontsource/atkinson-hyperlegible-mono/600.css';
 import './styles/base.css';
 import { ThemeProvider } from './app/theme';
+import { SessionProvider } from './app/session';
 import { router } from './app/router';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ThemeProvider>
-      <RouterProvider router={router} />
+      <SessionProvider>
+        <RouterProvider router={router} />
+      </SessionProvider>
     </ThemeProvider>
   </StrictMode>,
 );

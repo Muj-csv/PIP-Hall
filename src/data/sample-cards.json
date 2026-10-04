@@ -63,7 +63,8 @@
       ]
     },
     "is_featured": false,
-    "published_at": "2026-10-01T00:00:00Z"
+    "published_at": "2026-10-01T00:00:00Z",
+    "member_no": 1
   },
   {
     "profile_id": "00000000-0000-4000-8000-000000000002",
@@ -102,7 +103,8 @@
       ]
     },
     "is_featured": true,
-    "published_at": "2026-10-01T01:00:00Z"
+    "published_at": "2026-10-01T01:00:00Z",
+    "member_no": 2
   },
   {
     "profile_id": "00000000-0000-4000-8000-000000000003",
@@ -126,7 +128,8 @@
       "projects": []
     },
     "is_featured": false,
-    "published_at": "2026-10-01T02:00:00Z"
+    "published_at": "2026-10-01T02:00:00Z",
+    "member_no": 3
   },
   {
     "profile_id": "00000000-0000-4000-8000-000000000004",
@@ -232,7 +235,8 @@
       ]
     },
     "is_featured": false,
-    "published_at": "2026-10-02T03:00:00Z"
+    "published_at": "2026-10-02T03:00:00Z",
+    "member_no": 4
   },
   {
     "profile_id": "00000000-0000-4000-8000-000000000005",
@@ -269,7 +273,8 @@
       ]
     },
     "is_featured": false,
-    "published_at": "2026-10-02T04:00:00Z"
+    "published_at": "2026-10-02T04:00:00Z",
+    "member_no": 5
   },
   {
     "profile_id": "00000000-0000-4000-8000-000000000006",
@@ -321,6 +326,7 @@
       ]
     },
     "is_featured": false,
-    "published_at": "2026-10-02T05:00:00Z"
+    "published_at": "2026-10-02T05:00:00Z",
+    "member_no": 6
   }
 ]

@@ -6,11 +6,15 @@ import { numberCards } from './cardService';
 const rows = samples as PublishedCardRow[];
 
 describe('numberCards', () => {
-  it('numbers members in approval order, starting at 1', () => {
-    const shuffled = [...rows].reverse();
-    const numbered = numberCards(shuffled);
+  it('orders by the stable member number and prints it on the badge', () => {
+    const numbered = numberCards([...rows].reverse());
     expect(numbered.map((c) => c.no)).toEqual([1, 2, 3, 4, 5, 6]);
-    for (let i = 1; i < numbered.length; i++) expect(numbered[i]!.published_at >= numbered[i - 1]!.published_at).toBe(true);
+    expect(numbered.every((c) => c.no === c.member_no)).toBe(true);
+  });
+  it('keeps a member’s number when their card is re-approved later (D-034)', () => {
+    // Player 1 re-approved after everyone else: published_at moves, the number must not.
+    const moved = rows.map((r) => (r.member_no === 1 ? { ...r, published_at: '2026-12-31T00:00:00Z' } : r));
+    expect(numberCards(moved).find((c) => c.username === 'sample-player-1')!.no).toBe(1);
   });
 });
 
