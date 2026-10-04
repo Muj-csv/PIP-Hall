@@ -10,4 +10,6 @@ Status: Accepted (recommended, D-019) · 2026-10-04
 
 **Trade-offs.** We own ~200 lines of gesture code and its edge cases (momentum, resize, focus). In return: the exact layout, constant DOM size, no extra dependency.
 
+**Update (2026-10-04, D-031).** Built without Motion: the design lab's camera spring, swing pendulum and Pip all run on one `requestAnimationFrame` loop that writes transforms straight to the DOM, so Motion would only add weight. Only current ±2 badges render (and the ±2 around the camera while dragging).
+
 **Consequences.** `useCarousel` gets unit tests for index math; Playwright covers drag, keys and tap-vs-drag.

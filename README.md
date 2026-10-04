@@ -74,9 +74,9 @@ Status key: ✅ done · 🛠️ in progress · ⏳ planned for v1.0 (6 Oct 2026)
 | | 52 automated security tests (e.g. a member can't approve their own card) | ✅ |
 | **Design** | Design system: tokens, DAY/NIGHT themes, contrast-checked palette | ✅ |
 | | Playable design prototype: level, badge, handheld, motion | ✅ |
-| **Hall** | Side-scrolling card carousel: drag, swipe, arrow keys, ◀ ▶ controls | 🛠️ |
-| | 3D card flip with jump animation, lanyard swing, coin counter | 🛠️ |
-| | QR code on every card, with a full-screen "scan me" view | ⏳ |
+| **Hall** | Side-scrolling card carousel: drag, swipe, arrow keys, ◀ ▶ controls | ✅ (sample data) |
+| | 3D card flip with jump animation, lanyard swing, coin counter | ✅ |
+| | QR code on every card, with a full-screen "scan me" view | ✅ |
 | **Members** | Google sign-in, connect GitHub (verified handle) | ⏳ |
 | | Card editor with live preview, photo upload, generated pixel avatar | ⏳ |
 | | GitHub repo picker (up to 6) plus manual projects | ⏳ |
@@ -140,7 +140,7 @@ stateDiagram-v2
 |---|---|---|
 | UI | **React 19**, **TypeScript** (strict), **Vite** | Fast dev loop, typed components, static build |
 | Styling | **Tailwind CSS 4**, theme generated from design tokens | One source of truth for colour, type and spacing |
-| Motion | **Motion** (Framer Motion) + canvas sprites | Spring physics for cards, stepped frames for pixel art |
+| Motion | Hand-written springs on one `requestAnimationFrame` loop + canvas sprites | Spring physics for the camera and swing, stepped frames for pixel art, no animation library (D-031) |
 | Routing | **React Router** | Public and protected routes in one SPA |
 | Backend | **Supabase**: Postgres, Auth, Storage | Auth, database and file storage on one free tier; no custom server |
 | Auth | Google OAuth + linked GitHub identity | Google for contact email, GitHub for a verified handle and repos |
@@ -171,7 +171,7 @@ flowchart LR
 - **No server of our own.** The browser talks directly to Supabase. Security lives in the database: Row Level Security, column-level grants, and `security definer` functions for every state change.
 - **Drafts vs. snapshots.** `profiles` and `projects` hold private drafts. `published_cards` holds the public snapshot and is written only by admin functions ([ADR-002](docs/adr/ADR-002-published-snapshot.md)).
 - **One gateway to data.** Only modules in `src/services/` import the Supabase client, so components never touch the database directly.
-- **Custom carousel.** Built on Motion instead of a slider library, because cards hang, swing and overlap. It renders only the current card and two on each side ([ADR-001](docs/adr/ADR-001-stack-carousel.md)).
+- **Custom carousel.** Hand-written instead of a slider library, because cards hang, swing and overlap. It renders only the current card and two on each side ([ADR-001](docs/adr/ADR-001-stack-carousel.md)).
 
 ---
 

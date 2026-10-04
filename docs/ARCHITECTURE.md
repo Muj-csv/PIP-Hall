@@ -5,7 +5,7 @@ Inputs: original spec (`docs/spec/`), decisions (`docs/DECISIONS.md`), design (`
 
 ## 1. Overview
 
-A React single-page app (Vite, TypeScript, Tailwind 4, Motion) talking directly to Supabase (Postgres, Auth, Storage). No server of our own. Security lives in the database: Row Level Security, column grants, and a handful of `security definer` functions for state changes. Visitors read one public table of approved card snapshots; members edit private drafts; admins publish drafts into snapshots. Hosted as static files on Vercel, installable as a PWA.
+A React single-page app (Vite, TypeScript, Tailwind 4) talking directly to Supabase (Postgres, Auth, Storage). No server of our own. Security lives in the database: Row Level Security, column grants, and a handful of `security definer` functions for state changes. Visitors read one public table of approved card snapshots; members edit private drafts; admins publish drafts into snapshots. Hosted as static files on Vercel, installable as a PWA.
 
 ```mermaid
 flowchart LR
@@ -52,7 +52,7 @@ flowchart LR
 
 ## 3. Stack
 
-Pin exact versions at scaffold time (`npm view <pkg> version` on 4 Oct showed): React 19.3, Vite 8.3, **TypeScript 6.0.3** (not 7.x: `typescript-eslint` 8.71 supports `typescript <6.1.0`, D-028), Tailwind CSS 4.3 (`@tailwindcss/vite`), Motion 14 (`motion/react`), React Router 8.4 (library mode), `@supabase/supabase-js` 2.117, `vite-plugin-pwa` 2.0, `qrcode.react` 4.2, `browser-image-compression` 2.0, `@fontsource/jersey-10`, `@fontsource/atkinson-hyperlegible-next`, `@fontsource/atkinson-hyperlegible-mono`, Vitest 5, Playwright 1.63. If a plugin doesn't support Vite 8 yet, drop to the newest Vite it supports rather than patching.
+Pin exact versions at scaffold time (`npm view <pkg> version` on 4 Oct showed): React 19.3, Vite 8.3, **TypeScript 6.0.3** (not 7.x: `typescript-eslint` 8.71 supports `typescript <6.1.0`, D-028), Tailwind CSS 4.3 (`@tailwindcss/vite`), React Router 8.4 (library mode), `@supabase/supabase-js` 2.117, `vite-plugin-pwa` 2.0, `qrcode.react` 4.2, `browser-image-compression` 2.0, `@fontsource/jersey-10`, `@fontsource/atkinson-hyperlegible-next`, `@fontsource/atkinson-hyperlegible-mono`, Vitest 5, Playwright 1.63. If a plugin doesn't support Vite 8 yet, drop to the newest Vite it supports rather than patching.
 
 Not used, on purpose: Embla (ADR-001), a state library (local state + small hooks), a CSS component library (custom on tokens), any analytics.
 
