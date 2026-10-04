@@ -1,0 +1,736 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>PIP-Hall Build Plan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jersey+10&family=Atkinson+Hyperlegible+Next:ital,wght@0,400;0,700;1,400&family=Atkinson+Hyperlegible+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one reading column. At the top, the locked design itself: an original PIXENDO handheld with the member badge hanging inside its screen. */
+:root{
+  /* page (tokens.json, DAY) */
+  --bg:#F0ECEB; --surface:#FFFFFF; --raised:#E7E3E2;
+  --ink:#252425; --muted:#594C5D; --deco:#C9C2C0; --shadow:#252425;
+  --line:#4E475D; --accent:#BC2051; --on-accent:#FFFFFF;
+  /* device + stage */
+  --shell:#D6D5CF; --shell-shade:#BCB0A2; --bezel:#4E475D; --screen:#F0E9D3; --floor:#4B656B; --led:#62E856;
+  --scene-px:#E3D8C0; --screen-ink:#B8AE98;
+  /* stickers */
+  --gold:#E1B675; --ember:#E86537; --wood:#9A653F;
+  /* the badge: same in both worlds */
+  --card-frame:#97B5AA; --card-band:#A185AB; --card-plum:#594C5D; --card-face:#FFFFFF; --card-ink:#252425; --lanyard:#C8A9B1;
+  --card-bg:#FFFFFF; --card-muted:#594C5D; --card-screen:#F0E9D3;
+  --f-display:"Jersey 10", "Pixelify Sans", "Courier New", monospace;
+  --f-body:"Atkinson Hyperlegible Next", "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono:"Atkinson Hyperlegible Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#1C1A21; --surface:#2A2731; --raised:#35313E; --ink:#F0E9D3; --muted:#BCB0A2; --deco:#4A4555; --shadow:#0E0D11;
+  --line:#9A8FB0; --accent:#E8607F; --on-accent:#252425;
+  --shell:#3A3545; --shell-shade:#2A2731; --bezel:#151318; --screen:#2B3340; --floor:#1F2A2E;
+  --scene-px:#34404F; --screen-ink:#56657A; color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#1C1A21; --surface:#2A2731; --raised:#35313E; --ink:#F0E9D3; --muted:#BCB0A2; --deco:#4A4555; --shadow:#0E0D11;
+  --line:#9A8FB0; --accent:#E8607F; --on-accent:#252425;
+  --shell:#3A3545; --shell-shade:#2A2731; --bezel:#151318; --screen:#2B3340; --floor:#1F2A2E;
+  --scene-px:#34404F; --screen-ink:#56657A; color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{font-synthesis:none}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.55;padding-inline:16px;padding-block:0 64px}
+.wrap{max-width:780px;margin:0 auto}
+a{color:inherit;text-underline-offset:3px}
+a:focus-visible,button:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
+h1,h2,h3{text-wrap:balance;margin:0}
+p{margin:0}
+code,.mono{font-family:var(--f-mono);font-size:.88em}
+
+/* ---------- top bar ---------- */
+.top{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:baseline;justify-content:space-between;padding-block:28px 18px;border-bottom:4px solid var(--ink)}
+.brand{font-family:var(--f-display);font-size:16px;letter-spacing:.08em}
+.brand b{font-weight:400;background:var(--ink);color:var(--bg);padding:2px 6px;margin-right:6px}
+.status{font-family:var(--f-mono);font-size:13px;color:var(--muted)}
+.hero{padding-block:28px 8px;display:grid;gap:12px}
+.hero h1{font-family:var(--f-display);font-weight:400;font-size:clamp(30px,6vw,46px);line-height:1.05;letter-spacing:.01em}
+.hero p{max-width:62ch;color:var(--muted);font-size:17px}
+
+/* ---------- device ---------- */
+.step{clip-path:polygon(0 8px,4px 8px,4px 4px,8px 4px,8px 0,calc(100% - 8px) 0,calc(100% - 8px) 4px,calc(100% - 4px) 4px,calc(100% - 4px) 8px,100% 8px,100% calc(100% - 8px),calc(100% - 4px) calc(100% - 8px),calc(100% - 4px) calc(100% - 4px),calc(100% - 8px) calc(100% - 4px),calc(100% - 8px) 100%,8px 100%,8px calc(100% - 4px),4px calc(100% - 4px),4px calc(100% - 8px),0 calc(100% - 8px))}
+.device-wrap{margin-top:28px;filter:drop-shadow(8px 8px 0 var(--shadow))}
+.device{background:var(--shell);padding:14px 18px 18px;display:grid;gap:12px;box-shadow:inset 0 -6px 0 var(--shell-shade),inset 0 0 0 4px var(--shadow)}
+.dev-top{display:flex;align-items:center;gap:10px;padding-inline:6px;font-family:var(--f-display);font-weight:700;font-size:16px;letter-spacing:.14em;color:var(--muted)}
+.led{width:10px;height:10px;background:var(--led);box-shadow:0 0 0 2px var(--shadow)}
+.led.off{background:var(--shell-shade)}
+.dev-top .grille{margin-left:auto;display:flex;gap:4px}
+.dev-top .grille i{width:4px;height:4px;background:var(--shell-shade);display:block}
+.bezel{background:var(--bezel);padding:14px}
+.screen{position:relative;background:var(--screen);overflow:hidden;touch-action:pan-y;user-select:none;-webkit-user-select:none}
+.scene{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.scene .px{fill:var(--scene-px)}
+.stage{position:relative;display:flex;justify-content:center;align-items:flex-start;padding-bottom:24px}
+.ghost{width:190px;flex:none;margin-top:96px;display:grid;justify-items:center;opacity:.55}
+.ghost .gl{width:10px;height:72px;background:var(--lanyard);box-shadow:inset -3px 0 0 rgba(0,0,0,.12)}
+.ghost .gb{width:100%;height:250px;background:var(--screen);border:4px dashed var(--screen-ink);display:grid;place-items:center;font-family:var(--f-display);font-weight:700;font-size:16px;color:var(--muted);text-align:center;padding:12px}
+.ghost.l{transform:translateX(56px) scale(.86)}
+.ghost.r{transform:translateX(-56px) scale(.86)}
+.floor{position:absolute;left:0;right:0;bottom:0;height:22px;background:var(--floor);box-shadow:inset 0 4px 0 rgba(0,0,0,.18)}
+.hw{display:flex;flex-wrap:wrap;justify-content:center;gap:10px}
+.hw button{font-family:var(--f-display);font-weight:700;font-size:16px;letter-spacing:.08em;min-height:44px;padding:0 16px;background:var(--bezel);color:#F0E9D3;border:0;cursor:pointer;box-shadow:0 4px 0 var(--shadow);transition:transform 120ms,box-shadow 120ms}
+.hw button.a{background:#BC2051;color:#FFFFFF}
+.hw button:hover{transform:translateY(-1px);box-shadow:0 5px 0 var(--shadow)}
+.hw button:active{transform:translateY(3px);box-shadow:0 1px 0 var(--shadow)}
+.hw button:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
+
+/* ---------- dialogue ---------- */
+.dialogue{position:relative;z-index:5;display:flex;gap:10px;align-items:stretch;margin:0 12px 34px}
+.portrait{flex:none;width:64px;height:64px;background:var(--card-frame);box-shadow:inset 0 0 0 3px #252425;display:grid;place-items:center}
+.portrait canvas{width:48px;height:48px;image-rendering:pixelated}
+.bubble{flex:1;min-width:0;background:#FFFFFF;color:#252425;box-shadow:inset 0 0 0 3px #252425;padding:10px 34px 10px 14px;font-family:var(--f-display);font-weight:600;font-size:19px;line-height:1.3;position:relative;display:flex;align-items:center}
+.bubble::after{content:"▼";position:absolute;right:12px;bottom:6px;font-size:11px;animation:blink 1s steps(2) infinite}
+@keyframes blink{50%{opacity:0}}
+
+/* ---------- badge ---------- */
+.badge-slot{position:relative;z-index:3;width:300px;max-width:calc(100vw - 112px);flex:none;transform-origin:50% 0;transition:transform 520ms cubic-bezier(.34,1.56,.64,1)}
+.badge-slot.dragging{transition:none}
+.strap{width:14px;height:44px;margin:0 auto;background:var(--lanyard);box-shadow:inset -4px 0 0 rgba(0,0,0,.12)}
+.clip{width:34px;height:30px;margin:0 auto;position:relative}
+.clip svg{display:block;width:100%;height:100%}
+.flipper{perspective:1400px;filter:drop-shadow(8px 8px 0 rgba(37,36,37,.9));margin-top:-6px}
+.card{all:unset;display:block;width:100%;aspect-ratio:3/4.15;cursor:pointer;position:relative;transform-style:preserve-3d;transition:transform 380ms cubic-bezier(.3,.7,.2,1)}
+.card:focus-visible{outline:3px dashed var(--ink);outline-offset:10px}
+.card[aria-pressed="true"]{transform:rotateY(180deg)}
+.face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;color:var(--card-ink)}
+.frame{position:absolute;inset:0;background:var(--card-frame);padding:22px 12px 12px;box-shadow:inset 0 0 0 3px var(--card-ink)}
+.back{transform:rotateY(180deg)}
+.slot{position:absolute;top:8px;left:50%;transform:translateX(-50%);width:52px;height:8px;background:var(--bezel);box-shadow:0 0 0 2px var(--card-ink)}
+.doodle{position:absolute;width:12px;height:12px}
+.inner{height:100%;background:var(--card-face);box-shadow:inset 0 0 0 3px var(--card-ink);display:flex;flex-direction:column;overflow:hidden}
+.band{background:var(--card-band);display:flex;align-items:center;gap:8px;padding:8px 10px;box-shadow:inset 0 -3px 0 var(--card-ink)}
+.mark{width:26px;height:26px;flex:none}
+.band .wm{font-family:var(--f-display);font-weight:700;font-size:19px;letter-spacing:.06em;color:var(--card-ink)}
+.pill{margin-left:auto;font-family:var(--f-display);font-weight:700;font-size:15px;background:var(--card-face);color:var(--card-ink);padding:2px 7px;box-shadow:inset 0 0 0 2px var(--card-ink)}
+.body{padding:10px 12px 10px;display:flex;flex-direction:column;gap:7px;flex:1;min-height:0}
+.photo{height:112px;background:var(--card-screen);box-shadow:inset 0 0 0 3px var(--card-ink);display:grid;place-items:center;position:relative;overflow:hidden}
+.photo::after{content:"";position:absolute;left:3px;right:3px;bottom:3px;height:12px;background:#4B656B}
+.photo canvas{width:84px;height:84px;image-rendering:pixelated;position:relative;z-index:1;top:6px}
+.c-name{font-family:var(--f-display);font-weight:700;font-size:24px;line-height:1.05;color:var(--card-ink)}
+.c-handle{font-family:var(--f-mono);font-size:12.5px;color:var(--card-plum)}
+.c-role{font-size:12.5px;color:var(--card-plum);line-height:1.3}
+.dash{height:0;border-top:3px dashed var(--card-band);margin-block:2px}
+.c-foot{margin-top:auto;display:flex;justify-content:space-between;align-items:flex-end;gap:8px}
+.links{display:flex;flex-direction:column;gap:4px}
+.lnk{font-family:var(--f-display);font-weight:700;font-size:15px;letter-spacing:.04em;padding:2px 6px;background:var(--card-face);color:var(--card-ink);box-shadow:inset 0 0 0 2px var(--card-ink);white-space:nowrap}
+.lnk.todo{box-shadow:none;outline:2px dashed var(--card-plum);outline-offset:-2px;color:var(--card-plum)}
+.qr{width:72px;height:72px;flex:none;background:#fff;padding:3px;box-shadow:inset 0 0 0 3px var(--card-ink)}
+.qr svg{display:block;width:100%;height:100%}
+.sticker{position:absolute;z-index:2;font-family:var(--f-display);font-weight:700;font-size:15px;letter-spacing:.04em;padding:5px 8px;color:var(--card-ink);box-shadow:inset 0 0 0 3px var(--card-ink),3px 3px 0 rgba(37,36,37,.35);white-space:nowrap}
+.sticker.s1{background:var(--gold);top:118px;left:-10px;transform:rotate(-8deg)}
+.sticker.s2{background:var(--ember);top:206px;right:-12px;transform:rotate(7deg)}
+.sticker.s3{background:var(--wood);color:#FFFFFF;bottom:-8px;left:22px;transform:rotate(-4deg)}
+.b-bio{font-size:13.5px;line-height:1.4;color:var(--card-ink)}
+.inv{display:grid;gap:6px}
+.inv-item{background:var(--card-screen);box-shadow:inset 0 0 0 2px var(--card-ink);padding:6px 8px;display:grid;gap:1px}
+.inv-item b{font-family:var(--f-display);font-weight:700;font-size:16px;display:flex;justify-content:space-between;gap:6px}
+.inv-item b small{font-family:var(--f-mono);font-weight:400;font-size:11px;color:var(--card-plum)}
+.inv-item span{font-size:12px;line-height:1.3;color:var(--card-plum)}
+.chips{display:flex;flex-wrap:wrap;gap:4px}
+.chip{font-family:var(--f-mono);font-size:11px;padding:0 5px;color:var(--card-ink);box-shadow:inset 0 0 0 2px var(--card-band)}
+.b-cta{margin-top:auto;font-family:var(--f-display);font-weight:700;font-size:16px;letter-spacing:.06em;text-align:center;background:#BC2051;color:#FFFFFF;padding:8px;box-shadow:inset 0 0 0 3px var(--card-ink)}
+
+/* emotes legend */
+.emotes{display:flex;flex-wrap:wrap;gap:12px}
+.emo{display:flex;align-items:center;gap:8px;font-size:14.5px}
+.emo i{font-style:normal;font-family:var(--f-display);font-weight:700;font-size:19px;min-width:36px;height:30px;display:grid;place-items:center;background:#FFFFFF;color:#252425;box-shadow:inset 0 0 0 3px #252425;position:relative}
+.emo i.alert{background:#BC2051;color:#FFFFFF}
+.swatches{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:10px}
+.sw{display:grid;gap:4px;font-size:12.5px}
+.sw span:first-child{height:44px;box-shadow:inset 0 0 0 3px var(--ink)}
+.sw b{font-family:var(--f-display);font-size:16px}
+.sw code{color:var(--muted)}
+/* ---------- buttons ---------- */
+.btn{font-family:var(--f-display);font-size:15px;letter-spacing:.05em;background:var(--surface);color:var(--ink);border:3px solid var(--ink);padding:8px 14px;cursor:pointer;box-shadow:4px 4px 0 var(--shadow);transition:transform 120ms,box-shadow 120ms}
+.btn:hover{transform:translate(-1px,-1px);box-shadow:5px 5px 0 var(--shadow)}
+.btn:active{transform:translate(3px,3px);box-shadow:1px 1px 0 var(--shadow)}
+.note{font-size:14px;color:var(--muted);max-width:66ch;margin-top:12px}
+
+/* ---------- sections ---------- */
+section{padding-top:48px;display:grid;gap:16px}
+.eyebrow{font-family:var(--f-display);font-size:15px;letter-spacing:.1em;color:var(--muted)}
+h2{font-family:var(--f-display);font-weight:400;font-size:30px;line-height:1.15}
+.lede{max-width:66ch}
+.lede + .lede{margin-top:-4px}
+
+.pipe{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-family:var(--f-display);font-size:14px}
+.pipe span{border:3px solid var(--ink);padding:5px 8px;background:var(--surface)}
+.pipe span.on{background:var(--ink);color:var(--bg)}
+.pipe span.off{border-style:dashed;color:var(--muted)}
+.pipe i{font-style:normal;color:var(--muted)}
+
+/* decisions */
+.decisions{display:grid;gap:14px}
+.dec{background:var(--surface);border:3px solid var(--ink);box-shadow:5px 5px 0 var(--shadow);padding:16px 18px;display:grid;gap:10px;min-width:0}
+.dec-h{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.dec-h .id{font-family:var(--f-mono);font-size:13px;font-weight:600;background:var(--ink);color:var(--bg);padding:1px 6px}
+.dec-h h3{font-size:18px;font-weight:700;flex:1;min-width:200px}
+.dec ul{margin:0;padding-left:20px;display:grid;gap:4px}
+.dec li::marker{content:"▪  "}
+.pick{border-top:2px dashed var(--deco);padding-top:10px;font-size:15px}
+.pick b{font-family:var(--f-display);font-weight:400;font-size:14px;letter-spacing:.06em;margin-right:6px}
+.why{color:var(--muted);font-size:14.5px}
+
+/* findings */
+.tbl-wrap{overflow-x:auto;border:3px solid var(--ink);background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:640px;font-size:14.5px}
+th,td{text-align:left;vertical-align:top;padding:10px 12px;border-bottom:2px solid var(--deco)}
+th{font-family:var(--f-display);font-weight:400;font-size:14px;letter-spacing:.06em;background:var(--ink);color:var(--bg)}
+tr:last-child td{border-bottom:0}
+td:first-child{white-space:nowrap}
+.sev{font-family:var(--f-mono);font-size:12px;letter-spacing:1px;display:block}
+.sev small{font-family:var(--f-display);font-size:12px;letter-spacing:.05em;display:block;margin-top:2px}
+
+/* suggestions */
+.sugg{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:14px}
+.s{border:3px solid var(--ink);padding:14px 16px;background:var(--surface);display:grid;gap:6px;align-content:start;min-width:0}
+.s .tag{font-family:var(--f-mono);font-size:12px;color:var(--muted)}
+.s h3{font-size:16.5px;font-weight:700}
+.s p{font-size:14.5px}
+
+/* phases */
+.phases{list-style:none;margin:0;padding:0;display:grid;gap:0;border-left:4px solid var(--ink)}
+.phases li{position:relative;padding:4px 0 22px 26px;display:grid;gap:4px}
+.phases li::before{content:"";position:absolute;left:-12px;top:6px;width:20px;height:20px;background:var(--bg);border:4px solid var(--ink)}
+.phases li.gate::before{background:var(--ink)}
+.ph-h{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline}
+.ph-h .n{font-family:var(--f-display);font-size:15px}
+.ph-h h3{font-size:17px;font-weight:700}
+.ph-h .skill{font-family:var(--f-mono);font-size:12.5px;color:var(--muted)}
+.phases p{font-size:14.5px;max-width:66ch}
+.legend{font-size:13.5px;color:var(--muted);display:flex;gap:18px;flex-wrap:wrap}
+.legend span::before{content:"";display:inline-block;width:12px;height:12px;border:3px solid var(--ink);margin-right:6px;vertical-align:-2px}
+.legend span.g::before{background:var(--ink)}
+
+/* limits */
+.limits{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr));gap:0;border:3px solid var(--ink);background:var(--surface)}
+.lim{padding:14px 16px;border-right:2px solid var(--deco);border-bottom:2px solid var(--deco);display:grid;gap:4px;align-content:start}
+.lim .k{font-family:var(--f-display);font-size:14px;letter-spacing:.05em;color:var(--muted)}
+.lim .v{font-family:var(--f-mono);font-size:17px;font-weight:600}
+.lim p{font-size:13.5px}
+
+.mermaid-box{border:3px solid var(--ink);background:var(--surface);padding:12px;overflow-x:auto}
+.src{font-size:13.5px;color:var(--muted);display:grid;gap:4px}
+.src a{word-break:break-word}
+
+/* concern + log + flow */
+.concern{margin-top:24px;border:4px solid var(--ink);background:var(--surface);padding:16px 18px;display:grid;gap:10px;box-shadow:6px 6px 0 var(--shadow)}
+.concern p{max-width:68ch;font-size:15.5px}
+.log{border:3px solid var(--ink);background:var(--surface)}
+.log .row{display:flex;gap:14px;align-items:baseline;padding:12px 14px;border-bottom:2px solid var(--deco)}
+.log .row:last-child{border-bottom:0}
+.log .id{font-family:var(--f-mono);font-size:13px;font-weight:600;flex:none}
+.log p{font-size:15px;min-width:0}
+.flow{margin:0;padding-left:0;list-style:none;counter-reset:f;display:grid;gap:10px}
+.flow li{counter-increment:f;display:grid;grid-template-columns:36px 1fr;gap:10px;align-items:start;font-size:15.5px}
+.flow li::before{content:counter(f);font-family:var(--f-display);font-size:16px;width:32px;height:32px;display:grid;place-items:center;background:var(--ink);color:var(--bg)}
+.callouts{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:14px}
+.callout{border:3px dashed var(--ink);padding:14px 16px;display:grid;gap:6px;align-content:start;min-width:0}
+.callout .tag{font-family:var(--f-display);font-size:14px;letter-spacing:.05em}
+.callout p{font-size:14.5px}
+.setup{margin:0;padding:0;list-style:none;border:3px solid var(--ink);background:var(--surface)}
+.setup li{display:grid;grid-template-columns:28px 1fr auto;gap:10px;align-items:baseline;padding:11px 14px;border-bottom:2px solid var(--deco);font-size:15px}
+.setup li:last-child{border-bottom:0}
+.setup li::before{content:"";width:16px;height:16px;border:3px solid var(--ink);align-self:center}
+.setup .t{font-family:var(--f-mono);font-size:12.5px;color:var(--muted);white-space:nowrap}
+.cut{display:flex;flex-wrap:wrap;gap:8px}
+.cut span{font-size:14px;border:2px solid var(--deco);padding:3px 10px;text-decoration:line-through;text-decoration-thickness:2px;color:var(--muted)}
+
+@media (max-width:640px){
+  .hw{gap:6px;flex-wrap:nowrap}
+  .hw button{flex:1;padding:0 6px;font-size:12px;letter-spacing:.04em}
+  .device{padding:10px 10px 14px}
+  .bezel{padding:8px}
+  .bubble{font-size:14px}
+  .portrait{width:52px;height:52px}
+  .portrait canvas{width:40px;height:40px}
+  .ghost{display:none}
+  .stage{min-height:440px}
+  .screen{padding-block:24px 0}
+}
+@media (prefers-reduced-motion: reduce){
+  .card,.btn{transition:none}
+}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand"><b>PIXENDO</b>PIP-HALL · BUILD PLAN</div>
+    <div class="status">v0.6 · renamed PIP-Hall · Phase 1 next · due end of 6 Oct</div>
+  </header>
+
+  <div class="hero">
+    <h1>PIP-Hall: locked and ready to build</h1>
+    <p>Your two references set the look: a pixel handheld for the world around the card, and a lanyard ID badge for the card itself. They also changed the spec's biggest design rule, from monochrome to full colour. The plan, architecture, database and design system are now written and checked. Below is the design running live, then everything that was decided.</p>
+  </div>
+
+  <aside class="concern" aria-label="AERIAL concern">
+    <div class="eyebrow">AERIAL CONCERN · DEADLINE VS DEPTH</div>
+    <p><b>"Phased build with full docs and design reviews at every milestone" and "done before 6 October" pull against each other.</b> That's roughly two and a half days. A full Phased pipeline (UX map, every screen documented, four independent reviewers at each milestone) would eat a day on its own.</p>
+    <p>What I propose instead keeps the parts that prevent rework and drops the ceremony: one architecture doc, a decision log, the schema as SQL, a design brief with tokens, and one prompt file per phase. Design reviews happen at two gates (the card, and the finished app), not after every phase. Everything P2 waits until after the 6th. If you'd rather keep the full ceremony, scope has to shrink instead (moderation and search would go first).</p>
+  </aside>
+
+  <!-- ===== the locked design, live ===== -->
+  <div class="device-wrap">
+    <div class="device step" aria-label="PIXENDO handheld preview">
+      <div class="dev-top"><span class="led" id="led" role="img" aria-label="Online"></span><span>PIXENDO</span><span class="grille" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span></div>
+      <div class="bezel step">
+        <div class="screen" id="screen">
+          <svg class="scene" viewBox="0 0 700 600" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+            <g class="px">
+              <rect x="40" y="40" width="64" height="12"/><rect x="52" y="28" width="36" height="12"/><rect x="28" y="52" width="88" height="12"/>
+              <rect x="560" y="70" width="80" height="12"/><rect x="576" y="58" width="44" height="12"/><rect x="548" y="82" width="104" height="12"/>
+              <rect x="0" y="470" width="110" height="120"/><rect x="22" y="446" width="66" height="24"/><rect x="40" y="430" width="30" height="16"/>
+              <rect x="600" y="460" width="100" height="130"/><rect x="620" y="438" width="60" height="22"/>
+              <rect x="130" y="170" width="24" height="24"/><rect x="158" y="170" width="24" height="24"/><rect x="540" y="240" width="24" height="24"/>
+              <rect x="110" y="330" width="8" height="8"/><rect x="118" y="322" width="8" height="8"/><rect x="126" y="330" width="8" height="8"/><rect x="118" y="338" width="8" height="8"/>
+              <rect x="580" y="340" width="8" height="8"/><rect x="588" y="332" width="8" height="8"/><rect x="596" y="340" width="8" height="8"/><rect x="588" y="348" width="8" height="8"/>
+            </g>
+          </svg>
+          <div class="stage">
+            <div class="ghost l" aria-hidden="true"><div class="gl"></div><div class="gb">PLAYER 002<br><br>slot open</div></div>
+            <div class="badge-slot" id="slot">
+              <div class="strap" aria-hidden="true"></div>
+              <div class="clip" aria-hidden="true"><svg viewBox="0 0 17 15" shape-rendering="crispEdges"><path fill="#4E475D" d="M4 0h9v2H4zM2 2h2v9H2zM13 2h2v9h-2zM4 11h9v2H4z"/><path fill="#BCB0A2" d="M4 2h9v1H4z"/><path fill="#252425" d="M6 13h5v2H6z"/></svg></div>
+              <div class="flipper">
+                <button class="card" id="card" type="button" aria-pressed="false" aria-label="PIP-Hall card of Ian Patrick Flores. Press to flip.">
+                  <div class="face front"><div class="frame step">
+                    <span class="slot" aria-hidden="true"></span><svg class="doodle" viewBox="0 0 3 3" shape-rendering="crispEdges" aria-hidden="true" style="top:6px;left:8px"><rect x="1" y="0" width="1" height="1" fill="#FFFFFF"/><rect x="0" y="1" width="1" height="1" fill="#FFFFFF"/><rect x="2" y="1" width="1" height="1" fill="#FFFFFF"/><rect x="1" y="2" width="1" height="1" fill="#FFFFFF"/><rect x="1" y="1" width="1" height="1" fill="#E1B675"/></svg><svg class="doodle" viewBox="0 0 3 3" shape-rendering="crispEdges" aria-hidden="true" style="top:6px;right:8px"><rect x="1" y="0" width="1" height="1" fill="#FFFFFF"/><rect x="0" y="1" width="1" height="1" fill="#FFFFFF"/><rect x="2" y="1" width="1" height="1" fill="#FFFFFF"/><rect x="1" y="2" width="1" height="1" fill="#FFFFFF"/><rect x="1" y="1" width="1" height="1" fill="#E1B675"/></svg><svg class="doodle" viewBox="0 0 3 3" shape-rendering="crispEdges" aria-hidden="true" style="bottom:4px;right:10px"><rect x="1" y="0" width="1" height="1" fill="#FFFFFF"/><rect x="0" y="1" width="1" height="1" fill="#FFFFFF"/><rect x="2" y="1" width="1" height="1" fill="#FFFFFF"/><rect x="1" y="2" width="1" height="1" fill="#FFFFFF"/><rect x="1" y="1" width="1" height="1" fill="#E1B675"/></svg><svg class="doodle" viewBox="0 0 3 3" shape-rendering="crispEdges" aria-hidden="true" style="top:46%;left:-1px"><rect x="1" y="0" width="1" height="1" fill="#FFFFFF"/><rect x="0" y="1" width="1" height="1" fill="#FFFFFF"/><rect x="2" y="1" width="1" height="1" fill="#FFFFFF"/><rect x="1" y="2" width="1" height="1" fill="#FFFFFF"/><rect x="1" y="1" width="1" height="1" fill="#E1B675"/></svg>
+                    <div class="inner">
+                      <div class="band"><svg class="mark" viewBox="0 0 9 9" shape-rendering="crispEdges" aria-hidden="true"><rect width="9" height="9" fill="#FFFFFF"/><path fill="#252425" d="M0 0h9v1H0zM0 8h9v1H0zM0 0h1v9H0zM8 0h1v9H8zM2 2h2v1H2zM5 2h2v1H5zM2 3h1v2H2zM6 3h1v2H6zM2 5h2v1H2zM5 5h2v1H5zM3 6h3v1H3z"/></svg><span class="wm">PIP-HALL</span><span class="pill">BSCS-2A</span></div>
+                      <div class="body">
+                        <div class="photo"><canvas id="avatar" width="10" height="10" role="img" aria-label="Generated pixel avatar"></canvas></div>
+                        <div><div class="c-name">IAN PATRICK FLORES</div><div class="c-handle">@muj-csv</div><div class="c-role">ACM · AUF · builds student tools with an AI layer</div></div>
+                        <div class="dash" aria-hidden="true"></div>
+                        <div class="c-foot">
+                          <div class="links"><span class="lnk">▸ GITHUB</span><span class="lnk todo">▸ LINKEDIN</span><span class="lnk todo">▸ PORTFOLIO</span></div>
+                          <div class="qr" title="Encodes example.org/member/muj-csv (real domain TBD)"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 31 31" shape-rendering="crispEdges"><path fill="#FFFFFF" d="M0 0h31v31H0z"/><path stroke="#111111" d="M1 1.5h7m3 0h2m1 0h3m1 0h4m1 0h7M1 2.5h1m5 0h1m2 0h2m1 0h5m3 0h1m1 0h1m5 0h1M1 3.5h1m1 0h3m1 0h1m1 0h4m1 0h1m1 0h1m4 0h1m1 0h1m1 0h3m1 0h1M1 4.5h1m1 0h3m1 0h1m1 0h2m2 0h1m1 0h2m1 0h1m4 0h1m1 0h3m1 0h1M1 5.5h1m1 0h3m1 0h1m1 0h1m1 0h1m4 0h2m1 0h3m1 0h1m1 0h3m1 0h1M1 6.5h1m5 0h1m1 0h4m5 0h2m1 0h1m1 0h1m5 0h1M1 7.5h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7M9 8.5h2m4 0h1m1 0h1m1 0h1m1 0h1M1 9.5h1m1 0h5m3 0h3m4 0h1m1 0h1m2 0h5M3 10.5h2m1 0h1m2 0h4m1 0h3m2 0h3m1 0h3m3 0h1M4 11.5h2m1 0h2m1 0h7m4 0h2m1 0h2M1 12.5h1m1 0h2m3 0h1m1 0h5m2 0h1m2 0h3m1 0h1m1 0h1m1 0h1M3 13.5h1m1 0h3m1 0h1m1 0h1m3 0h4m1 0h1m5 0h2M1 14.5h1m1 0h1m4 0h2m3 0h1m3 0h1m2 0h1m1 0h4m3 0h1M1 15.5h1m2 0h1m1 0h4m1 0h1m4 0h4m1 0h1m1 0h5M2 16.5h2m1 0h1m3 0h1m1 0h1m3 0h1m3 0h4m2 0h1m2 0h1M1 17.5h1m1 0h2m2 0h1m1 0h1m1 0h3m2 0h4m6 0h2M1 18.5h2m1 0h1m1 0h1m2 0h1m3 0h3m1 0h9m1 0h1m1 0h1M1 19.5h1m2 0h2m1 0h3m2 0h7m6 0h1m1 0h1M1 20.5h1m1 0h3m2 0h3m2 0h2m5 0h1m7 0h1M1 21.5h1m2 0h4m4 0h1m2 0h2m1 0h1m2 0h5m1 0h3M9 22.5h3m1 0h1m3 0h5m3 0h5M1 23.5h7m3 0h3m2 0h2m2 0h2m1 0h1m1 0h3M1 24.5h1m5 0h1m1 0h4m2 0h3m2 0h2m3 0h1m2 0h2M1 25.5h1m1 0h3m1 0h1m1 0h1m1 0h3m4 0h1m2 0h5m1 0h2M1 26.5h1m1 0h3m1 0h1m1 0h1m5 0h1m4 0h3m1 0h1m1 0h4M1 27.5h1m1 0h3m1 0h1m1 0h2m1 0h2m2 0h1m3 0h9M1 28.5h1m5 0h1m2 0h3m8 0h1m1 0h4m1 0h1M1 29.5h7m1 0h1m3 0h3m2 0h1m1 0h1m1 0h4m1 0h1"/></svg>
+</div>
+                        </div>
+                      </div>
+                    </div>
+                    </div>
+                    <span class="sticker s1">✓ GITHUB</span>
+                    <span class="sticker s2">PWA</span>
+                    <span class="sticker s3">TEAM LEAD</span>
+                  </div>
+                  <div class="face back"><div class="frame step">
+                    <span class="slot" aria-hidden="true"></span>
+                    <div class="inner">
+                      <div class="band"><span class="wm">QUEST LOG</span><span class="pill">3 PROJECTS</span></div>
+                      <div class="body">
+                        <p class="b-bio">Team lead on hackathon builds. Civic tech, and PWAs that students actually open.</p>
+                        <div class="inv">
+                          <div class="inv-item"><b>AGAPAI <small>voice · AI</small></b><span>Taglish voice to emergency dispatch</span></div>
+                          <div class="inv-item"><b>TESSERA <small>Next.js</small></b><span>Private photo album, justified mosaic</span></div>
+                          <div class="inv-item"><b>DODOTASK <small>PWA</small></b><span>Canvas LMS + Gmail + Gemini</span></div>
+                        </div>
+                        <div class="chips"><span class="chip">Next.js</span><span class="chip">PWA</span><span class="chip">PostGIS</span><span class="chip">IndexedDB</span><span class="chip">Gemini</span></div>
+                        <div class="b-cta">VIEW PROFILE ▸</div>
+                      </div>
+                    </div>
+</div>
+                  </div>
+                </button>
+              </div>
+            </div>
+            <div class="ghost r" aria-hidden="true"><div class="gl"></div><div class="gb">PLAYER 003<br><br>slot open</div></div>
+          </div>
+          <div class="dialogue">
+            <div class="portrait" aria-hidden="true"><canvas id="host" width="12" height="12"></canvas></div>
+            <p class="bubble" id="say" aria-live="polite">Drag to swing the badge. Tap it to flip.</p>
+          </div>
+          <div class="floor" aria-hidden="true"></div>
+        </div>
+      </div>
+      <div class="hw" role="group" aria-label="Controls">
+        <button type="button" id="prev">◀ PREV</button>
+        <button type="button" id="flip" class="a">FLIP</button>
+        <button type="button" id="open">OPEN</button>
+        <button type="button" id="next">NEXT ▶</button>
+      </div>
+    </div>
+  </div>
+  <p class="note"><b>Superseded by design v2.</b> The platformer level, the CR80 badge and the two-grip handheld now live in the PIP-Hall Design Lab. This v1 preview stays here for comparison.</p>
+
+  <!-- ===== where we are ===== -->
+  <section>
+    <div class="eyebrow">WHERE THIS SITS</div>
+    <h2>Your pipeline, applied to this spec</h2>
+    <div class="pipe" aria-label="Pipeline">
+      <span class="off">NEXUS</span><i>→</i><span class="off">PRISM</span><i>→</i><span class="on">AERIAL review</span><i>→</i><span class="on">AEGIS lock</span><i>→</i><span>BUILD</span><i>→</i><span>AEGIS council</span><i>→</i><span>PRODUCTION</span>
+    </div>
+    <p class="lede">NEXUS and PRISM are skipped on purpose. The problem (a forgettable member directory) and the solution are already chosen, and nobody is judging novelty. If this turns into a hackathon entry, run PRISM first. The AERIAL review and the AEGIS design lock are both done. Next is Phase 1, building the card and carousel, then Gate 1, the design review on the card.</p>
+  </section>
+
+  <!-- ===== design lock ===== -->
+  <section id="design">
+    <div class="eyebrow">AEGIS · DESIGN LOCK · GATE: HOLD ON ONE PICK</div>
+    <h2>The design system, from your two references</h2>
+    <p class="lede">Every colour below was sampled from your images. The card keeps the same colours in DAY and NIGHT because it's a physical object; the world around it changes. All text pairs pass WCAG AA in both worlds.</p>
+    <div class="swatches">
+      <div class="sw"><span style="background:#BC2051"></span><b>Accent</b><code>#BC2051</code>handheld buttons</div>
+      <div class="sw"><span style="background:#4E475D"></span><b>Bezel</b><code>#4E475D</code>borders, focus</div>
+      <div class="sw"><span style="background:#D6D5CF"></span><b>Shell</b><code>#D6D5CF</code>device body</div>
+      <div class="sw"><span style="background:#F0E9D3"></span><b>Screen</b><code>#F0E9D3</code>stage, dialogue</div>
+      <div class="sw"><span style="background:#4B656B"></span><b>Floor</b><code>#4B656B</code>ground strip</div>
+      <div class="sw"><span style="background:#97B5AA"></span><b>Frame</b><code>#97B5AA</code>badge frame</div>
+      <div class="sw"><span style="background:#A185AB"></span><b>Band</b><code>#A185AB</code>badge header</div>
+      <div class="sw"><span style="background:#F0ECEB"></span><b>Paper</b><code>#F0ECEB</code>page (DAY)</div>
+      <div class="sw"><span style="background:#1C1A21"></span><b>Night</b><code>#1C1A21</code>page (NIGHT)</div>
+      <div class="sw"><span style="background:#E1B675"></span><b>Stickers</b><code>gold · ember · wood</code></div>
+    </div>
+    <div class="callouts">
+      <div class="callout"><span class="tag">TYPE</span><p><b style="font-family:var(--f-display);font-size:18px">Pixelify Sans</b> for names, labels, buttons and dialogue: chunky pixel caps like both references. <b>Atkinson Hyperlegible Next</b> for bios and forms, with its Mono sibling for handles and repo names. All open-licensed and self-hosted, so the installed app works offline.</p></div>
+      <div class="callout"><span class="tag">SIGNATURE MOVE</span><p>The lanyard swing. Everything else stays quiet: a 380ms flip, a spring snap, buttons that press down 3px. With reduced motion on there's no swing and no typing, and the flip becomes a crossfade.</p></div>
+    </div>
+    <div class="eyebrow" style="margin-top:6px">STATUS EMOTES · SHAPE CARRIES THE MEANING, NOT COLOUR</div>
+    <div class="emotes">
+      <span class="emo"><i>…</i>pending review</span>
+      <span class="emo"><i class="alert">!</i>needs your attention</span>
+      <span class="emo"><i>♥</i>approved</span>
+      <span class="emo"><i>★</i>featured</span>
+    </div>
+    <div class="concern" style="margin-top:6px">
+      <div class="eyebrow">PICKED FOR YOU · ONE NEEDS YOUR OK</div>
+      <p><b>Body font: Atkinson Hyperlegible Next.</b> This is the only design choice that came from me rather than from your references or answers. The design review holds on it until you say yes or name another font. Smaller picks you can veto any time: the Mono font for handles, the 1.25 type scale, the easing curve and the 640/768/1024 breakpoints.</p>
+    </div>
+  </section>
+
+  <!-- ===== decisions ===== -->
+  <section id="decisions">
+    <div class="eyebrow">DECISION LOG</div>
+    <h2>Locked (19 decisions in DECISIONS.md)</h2>
+    <div class="log">
+      <div class="row"><span class="id">D-001</span><p><b>Personal project, phased with docs and design reviews, due 6 Oct 2026.</b> Schedule compressed to three days (see concern above).</p></div>
+      <div class="row"><span class="id">D-002</span><p><b>Edits to an approved card go back to review; the approved version stays public.</b> One published snapshot, written only when an admin approves.</p></div>
+      <div class="row"><span class="id">D-003</span><p><b>Sign in with Google (email for updates), then connect GitHub; members pick which repos appear on their card.</b> Details and the two catches are in the next section.</p></div>
+      <div class="row"><span class="id">D-004</span><p><b>Both worlds, following the device theme, with a toggle.</b> The card stays paper-light in both so it always reads as the hero.</p></div>
+      <div class="row"><span class="id">D-008</span><p><b>Full colour, like the references.</b> Replaces the spec's monochrome rule. Crimson leads, and only for the main action and the <code>!</code> alert.</p></div>
+      <div class="row"><span class="id">D-009</span><p><b>Portrait badge.</b> Fills a phone and matches the spec's card shape.</p></div>
+      <div class="row"><span class="id">D-010</span><p><b>Pixel-drawn badge:</b> the lanyard ID's layout, drawn with the handheld scene's pixel outlines.</p></div>
+      <div class="row"><span class="id">D-011</span><p><b>Carry over all four:</b> handheld bezel, dialogue box with emotes, lanyard clip that swings on drag, stickers.</p></div>
+      <div class="row"><span class="id">D-025</span><p><b>Renamed to PIP-Hall: People, Identity &amp; Projects Hall.</b> "Where every person has a place." PIXENDO stays as the in-world console, Pip as the host.</p></div>
+      <div class="row"><span class="id">D-005</span><p><b>Due end of Tuesday 6 Oct, Philippine time, as a live URL with real sign-ups working.</b></p></div>
+      <div class="row"><span class="id">D-006</span><p><b>Compressed plan: lean docs, design reviews at two gates.</b> Full ceremony traded for keeping moderation and search in scope.</p></div>
+      <div class="row"><span class="id">D-007</span><p><b>Members can add non-GitHub projects through a small manual form.</b></p></div>
+    </div>
+
+    <div class="eyebrow" style="margin-top:20px">ON MY PICK UNLESS YOU OBJECT</div>
+    <div class="decisions">
+      <article class="dec">
+        <div class="dec-h"><span class="id">D5</span><h3>One organization, or many?</h3></div>
+        <p>The schema has an <code>organization</code> text field, but everything else assumes one org's admins approving one org's members.</p>
+        <p class="pick"><b>MY PICK</b>Single org. Drop the field, add <code>org_position</code> for officer titles. Multi-org would add roughly 40% more work, which the deadline can't absorb.</p>
+      </article>
+      <article class="dec">
+        <div class="dec-h"><span class="id">D6</span><h3>Where does the code live?</h3></div>
+        <p>The spec's Claude prompt starts with "inspect the existing repository". I only have the spec.</p>
+        <p class="pick"><b>MY PICK</b>Greenfield, in a new GitHub repo under Muj-csv. I write the code here and hand you the repo.</p>
+      </article>
+      <article class="dec">
+        <div class="dec-h"><span class="id">D7</span><h3>Can usernames change?</h3></div>
+        <p>The username is the QR target. Once a QR is printed, a rename breaks it.</p>
+        <p class="pick"><b>MY PICK</b>Default the username to the GitHub handle, lock it after first approval, admin can change it. Lowercase, reserved words blocked (<code>admin</code>, <code>login</code>, <code>edit</code>…).</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- ===== github ===== -->
+  <section id="github">
+    <div class="eyebrow">D-003 IN DETAIL · GOOGLE + GITHUB</div>
+    <h2>How sign-up and the repo picker work</h2>
+    <ol class="flow">
+      <li><b>Continue with Google.</b> Creates the account. The Google email is where approval notices and updates go.</li>
+      <li><b>Connect GitHub.</b> Links a second identity to the same account. This also proves the GitHub link on the card belongs to that person, so the card can show it as verified.</li>
+      <li><b>Pick your repos.</b> The browser lists the member's public repos straight from GitHub. They tick up to six, reorder them, and can rewrite the description or add a cover image.</li>
+      <li><b>Saved as a copy.</b> Picked repos are stored as project rows. Visitors never wait on GitHub, and a "refresh from GitHub" button updates the copy when the member wants.</li>
+    </ol>
+    <div class="callouts">
+      <div class="callout"><span class="tag">CATCH 1 · SETUP</span><p>Linking a second sign-in to one account is a beta feature in Supabase and has to be switched on in the auth settings. On Google's side the OAuth app must be set to <b>In production</b>. In Testing mode only listed test users can sign in. With only email and profile access it doesn't need Google's full verification review.</p></div>
+      <div class="callout"><span class="tag">CATCH 2 · EMAIL</span><p>Supabase sends sign-in emails, not updates. Sending "your card was approved" needs a mail service. Resend's free tier needs a domain you own. Gmail's SMTP with an app password works free with no domain. Members also need an opt-in checkbox for update emails. For the 6th, I'd store the opt-in and send the first emails after launch.</p></div>
+      <div class="callout"><span class="tag">ALTERNATIVE · ONE LINE</span><p>GitHub sign-in alone also returns a verified email, which would remove the Google setup and the beta linking feature. You chose both, so I'm building both. Say the word if you want the simpler path.</p></div>
+      <div class="callout"><span class="tag">PRIVATE REPOS · NOT IN SCOPE</span><p>Public repos need no GitHub permission at all. Private repos would mean storing a GitHub token per member, which Supabase doesn't refresh for us. Private and school work can go in through the manual form (D-007).</p></div>
+    </div>
+  </section>
+
+  <!-- ===== findings ===== -->
+  <section id="findings">
+    <div class="eyebrow">AERIAL REVIEW · SPEC FINDINGS</div>
+    <h2>What I'd fix in the spec before Phase 1</h2>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Severity</th><th>Finding</th><th>Fix</th></tr></thead>
+        <tbody>
+          <tr><td><span class="sev">■■■<small>HIGH</small></span></td><td>"Members can update their own profile" lets a member set their own <code>status</code> to <code>approved</code> or <code>is_featured</code> to true. Row Level Security works per row, not per column.</td><td>Revoke update on moderation columns from members. Status changes only through <code>submit_for_review()</code> and admin functions.</td></tr>
+          <tr><td><span class="sev">■■■<small>HIGH</small></span></td><td>Email confirmation can't reach real members on the default mailer.</td><td>Resolved by D-003: no password sign-up, so no confirmation emails.</td></tr>
+          <tr><td><span class="sev">■■■<small>HIGH</small></span></td><td>Editing after approval is undefined.</td><td>Resolved by D-002.</td></tr>
+          <tr><td><span class="sev">■■□<small>MEDIUM</small></span></td><td>Skills show on the card back and in search and filters, but there's no skills column. "Achievement or org role" on the back has no field either. GitHub import needs fields the projects table doesn't have.</td><td>Add <code>skills text[]</code> (max 8), <code>org_position</code>, <code>github_username</code> (from the linked identity, not typed), <code>email_updates</code> opt-in, <code>published_snapshot jsonb</code>. On projects: <code>source</code>, <code>github_repo_id</code>, <code>language</code>, <code>stars</code>.</td></tr>
+          <tr><td><span class="sev">■■□<small>MEDIUM</small></span></td><td>No way to create the first admin, and an admin check inside RLS that reads <code>user_roles</code> under its own RLS can recurse.</td><td>A <code>security definer</code> <code>is_admin()</code> function, roles writable only from the SQL editor, a seed script for the first admin.</td></tr>
+          <tr><td><span class="sev">■■□<small>MEDIUM</small></span></td><td>Free Supabase projects pause after a week with no activity. Over a semester break every public card and printed QR goes dead.</td><td>Weekly GitHub Actions ping, or accept manual restore. Check Supabase's terms before relying on the ping.</td></tr>
+          <tr><td><span class="sev">■■□<small>MEDIUM</small></span></td><td>Opening <code>/member/muj-csv</code> directly (which is what a QR scan does) returns 404 on Vercel unless the SPA rewrite is set.</td><td>Add the rewrite in <code>vercel.json</code> in Phase 1, test it with a real phone scan in Phase 4.</td></tr>
+          <tr><td><span class="sev">■■□<small>MEDIUM</small></span></td><td>"Delete account" needs to delete the auth user, which the browser can't do without the service key.</td><td><code>delete_my_account()</code> as a definer function, plus clearing the member's storage folder.</td></tr>
+          <tr><td><span class="sev">■■□<small>MEDIUM</small></span></td><td>Palette contrast: LIGHT <code>#B8B8B8</code> on PAPER is 1.77:1, MID <code>#666</code> on INK is 3.29:1, ACCENT <code>#D9D9D9</code> on PAPER is 1.26:1 (invisible).</td><td>Assign greys per theme. LIGHT and ACCENT become decoration only on paper.</td></tr>
+          <tr><td><span class="sev">■□□<small>LOW</small></span></td><td>Embla renders every slide. With 150+ cards carrying images and 3D transforms, low-end Android phones will stutter, and Embla's flat strip doesn't do "peek from behind".</td><td>Custom stack carousel on Framer Motion that renders only five cards around the current one. I'll write this up as ADR-001.</td></tr>
+          <tr><td><span class="sev">■□□<small>LOW</small></span></td><td><code>organization_only</code> visibility never defines who counts as "the organization".</td><td>Drop it from the MVP, or define it as "any signed-in, approved member".</td></tr>
+          <tr><td><span class="sev">■□□<small>LOW</small></span></td><td>Public email on the card invites scraping.</td><td>Tap to reveal, shown as copyable text.</td></tr>
+          <tr><td><span class="sev">■□□<small>LOW</small></span></td><td>"Pixendo Games" already exists as an NFT project name, and a name built to echo Nintendo invites exactly the comparison the brand doc wants to avoid.</td><td>Fine for an org tool. Revisit before any public launch.</td></tr>
+          <tr><td><span class="sev">■□□<small>LOW</small></span></td><td>Vercel Hobby is "non-commercial, personal use only". A free student-org directory should be fine.</td><td>If in doubt, Cloudflare Pages hosts the same build for free.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ===== status flow ===== -->
+  <section>
+    <div class="eyebrow">DATA · STATUS FLOW WITH D-002 APPLIED</div>
+    <h2>Card lifecycle</h2>
+    <div class="mermaid-box">
+<pre class="mermaid">
+stateDiagram-v2
+  [*] --> draft
+  draft --> pending_review: member submits
+  pending_review --> approved: admin approves (writes public snapshot)
+  pending_review --> rejected: admin rejects with note
+  rejected --> pending_review: member fixes and resubmits
+  approved --> pending_review: member edits (old snapshot stays public)
+  approved --> unpublished: admin unpublishes
+  unpublished --> pending_review: member resubmits
+</pre>
+    </div>
+  </section>
+
+  <!-- ===== suggestions ===== -->
+  <section id="suggestions">
+    <div class="eyebrow">SUGGESTIONS</div>
+    <h2>Things I'd add or change</h2>
+    <p class="lede">P1 items fit in the three days. P2 items wait until after the 6th.</p>
+    <div class="sugg">
+      <div class="s"><span class="tag">P1 · build order</span><h3>Build the card and carousel first, on sample data</h3><p>The spec puts auth before the card, but it also says the card interaction wins every tie. Building the riskiest, most visible part first, behind a data service with a fixture file, means the demo looks right from week one. Supabase then slots in behind the same service.</p></div>
+      <div class="s"><span class="tag">P1 · empty state</span><h3>Generated pixel avatar when there's no photo</h3><p>Like the one on the probe: a symmetric 10×10 sprite drawn from the username. No upload needed to look finished, and it fits the world better than a grey silhouette.</p></div>
+      <div class="s"><span class="tag">P1 · QR</span><h3>Tap the QR to go full screen</h3><p>A 70px code on a phone is hard to scan from another phone. Tapping it opens a large SCAN ME screen, which is how it'll actually get used at booths and meetings.</p></div>
+      <div class="s"><span class="tag">P1 · search</span><h3>Filter in the browser, not the database</h3><p>An org has hundreds of approved cards at most. Load them once and filter in memory. Instant results, no search index, and it works offline from the PWA cache.</p></div>
+      <div class="s"><span class="tag">P2 · juice</span><h3>Synthesized sound, off by default</h3><p>Short square-wave blips for flip and snap, generated with the Web Audio API. No audio files, so there are no licensing questions and nothing extra to download.</p></div>
+      <div class="s"><span class="tag">P2 · events</span><h3>Booth mode</h3><p>A full-screen carousel that auto-advances, for org fairs and recruitment week. Mostly reuses the carousel.</p></div>
+      <div class="s"><span class="tag">P2 · sharing</span><h3>Link previews on Messenger</h3><p>A single-page app shows the same generic preview for every member link. Per-member previews need a small edge function that renders the card as an image. Worth it if sharing in group chats matters to you.</p></div>
+      <div class="s"><span class="tag">P2 · print</span><h3>Export card as PNG</h3><p>For social posts and printed lanyards. The card is already a fixed-size component, so rendering it to an image is cheap.</p></div>
+    </div>
+  </section>
+
+  <!-- ===== schedule ===== -->
+  <section id="schedule">
+    <div class="eyebrow">SCHEDULE · PHILIPPINE TIME · DUE END OF 6 OCT</div>
+    <h2>Three days, two design gates</h2>
+    <div class="legend"><span>build block</span><span class="g">gate: stop and review before moving on</span></div>
+    <ol class="phases">
+      <li><div class="ph-h"><span class="n">SUN 4 · AFTERNOON</span><h3>Lock</h3><span class="skill">AERIAL + AEGIS</span></div><p><code>ARCHITECTURE.md</code>, <code>DECISIONS.md</code>, the corrected schema as SQL, <code>DESIGN_BRIEF.md</code> and <code>tokens.json</code> exported to Tailwind, a short <code>CLAUDE.md</code> and one prompt per phase. You do the account setup below in parallel.</p></li>
+      <li><div class="ph-h"><span class="n">SUN 4 · EVENING</span><h3>Card + carousel</h3><span class="skill">frontend-design · AEGIS</span></div><p>Vite, React, TS, Tailwind, Framer Motion. Card front and back, flip, stack carousel with drag, swipe, arrows and keyboard, generated pixel avatars, both themes, reduced motion. Runs on sample data through the same service the database will use.</p></li>
+      <li class="gate"><div class="ph-h"><span class="n">GATE 1</span><h3>Design review on the card</h3><span class="skill">AEGIS Council</span></div><p>Render at phone, tablet and desktop widths, contrast, keyboard pass. You look at it on your own phone before anything is built on top.</p></li>
+      <li><div class="ph-h"><span class="n">MON 5 · MORNING</span><h3>Database + sign-in</h3><span class="skill">AERIAL</span></div><p>Tables, column-locked security rules, approve/submit functions, storage, first-admin seed, tests proving a member can't approve themselves. Google sign-in, Connect GitHub, protected routes.</p></li>
+      <li><div class="ph-h"><span class="n">MON 5 · AFTERNOON</span><h3>Editor + repo picker</h3></div><p>Card editor with live preview, avatar compress and upload, the GitHub repo picker, manual projects (D-007), submit for review.</p></li>
+      <li><div class="ph-h"><span class="n">MON 5 · EVENING</span><h3>Public page, QR, admin</h3></div><p><code>/member/:username</code> with a real phone scan test, QR full-screen view, moderation queue with approve, reject with a note, unpublish and feature. First deploy to Vercel.</p></li>
+      <li><div class="ph-h"><span class="n">TUE 6 · MORNING</span><h3>Search, PWA, polish</h3><span class="skill">design:accessibility-review</span></div><p>In-browser search and filters, manifest, pixel app icons, iOS install steps, loading, empty and error states everywhere.</p></li>
+      <li class="gate"><div class="ph-h"><span class="n">GATE 2 · TUE 6 · NOON</span><h3>Final review + production check</h3><span class="skill">AEGIS Council · AERIAL readiness</span></div><p>The spec's full Definition of Done walked end to end on the live URL, security rules checked against the real database, phone install tested. The afternoon is buffer. Nothing new starts after noon.</p></li>
+    </ol>
+  </section>
+
+  <section id="setup">
+    <div class="eyebrow">ONLY YOU CAN DO THESE · ABOUT 45 MINUTES · TODAY</div>
+    <h2>Your setup checklist</h2>
+    <p class="lede">These need your accounts, so I can't do them from here. I'll send exact click-by-click steps for each when we start. The only keys you send me are the project URL and the public "anon" key. Never send the service role key or OAuth client secrets in chat; those go straight into the Supabase dashboard.</p>
+    <ul class="setup">
+      <li><span>New GitHub repo <code>pip-hall</code> (empty)</span><span class="t">2 min</span></li>
+      <li><span>Supabase project, Singapore region, manual identity linking switched on</span><span class="t">10 min</span></li>
+      <li><span>Google Cloud OAuth client for Supabase, consent screen set to In production</span><span class="t">15 min</span></li>
+      <li><span>GitHub OAuth App pointing at Supabase's callback URL</span><span class="t">5 min</span></li>
+      <li><span>Vercel project linked to the repo</span><span class="t">5 min</span></li>
+      <li><span>Optional: Gmail app password for update emails (after the 6th is fine)</span><span class="t">5 min</span></li>
+    </ul>
+  </section>
+
+  <section>
+    <div class="eyebrow">CUT FOR THE 6TH · BACK ON THE LIST AFTER</div>
+    <div class="cut"><span>Update emails (opt-in is stored)</span><span>Messenger link previews</span><span>Sound effects</span><span>Booth mode</span><span>Card PNG export</span><span>Reactions</span><span>Extra card themes</span><span>Multi-org</span></div>
+  </section>
+
+  <!-- ===== limits ===== -->
+  <section>
+    <div class="eyebrow">FREE-TIER REALITY CHECK · VERIFIED 3 OCT 2026</div>
+    <h2>Will it stay free?</h2>
+    <p class="lede">Yes, at org scale. A member with a 512px WebP avatar and three project covers uses about 200 KB, so 300 members fit in roughly 60 MB of storage.</p>
+    <div class="limits">
+      <div class="lim"><span class="k">SUPABASE DATABASE</span><span class="v">500 MB</span><p>Text rows only. Won't come close.</p></div>
+      <div class="lim"><span class="k">SUPABASE STORAGE</span><span class="v">1 GB</span><p>Only if images are compressed before upload.</p></div>
+      <div class="lim"><span class="k">SUPABASE BANDWIDTH</span><span class="v">5 GB / mo</span><p>The real limit. PWA caching of images matters.</p></div>
+      <div class="lim"><span class="k">INACTIVITY PAUSE</span><span class="v">7 days</span><p>Finding above: plan the keep-alive.</p></div>
+      <div class="lim"><span class="k">GITHUB API, NO TOKEN</span><span class="v">60 / hour</span><p>Per member's own IP, only when they open the repo picker. Plenty.</p></div>
+      <div class="lim"><span class="k">VERCEL HOBBY</span><span class="v">100 GB</span><p>Transfer per month. Non-commercial use only.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="eyebrow">SOURCES</div>
+    <div class="src">
+      <a href="https://supabase.com/docs/guides/auth/auth-smtp">Supabase: Send emails with custom SMTP</a>
+      <a href="https://automationatlas.io/answers/supabase-free-tier-limits-2026/">Supabase free tier limits 2026 (Automation Atlas)</a>
+      <a href="https://vercel.com/docs/plans/hobby">Vercel: Hobby plan</a>
+      <a href="https://twitter.com/Pixendo_Games">Pixendo Games on X</a>
+      <a href="https://supabase.com/docs/guides/auth/auth-identity-linking">Supabase: Identity linking</a>
+      <a href="https://support.google.com/cloud/answer/13464323?hl=en">Google Cloud: When is verification not needed</a>
+      <a href="https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api">GitHub Docs: REST API rate limits</a>
+      <a href="https://automationatlas.io/answers/resend-free-tier-explained-2026/">Resend free tier explained (Automation Atlas)</a>
+      <span>Contrast ratios computed with the AEGIS contrast script.</span>
+    </div>
+  </section>
+</div>
+
+<script>
+(function(){
+  var reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var card=document.getElementById('card'), slot=document.getElementById('slot'), screen=document.getElementById('screen');
+  var say=document.getElementById('say'), typing=null;
+  function speak(t){
+    if(typing)clearInterval(typing);
+    if(reduce){say.textContent=t;return;}
+    var i=0;say.textContent='';
+    typing=setInterval(function(){i+=2;say.textContent=t.slice(0,i);if(i>=t.length){clearInterval(typing);typing=null;}},40);
+  }
+  function flip(){
+    var on=card.getAttribute('aria-pressed')!=='true';
+    card.setAttribute('aria-pressed',on?'true':'false');
+    speak(on?'Quest log: the first three projects. VIEW PROFILE shows them all.':'Front side. The QR opens this player’s page.');
+  }
+  function swing(deg){
+    if(reduce)return;
+    slot.classList.add('dragging');slot.style.transform='rotate('+deg+'deg)';
+    requestAnimationFrame(function(){requestAnimationFrame(function(){slot.classList.remove('dragging');slot.style.transform='rotate(0deg)';});});
+  }
+  card.addEventListener('click',function(e){if(moved){e.preventDefault();return;}flip();});
+  document.getElementById('flip').addEventListener('click',flip);
+  document.getElementById('prev').addEventListener('click',function(){swing(7);speak('Only one player so far. Make your card to fill the next slot.');});
+  document.getElementById('next').addEventListener('click',function(){swing(-7);speak('Only one player so far. Make your card to fill the next slot.');});
+  document.getElementById('open').addEventListener('click',function(){speak('OPEN goes to /member/muj-csv once the app is live.');});
+
+  // drag to swing on the lanyard; a tap still flips
+  var sx=0,down=false,moved=false;
+  screen.addEventListener('pointerdown',function(e){down=true;moved=false;sx=e.clientX;});
+  window.addEventListener('pointermove',function(e){
+    if(!down)return;var dx=e.clientX-sx;
+    if(Math.abs(dx)>6)moved=true;
+    if(moved&&!reduce){slot.classList.add('dragging');slot.style.transform='rotate('+Math.max(-9,Math.min(9,-dx/14))+'deg) translateX('+Math.max(-40,Math.min(40,dx/4))+'px)';}
+  });
+  window.addEventListener('pointerup',function(){
+    if(!down)return;down=false;
+    slot.classList.remove('dragging');slot.style.transform='rotate(0deg)';
+    if(moved)speak('On the real carousel, a drag like that moves to the next player.');
+    setTimeout(function(){moved=false;},0);
+  });
+
+  // LED shows real network state
+  var led=document.getElementById('led');
+  function net(){var on=navigator.onLine!==false;led.classList.toggle('off',!on);led.setAttribute('aria-label',on?'Online':'Offline');}
+  window.addEventListener('online',net);window.addEventListener('offline',net);net();
+
+  // generated pixel avatar from the handle (symmetric 10x10)
+  var c=document.getElementById('avatar'),x=c.getContext('2d');
+  var s='muj-csv',h=2166136261;
+  for(var i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)>>>0;}
+  function rnd(){h^=h<<13;h>>>=0;h^=h>>>17;h^=h<<5;h>>>=0;return h/4294967296;}
+  var body=['#BC2051','#4B656B','#9A653F','#4E475D'][h%4];
+  for(var y=1;y<9;y++){for(var col=1;col<5;col++){
+    if(rnd()<(y<3?0.4:y>6?0.65:0.55)){x.fillStyle=y<5?'#252425':body;x.fillRect(col,y,1,1);x.fillRect(9-col,y,1,1);}
+  }}
+  x.fillStyle='#FFFFFF';x.fillRect(3,4,1,1);x.fillRect(6,4,1,1);
+
+  // PIXENDO host sprite (original): round critter with an antenna
+  var hc=document.getElementById('host').getContext('2d');
+  var map=['.....kk.....','......k.....','....kkkk....','...kwwwwk...','..kwwwwwwk..','..kwkwwkwk..','..kwwwwwwk..','..kwwrrwwk..','...kwwwwk...','....kkkk....','...kk..kk...','............'];
+  var pal={k:'#252425',w:'#F0E9D3',r:'#BC2051'};
+  map.forEach(function(row,yy){for(var xx=0;xx<12;xx++){var ch=row[xx];if(pal[ch]){hc.fillStyle=pal[ch];hc.fillRect(xx,yy,1,1);}}});
+})();
+</script>
+
+<!--claude-mermaid-runtime-begin:3477-->
+<style>.mermaid-diagram{margin-block:4px}.mermaid-diagram svg{display:block;margin:0 auto;max-width:100%;height:auto}</style>
+<script src="/_runtime/mermaid-11.16.1.min.js"></script>
+<script>(function(){
+var CFG={"palettes":{"light":{"surface":"#f4efe4","text":"#42392e","line":"#8a7f6d","border":"#7a6c52","bg":"#fffdf8"},"dark":{"surface":"#262b34","text":"#f2f3f5","line":"#a8adb8","border":"#9aa4b8","bg":"#1f232b"}}};
+if(typeof mermaid==='undefined')return;
+var pres=Array.prototype.slice.call(document.querySelectorAll('pre.mermaid')).filter(function(p){if(p.hasAttribute('data-claude-mermaid-claimed'))return false;p.setAttribute('data-claude-mermaid-claimed','1');return true;});
+if(!pres.length)return;
+var mq=window.matchMedia?window.matchMedia('(prefers-color-scheme: dark)'):null;
+var root=document.documentElement;
+var items=pres.map(function(pre){
+var mount=document.createElement('div');mount.className='mermaid-diagram';
+return {pre:pre,mount:mount,src:pre.textContent||''};
+});
+var seq=0;
+var renderGen=0;
+var lastKey='';
+function pageBg(fallback){
+var els=[document.body,document.documentElement];
+for(var i=0;i<els.length;i++){
+var c=els[i]&&getComputedStyle(els[i]).backgroundColor;
+if(c&&c!=='transparent'&&c!=='rgba(0, 0, 0, 0)')return c;
+}
+return fallback;
+}
+function render(){
+var theme=root.getAttribute('data-theme');
+var dark=theme==='dark'||(!!(mq&&mq.matches)&&theme!=='light');
+var pal=dark?CFG.palettes.dark:CFG.palettes.light;
+var bg=pageBg(pal.bg);
+var key=(dark?'d':'l')+'|'+bg;
+if(key===lastKey)return;
+lastKey=key;
+var gen=++renderGen;
+var font=getComputedStyle(document.body).fontFamily||'sans-serif';
+var nat={useMaxWidth:false};
+mermaid.initialize({
+startOnLoad:false,securityLevel:'strict',theme:'base',
+flowchart:nat,sequence:nat,er:nat,state:nat,class:nat,pie:nat,
+gantt:nat,journey:nat,timeline:nat,gitGraph:nat,mindmap:nat,xyChart:nat,
+quadrantChart:nat,sankey:nat,c4:nat,requirement:nat,block:nat,
+packet:nat,kanban:nat,architecture:nat,radar:nat,
+themeVariables:{background:bg,mainBkg:pal.surface,primaryColor:pal.surface,
+primaryTextColor:pal.text,lineColor:pal.line,primaryBorderColor:pal.border,
+nodeBorder:pal.border,clusterBorder:pal.border,edgeLabelBackground:bg,
+clusterBkg:'rgba(127,127,127,0.07)',titleColor:pal.text,
+darkMode:dark,rowOdd:bg,rowEven:'rgba(127,127,127,0.07)',
+attributeBackgroundColorOdd:bg,attributeBackgroundColorEven:'rgba(127,127,127,0.07)',
+fontSize:'16px',fontFamily:font},
+themeCSS:'.node rect, .node circle, .node polygon, .node path, .cluster rect { stroke-width: 2px; }'
+});
+items.forEach(function(it){
+var id='claude-mermaid-'+seq++;
+mermaid.render(id,it.src).then(function(r){
+if(gen!==renderGen)return;
+var prev=it.pre.previousElementSibling;
+if(prev&&prev.className==='mermaid-diagram'&&prev!==it.mount)return;
+it.mount.innerHTML=r.svg;
+if(!it.mount.parentNode)it.pre.parentNode.insertBefore(it.mount,it.pre);
+it.pre.style.display='none';
+},function(){
+var scratch=document.getElementById(id);
+if(scratch)scratch.parentNode.removeChild(scratch);
+scratch=document.getElementById('d'+id);
+if(scratch)scratch.parentNode.removeChild(scratch);
+if(gen!==renderGen)return;
+if(it.mount.parentNode)it.mount.parentNode.removeChild(it.mount);
+it.pre.style.display='';
+});
+});
+}
+render();
+if(mq&&mq.addEventListener)mq.addEventListener('change',render);
+if(typeof MutationObserver!=='undefined')new MutationObserver(render).observe(root,{attributes:true,attributeFilter:['data-theme']});
+})();</script>
+<!--claude-mermaid-runtime-end-->
+
+</body></html>
