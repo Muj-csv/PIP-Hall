@@ -2,6 +2,7 @@
 -- A museum entry now names a project in the member's published snapshot. Editing or deleting draft
 -- projects no longer changes the public Museum; only an approval does, like everything public
 -- (ADR-002). Approving a card keeps the entries whose project is still on it and drops the rest.
+-- Safe to run again (e.g. after a partial run in the SQL editor).
 
 -- ---------------------------------------------------------------- every approved project has an id
 -- Projects that couldn't be linked to a draft row (deleted since approval) get a fresh id, so they
@@ -16,7 +17,7 @@ update public.published_cards c
  where exists (select 1 from jsonb_array_elements(c.card->'projects') p where p->>'id' is null);
 
 -- ---------------------------------------------------------------- entries point at the snapshot
-alter table public.museum_entries drop constraint museum_entries_project_id_fkey;
+alter table public.museum_entries drop constraint if exists museum_entries_project_id_fkey;
 
 -- Drops entries whose project left the approved card (runs on every approval and admin edit).
 create or replace function public.museum_follow_card()
@@ -31,6 +32,7 @@ begin
 end;
 $$;
 
+drop trigger if exists published_cards_museum on public.published_cards;
 create trigger published_cards_museum
   after insert or update of card on public.published_cards
   for each row execute function public.museum_follow_card();

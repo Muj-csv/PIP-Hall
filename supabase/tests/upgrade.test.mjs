@@ -57,6 +57,8 @@ try {
 
   console.log('upgrade: Museum migrations on existing cards');
   for (const f of files.filter((f) => f >= BEFORE)) await c.query(readFileSync(join(migDir, f), 'utf8'));
+  // Running them again (a retry after a partial run in the SQL editor) changes nothing.
+  for (const f of files.filter((f) => f >= '20261005000200')) await c.query(readFileSync(join(migDir, f), 'utf8'));
   const p = await snapshot(c);
   check('the approved card still shows what was approved', p.map((x) => x.title).join() === 'Kept,Old name,Gone', p.map((x) => x.title));
   check('an unchanged project links to its draft row', p[0].id === rows['Kept'], p[0]);
