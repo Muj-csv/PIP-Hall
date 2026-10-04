@@ -89,6 +89,21 @@ test('a member who opens /admin is turned away; an admin gets in', async ({ page
   await ctx.close();
 });
 
+// The race CI caught: on a slow device the sign-out could land before the move to the hall, and
+// the page's guard sent the visitor to /login. A throttled CPU makes the timing reliable.
+test('signing out on a slow device still lands in the hall, from My card and Settings', async ({ page }) => {
+  await mockSupabase(page, { user: MEMBER });
+  const cdp = await page.context().newCDPSession(page);
+  for (const from of ['/edit', '/settings']) {
+    await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
+    await page.goto(from);
+    await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible();
+    await cdp.send('Emulation.setCPUThrottlingRate', { rate: 8 });
+    await page.getByRole('button', { name: 'Sign out' }).click();
+    await expect(page).toHaveURL('http://localhost:5173/', { timeout: 15000 });
+  }
+});
+
 test('signing out returns to the hall as a visitor', async ({ page }) => {
   const log = await mockSupabase(page, { user: MEMBER });
   await page.goto('/');
