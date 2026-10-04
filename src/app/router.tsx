@@ -12,6 +12,7 @@ import { RequireAdmin, RequireAuth } from './guards';
 const Edit = lazy(() => import('../pages/Edit'));
 const Admin = lazy(() => import('../pages/Admin'));
 const Member = lazy(() => import('../pages/Member'));
+const Privacy = lazy(() => import('../pages/Privacy'));
 /* eslint-enable react-refresh/only-export-components */
 
 const lazyPage = (node: ReactNode) => <Suspense fallback={null}>{node}</Suspense>;
@@ -22,6 +23,7 @@ export const router = createBrowserRouter([
   { path: '/login', element: <Login /> },
   { path: '/auth/callback', element: <AuthCallback /> },
   { path: '/member/:username', element: lazyPage(<Member />) },
+  { path: '/privacy', element: lazyPage(<Privacy />) },
   { path: '/edit', element: <RequireAuth>{lazyPage(<Edit />)}</RequireAuth> },
   { path: '/create', element: <Navigate to="/edit" replace /> },
   { path: '/admin', element: <RequireAdmin>{lazyPage(<Admin />)}</RequireAdmin> },

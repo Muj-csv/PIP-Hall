@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { Link } from 'react-router';
 import { TopBar } from '../components/shell/TopBar';
 import { Hall } from '../components/stage/Hall';
 
@@ -19,6 +20,11 @@ export default function Home() {
         </div>
         <Hall />
       </main>
+      <footer className="mt-space-6 text-center text-caption text-text-secondary">
+        <Link to="/privacy" className="inline-block py-[11px] underline decoration-2">
+          Privacy
+        </Link>
+      </footer>
     </div>
   );
 }

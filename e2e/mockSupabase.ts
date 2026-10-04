@@ -30,6 +30,7 @@ export async function mockSupabase(page: Page, opts: MockOptions = {}): Promise<
   const user = opts.user ?? null;
   // Signed-in pages read the member's own rows; default to an empty account.
   const db = opts.db ?? (user ? emptyDb(user.github ?? null) : undefined);
+  let session: Record<string, unknown> | null = null;
 
   if (user) {
     const now = Math.floor(Date.now() / 1000);
@@ -38,7 +39,7 @@ export async function mockSupabase(page: Page, opts: MockOptions = {}): Promise<
       { provider: 'google', identity_data: { email: user.email } },
       ...(user.github ? [{ provider: 'github', identity_data: { user_name: user.github } }] : []),
     ];
-    const session = {
+    session = {
       access_token: jwt,
       token_type: 'bearer',
       expires_in: 3600,
@@ -60,6 +61,7 @@ export async function mockSupabase(page: Page, opts: MockOptions = {}): Promise<
     if (url.pathname === '/rest/v1/published_cards') return json(opts.publishedStatus ?? 200, opts.publishedStatus ? { message: 'boom' } : filterRows((opts.publishedCards ?? []) as Row[], url));
     if (url.pathname === '/rest/v1/rpc/sync_github_identity') return json(200, user?.github ?? null);
     if (url.pathname === '/auth/v1/user/identities/authorize') return json(200, { url: 'https://github.com/login/oauth/authorize?client_id=e2e' });
+    if (url.pathname === '/auth/v1/token' && session) return json(200, session); // token refresh
     if (url.pathname === '/auth/v1/logout') return route.fulfill({ status: 204 });
     if (url.pathname === '/auth/v1/user') return json(200, user ? { id: user.id, email: user.email } : {});
     return json(404, { message: `unmocked ${url.pathname}` });
