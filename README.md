@@ -78,9 +78,9 @@ Status key: ✅ done · 🛠️ in progress · ⏳ planned for v1.0 (6 Oct 2026)
 | | 3D card flip with jump animation, lanyard swing, coin counter | ✅ |
 | | QR code on every card, with a full-screen "scan me" view | ✅ |
 | **Members** | Google sign-in, connect GitHub (verified handle) | ✅ (needs your Supabase project) |
-| | Card editor with live preview, photo upload, generated pixel avatar | ⏳ |
-| | GitHub repo picker (up to 6) plus manual projects | ⏳ |
-| | Submit for review; edits to a live card are re-reviewed while the approved version stays public | ⏳ |
+| | Card editor with live preview, photo upload, generated pixel avatar | ✅ |
+| | GitHub repo picker (up to 6) plus manual projects | ✅ |
+| | Submit for review; edits to a live card are re-reviewed while the approved version stays public | ✅ |
 | **Admin** | Moderation queue: approve, reject with note, unpublish, feature, rename | ⏳ |
 | **Discovery** | Public profile at `/member/:username`; search and filters | ⏳ |
 | **App** | Installable PWA with an offline shell and iOS install steps | ⏳ |
