@@ -2,16 +2,29 @@
 // One flip button per face covers the badge; links, QR and VIEW PROFILE sit above it as their own
 // focus stops. The face turned away is inert, so only visible controls can be reached.
 
-import { useLayoutEffect, useMemo, useRef } from 'react';
-import { CARD_PALETTE, DOODLE_PALETTE, SPR } from '../../lib/sprites';
-import { placeStickers } from '../../lib/stickers';
-import { memberUrl, serialFor } from '../../lib/publicUrl';
-import type { PublicCard } from '../../types/card';
-import { SpriteCanvas } from '../pixel/SpriteCanvas';
-import { BadgeScene } from './BadgeScene';
-import { PixelAvatar } from './PixelAvatar';
-import { QrCode } from './QrCode';
-import { Sticker } from './Sticker';
+import {
+  createContext,
+  useContext,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+} from "react";
+import { useAppearance } from "../../app/appearanceContext";
+import {
+  CARD_PALETTE,
+  DOODLE_PALETTE,
+  FRAME_DOODLES,
+  SPR,
+} from "../../lib/sprites";
+import { placeStickers } from "../../lib/stickers";
+import { memberUrl, serialFor } from "../../lib/publicUrl";
+import type { PublicCard } from "../../types/card";
+import type { Appearance } from "../../types/mart";
+import { SpriteCanvas } from "../pixel/SpriteCanvas";
+import { BadgeScene } from "./BadgeScene";
+import { PixelAvatar } from "./PixelAvatar";
+import { QrCode } from "./QrCode";
+import { Sticker } from "./Sticker";
 
 export const MAX_PROJECTS = 6;
 
@@ -27,38 +40,136 @@ interface Props {
   onShowQr: () => void;
   /** Editor preview: a photo picked but not uploaded yet (object URL). */
   photoUrl?: string | null;
+  /** The frame to show instead of the member's own (PIP MART previews). null = plain badge. */
+  appearance?: Appearance | null;
 }
 
-export function MemberCard({ card, flipped, focusable, onActivate, onOpen, onShowQr, photoUrl }: Props) {
+/** The frame the badge wears (E2), read by the holder on both faces. */
+const FrameContext = createContext<Appearance | null>(null);
+
+export function MemberCard({
+  card,
+  flipped,
+  focusable,
+  onActivate,
+  onOpen,
+  onShowQr,
+  photoUrl,
+  appearance,
+}: Props) {
   const name = card.card.full_name;
   const tab = focusable ? 0 : -1;
+  const worn = useAppearance().of(card.profile_id);
+  const look = appearance === undefined ? worn : appearance;
   return (
-    <div className="badge" data-flipped={flipped}>
-      <div className="badge-face" data-side="front" inert={flipped}>
-        {onActivate && (
-          <button type="button" className="badge-hit" tabIndex={tab} aria-pressed={flipped} aria-label={`Card of ${name}. Flip to see their projects.`} onClick={onActivate} />
-        )}
-        <CardFront card={card} tab={tab} onShowQr={onShowQr} photoUrl={photoUrl} />
+    <FrameContext.Provider value={look}>
+      <div className="badge" data-flipped={flipped} data-frame={look?.frame}>
+        <div className="badge-face" data-side="front" inert={flipped}>
+          {onActivate && (
+            <button
+              type="button"
+              className="badge-hit"
+              tabIndex={tab}
+              aria-pressed={flipped}
+              aria-label={`Card of ${name}. Flip to see their projects.`}
+              onClick={onActivate}
+            />
+          )}
+          <CardFront
+            card={card}
+            tab={tab}
+            onShowQr={onShowQr}
+            photoUrl={photoUrl}
+          />
+        </div>
+        <div className="badge-face" data-side="back" inert={!flipped}>
+          {onActivate && (
+            <button
+              type="button"
+              className="badge-hit"
+              tabIndex={tab}
+              aria-pressed={flipped}
+              aria-label={`Quest Log of ${name}. Flip back to the front.`}
+              onClick={onActivate}
+            />
+          )}
+          <CardBack card={card} tab={tab} onOpen={onOpen} />
+        </div>
       </div>
-      <div className="badge-face" data-side="back" inert={!flipped}>
-        {onActivate && (
-          <button type="button" className="badge-hit" tabIndex={tab} aria-pressed={flipped} aria-label={`Quest Log of ${name}. Flip back to the front.`} onClick={onActivate} />
-        )}
-        <CardBack card={card} tab={tab} onOpen={onOpen} />
-      </div>
-    </div>
+    </FrameContext.Provider>
   );
 }
 
 function Holder({ children }: { children: React.ReactNode }) {
+  const look = useContext(FrameContext);
+  const ornament = look ? FRAME_DOODLES[look.frame] : undefined;
+  // A perk frame prints its affiliation (e.g. ACM MEMBER) where the holder says PIXENDO.
+  const print = look?.label ?? "PIXENDO";
   return (
     <div className="holder">
       <span className="hole" />
-      <span className="holder-print" aria-hidden="true">PIXENDO</span>
-      <SpriteCanvas sprite={SPR.flower} palette={DOODLE_PALETTE} className="doodle" style={{ top: 6, left: 6 }} />
-      <SpriteCanvas sprite={SPR.flower} palette={DOODLE_PALETTE} className="doodle" style={{ top: 6, right: 6 }} />
-      <SpriteCanvas sprite={SPR.grass} palette={DOODLE_PALETTE} className="doodle" style={{ bottom: 6, left: 8 }} />
-      <SpriteCanvas sprite={SPR.flower} palette={DOODLE_PALETTE} className="doodle" style={{ top: '48%', right: 0 }} />
+      <span
+        className="holder-print"
+        data-label={look?.label ? "perk" : undefined}
+        aria-hidden={look?.label ? undefined : true}
+      >
+        {print}
+      </span>
+      {ornament ? (
+        <>
+          <SpriteCanvas
+            sprite={ornament.sprite}
+            palette={ornament.palette}
+            className="doodle"
+            style={{ top: 6, left: 6 }}
+          />
+          <SpriteCanvas
+            sprite={ornament.sprite}
+            palette={ornament.palette}
+            className="doodle"
+            style={{ top: 6, right: 6 }}
+          />
+          <SpriteCanvas
+            sprite={ornament.sprite}
+            palette={ornament.palette}
+            className="doodle"
+            style={{ bottom: 6, left: 8 }}
+          />
+          <SpriteCanvas
+            sprite={ornament.sprite}
+            palette={ornament.palette}
+            className="doodle"
+            style={{ bottom: 6, right: 8 }}
+          />
+        </>
+      ) : (
+        <>
+          <SpriteCanvas
+            sprite={SPR.flower}
+            palette={DOODLE_PALETTE}
+            className="doodle"
+            style={{ top: 6, left: 6 }}
+          />
+          <SpriteCanvas
+            sprite={SPR.flower}
+            palette={DOODLE_PALETTE}
+            className="doodle"
+            style={{ top: 6, right: 6 }}
+          />
+          <SpriteCanvas
+            sprite={SPR.grass}
+            palette={DOODLE_PALETTE}
+            className="doodle"
+            style={{ bottom: 6, left: 8 }}
+          />
+          <SpriteCanvas
+            sprite={SPR.flower}
+            palette={DOODLE_PALETTE}
+            className="doodle"
+            style={{ top: "48%", right: 0 }}
+          />
+        </>
+      )}
       <div className="insert">
         {children}
         <div className="glare" aria-hidden="true">
@@ -73,7 +184,11 @@ function Holder({ children }: { children: React.ReactNode }) {
 function Band({ title, right }: { title: string; right: string }) {
   return (
     <div className="band">
-      <SpriteCanvas sprite={SPR.block} palette={CARD_PALETTE} className="band-emblem" />
+      <SpriteCanvas
+        sprite={SPR.block}
+        palette={CARD_PALETTE}
+        className="band-emblem"
+      />
       <span className="band-title">{title}</span>
       <span className="band-no">{right}</span>
     </div>
@@ -91,10 +206,10 @@ function useFittedName() {
     if (!el) return;
     const fit = () => {
       let size = NAME_MAX;
-      el.style.setProperty('--name-size', `${size}px`);
+      el.style.setProperty("--name-size", `${size}px`);
       while (size > NAME_MIN && el.scrollHeight > el.clientHeight + 1) {
         size -= 1;
-        el.style.setProperty('--name-size', `${size}px`);
+        el.style.setProperty("--name-size", `${size}px`);
       }
     };
     fit();
@@ -103,30 +218,67 @@ function useFittedName() {
   return ref;
 }
 
-function CardFront({ card, tab, onShowQr, photoUrl }: { card: PublicCard; tab: number; onShowQr: () => void; photoUrl?: string | null }) {
+function CardFront({
+  card,
+  tab,
+  onShowQr,
+  photoUrl,
+}: {
+  card: PublicCard;
+  tab: number;
+  onShowQr: () => void;
+  photoUrl?: string | null;
+}) {
   const c = card.card;
   const stickers = useMemo(() => placeStickers(c), [c]);
   const nameRef = useFittedName();
   const year = card.published_at.slice(2, 4);
   const links = [
-    { key: 'gh', label: 'GitHub', href: c.github_username ? `https://github.com/${c.github_username}` : null, icon: SPR.iconCode },
-    { key: 'li', label: 'LinkedIn', href: c.linkedin_url, icon: SPR.iconCase },
-    { key: 'web', label: 'Website', href: c.portfolio_url, icon: SPR.iconGlobe },
+    {
+      key: "gh",
+      label: "GitHub",
+      href: c.github_username
+        ? `https://github.com/${c.github_username}`
+        : null,
+      icon: SPR.iconCode,
+    },
+    { key: "li", label: "LinkedIn", href: c.linkedin_url, icon: SPR.iconCase },
+    {
+      key: "web",
+      label: "Website",
+      href: c.portfolio_url,
+      icon: SPR.iconGlobe,
+    },
   ];
   return (
     <>
       <Holder>
-        <Band title="PIP-HALL" right={`No.${String(card.no).padStart(3, '0')}`} />
+        <Band
+          title="PIP-HALL"
+          right={`No.${String(card.no).padStart(3, "0")}`}
+        />
         <div className="badge-inner">
           <div className="photo-window">
             <BadgeScene />
-            <PixelAvatar username={c.username} name={c.full_name} avatarPath={c.avatar_path} photoUrl={photoUrl} />
+            <PixelAvatar
+              username={c.username}
+              name={c.full_name}
+              avatarPath={c.avatar_path}
+              photoUrl={photoUrl}
+            />
             <i className="corner" data-at="tl" />
             <i className="corner" data-at="tr" />
             <i className="corner" data-at="bl" />
             <i className="corner" data-at="br" />
             {c.department && <span className="dept">{c.department}</span>}
-            {c.is_featured && <SpriteCanvas sprite={SPR.star0} palette={CARD_PALETTE} className="star-badge" label="Featured" />}
+            {c.is_featured && (
+              <SpriteCanvas
+                sprite={SPR.star0}
+                palette={CARD_PALETTE}
+                className="star-badge"
+                label="Featured"
+              />
+            )}
           </div>
           <div>
             <h2 ref={nameRef} className="badge-name">
@@ -151,11 +303,24 @@ function CardFront({ card, tab, onShowQr, photoUrl }: { card: PublicCard; tab: n
             <div className="item-slots">
               {links.map((l) =>
                 l.href ? (
-                  <a key={l.key} className="item-slot" href={l.href} target="_blank" rel="noopener noreferrer" tabIndex={tab} aria-label={`${l.label} (opens in a new tab)`}>
+                  <a
+                    key={l.key}
+                    className="item-slot"
+                    href={l.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    tabIndex={tab}
+                    aria-label={`${l.label} (opens in a new tab)`}
+                  >
                     <SpriteCanvas sprite={l.icon} palette={CARD_PALETTE} />
                   </a>
                 ) : (
-                  <span key={l.key} className="item-slot" data-empty="true" title={`${l.label} not added`}>
+                  <span
+                    key={l.key}
+                    className="item-slot"
+                    data-empty="true"
+                    title={`${l.label} not added`}
+                  >
                     <SpriteCanvas sprite={l.icon} palette={CARD_PALETTE} />
                     <span className="sr-only">{l.label} not added</span>
                   </span>
@@ -163,7 +328,13 @@ function CardFront({ card, tab, onShowQr, photoUrl }: { card: PublicCard; tab: n
               )}
             </div>
             <div className="qr-box">
-              <button type="button" className="qr-button" tabIndex={tab} aria-label={`Show QR code for ${c.full_name}'s page full screen`} onClick={onShowQr}>
+              <button
+                type="button"
+                className="qr-button"
+                tabIndex={tab}
+                aria-label={`Show QR code for ${c.full_name}'s page full screen`}
+                onClick={onShowQr}
+              >
                 <QrCode value={memberUrl(c.username)} />
               </button>
               <span className="serial">{serialFor(card.no, c.username)}</span>
@@ -171,7 +342,11 @@ function CardFront({ card, tab, onShowQr, photoUrl }: { card: PublicCard; tab: n
           </div>
         </div>
       </Holder>
-      {stickers.length > 0 && <span className="sr-only">Stickers: {stickers.map((s) => s.label).join(', ')}</span>}
+      {stickers.length > 0 && (
+        <span className="sr-only">
+          Stickers: {stickers.map((s) => s.label).join(", ")}
+        </span>
+      )}
       {stickers.map((s) => (
         <Sticker key={s.label} sticker={s} />
       ))}
@@ -179,7 +354,15 @@ function CardFront({ card, tab, onShowQr, photoUrl }: { card: PublicCard; tab: n
   );
 }
 
-function CardBack({ card, tab, onOpen }: { card: PublicCard; tab: number; onOpen?: () => void }) {
+function CardBack({
+  card,
+  tab,
+  onOpen,
+}: {
+  card: PublicCard;
+  tab: number;
+  onOpen?: () => void;
+}) {
   const c = card.card;
   return (
     <Holder>
@@ -195,11 +378,13 @@ function CardBack({ card, tab, onOpen }: { card: PublicCard; tab: number; onOpen
           {c.projects.slice(0, 3).map((p, i) => (
             <li key={`${p.title}-${i}`} className="quest">
               <span className="quest-n" aria-hidden="true">
-                {String(i + 1).padStart(2, '0')}
+                {String(i + 1).padStart(2, "0")}
               </span>
               <span>
                 <b>{p.title}</b>
-                <small>{[p.description, p.language].filter(Boolean).join(' · ')}</small>
+                <small>
+                  {[p.description, p.language].filter(Boolean).join(" · ")}
+                </small>
               </span>
             </li>
           ))}
@@ -212,7 +397,12 @@ function CardBack({ card, tab, onOpen }: { card: PublicCard; tab: number; onOpen
           </ul>
         )}
         {onOpen && (
-          <button type="button" className="badge-cta" tabIndex={tab} onClick={onOpen}>
+          <button
+            type="button"
+            className="badge-cta"
+            tabIndex={tab}
+            onClick={onOpen}
+          >
             VIEW PROFILE ▸
           </button>
         )}

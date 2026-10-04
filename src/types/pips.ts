@@ -1,6 +1,6 @@
 // PIP Progression E1 (docs/plan/PIP-PROGRESSION-E1.md).
 
-export type PipReason = 'first_approval' | 'project_live' | 'discover' | 'achievement';
+export type PipReason = 'first_approval' | 'project_live' | 'discover' | 'achievement' | 'purchase';
 
 export interface PipSummary {
   /** Has a card in the hall, so can earn (D-059). */

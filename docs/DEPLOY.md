@@ -75,6 +75,14 @@ Do these on the live URL and keep a screenshot of each.
 2. **Vercel → Environment Variables:** add `VITE_FEATURE_PIPS` = `on` (Production, and Preview if you want it there), then redeploy. Leave it unset or `off` to keep PIPs hidden; the migration is harmless while the switch is off.
 3. Check: sign in as a member whose card is in the hall, open another member's profile, and see Pip's "+5 PIPs" line and the HUD balance; Settings → PIPs shows the history.
 
+## PIP MART (E2)
+
+Needs PIPs on (`VITE_FEATURE_PIPS=on`, see above).
+
+1. Supabase **SQL editor:** run `supabase/migrations/20261006000000_pip_mart.sql` (after the Museum migrations). Run it once.
+2. **Admin → Affiliations:** on an affiliation such as your organization, click **Give member frame**. Its members can then wear a free frame printed with its name (e.g. ACM MEMBER).
+3. Check: a member in the hall opens **PIP MART**, tries a frame on, buys one, wears it; the hall shows it.
+
 ## MUSEUM and affiliations
 
 1. Supabase **SQL editor:** run `supabase/migrations/20261005000100_museum.sql` (after `…_pips_core.sql`). It also adds project ids to the cards already in the hall, so their projects can go in the Museum. Then run `…_museum_relink.sql` and `…_museum_follows_card.sql`, in that order. Together they give every project on an approved card an id (matching renamed projects by GitHub link, project link or title), and make the Museum follow the approved card: editing the draft never changes the Museum; the next approval does. Both are safe to run on a database that already has cards; `npm run test:db` proves it with an upgrade test.

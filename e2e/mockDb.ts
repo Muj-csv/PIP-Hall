@@ -22,7 +22,19 @@ export interface MockDb {
   affiliations?: Row[];
   memberAffiliations?: Row[];
   museumEntries?: Row[];
+  /** PIP MART (mirrors supabase/migrations/*_pip_mart.sql). */
+  inventory?: Row[];
+  appearance?: Row[];
 }
+
+export const MART_ITEMS = [
+  { key: 'meadow', kind: 'frame', name: 'Meadow Frame', description: 'Hill green with little flowers in bloom.', price: 200, sort: 1 },
+  { key: 'dusk', kind: 'frame', name: 'Dusk Frame', description: 'Deep plum with stars in the corners.', price: 400, sort: 2 },
+  { key: 'pearl', kind: 'frame', name: 'Pearl Frame', description: 'Soft cream with polished pearls.', price: 700, sort: 3 },
+  { key: 'gold', kind: 'frame', name: 'Gold Frame', description: "Block gold with coins. For the hall's finest.", price: 1000, sort: 4 },
+];
+
+const perkLabel = (name: string) => (/(^| )MEMBER$/.test(name.trim().toUpperCase()) ? name.trim().toUpperCase() : `${name.trim().toUpperCase()} MEMBER`);
 
 export const ACHIEVEMENTS = [
   { key: 'first_card', name: 'Card Holder', description: 'Your card was approved for the first time.', reward: 50, sort: 1 },
@@ -381,6 +393,73 @@ export async function handleDb(route: Route, db: MockDb, user: DbUser): Promise<
       return [{ project_id: e.project_id, username: c.username, full_name: card!.full_name, avatar_path: card!.avatar_path ?? null, member_no: c.member_no, project }];
     });
     return (await json(200, out)), true;
+  }
+
+  // ---- PIP MART
+  const owns = (id: string, key: string) => (db.inventory ?? []).some((r) => r.member_id === id && r.item_key === key);
+  const perksOf = (id: string) =>
+    (db.memberAffiliations ?? [])
+      .filter((m) => m.member_id === id)
+      .map((m) => (db.affiliations ?? []).find((a) => a.key === m.key && a.frame_key === 'member'))
+      .filter((a): a is Row => Boolean(a))
+      .map((a) => ({ key: a.key, name: a.name, label: perkLabel(String(a.name)) }));
+  const validFrame = (id: string) => {
+    const a = (db.appearance ?? []).find((r) => r.member_id === id);
+    if (!a?.frame) return null;
+    if (a.frame === 'member') {
+      const p = perksOf(id).find((x) => x.key === a.frame_affiliation);
+      return p ? { frame: 'member', label: p.label } : null;
+    }
+    return owns(id, String(a.frame)) ? { frame: a.frame, label: null } : null;
+  };
+  if (url.pathname === '/rest/v1/rpc/my_mart') {
+    if (!userId) return (await err(401, '42501', 'permission denied for function my_mart')), true;
+    const a = (db.appearance ?? []).find((r) => r.member_id === userId);
+    return (await json(200, {
+      eligible: inHall(userId),
+      balance: balanceOf(db, userId),
+      items: MART_ITEMS.map((m) => ({ ...m, owned: owns(userId, m.key) })),
+      perks: perksOf(userId),
+      equipped: { frame: a?.frame ?? null, affiliation: a?.frame_affiliation ?? null },
+    })), true;
+  }
+  if (url.pathname === '/rest/v1/rpc/buy_item') {
+    const { p_key } = body() as { p_key: string };
+    if (!userId) return (await err(401, '42501', 'permission denied for function buy_item')), true;
+    if (!inHall(userId)) return (await err(400, 'P0001', 'NOT_ELIGIBLE')), true;
+    const item = MART_ITEMS.find((m) => m.key === p_key);
+    if (!item) return (await err(400, 'P0001', 'NO_SUCH_ITEM')), true;
+    if (owns(userId, p_key)) return (await err(400, 'P0001', 'ALREADY_OWNED')), true;
+    const bal = balanceOf(db, userId);
+    if (bal < item.price) return (await err(400, 'P0001', 'NOT_ENOUGH_PIPS')), true;
+    db.ledger ??= [];
+    db.ledger.push({ id: db.ledger.length + 1, member_id: userId, amount: -item.price, reason: 'purchase', ref: `buy:${p_key}`, created_at: new Date().toISOString() });
+    (db.inventory ??= []).push({ member_id: userId, item_key: p_key });
+    return (await json(200, { balance: bal - item.price })), true;
+  }
+  if (url.pathname === '/rest/v1/rpc/equip_frame') {
+    const { p_frame, p_affiliation } = body() as { p_frame: string | null; p_affiliation: string | null };
+    if (!userId) return (await err(401, '42501', 'permission denied for function equip_frame')), true;
+    if (!inHall(userId)) return (await err(400, 'P0001', 'NOT_ELIGIBLE')), true;
+    if (p_frame === 'member' && !perksOf(userId).some((p) => p.key === p_affiliation)) return (await err(400, 'P0001', 'NO_SUCH_PERK')), true;
+    if (p_frame && p_frame !== 'member' && !owns(userId, p_frame)) return (await err(400, 'P0001', 'NOT_OWNED')), true;
+    db.appearance = (db.appearance ?? []).filter((r) => r.member_id !== userId);
+    db.appearance.push({ member_id: userId, frame: p_frame, frame_affiliation: p_frame === 'member' ? p_affiliation : null });
+    return (await json(200, null)), true;
+  }
+  if (url.pathname === '/rest/v1/rpc/card_appearances') {
+    const out = db.published.flatMap((c) => {
+      const v = validFrame(String(c.profile_id));
+      return v ? [{ profile_id: c.profile_id, ...v }] : [];
+    });
+    return (await json(200, out)), true;
+  }
+  if (url.pathname === '/rest/v1/rpc/admin_set_affiliation_frame') {
+    if (!admin) return (await err(403, '42501', 'NOT_ADMIN')), true;
+    const { p_key, p_frame } = body() as { p_key: string; p_frame: string | null };
+    const a = (db.affiliations ?? []).find((r) => r.key === p_key);
+    if (a) a.frame_key = p_frame;
+    return (await json(200, null)), true;
   }
 
   if (url.pathname === '/rest/v1/rpc/delete_my_account') {

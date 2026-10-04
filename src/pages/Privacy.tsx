@@ -61,7 +61,10 @@ export default function Privacy() {
             projects approved. PIP-Hall keeps a list of your PIP rewards and of the members you’ve discovered so it only rewards each one
             once. Only you can see your PIPs and whom you’ve discovered; nobody, admins included, gets a “who viewed you” list.
           </p>
-          <p className="m-0">Achievements you unlock show on your profile. Deleting your account deletes all of this too.</p>
+          <p className="m-0">
+            Achievements you unlock, and the frame you wear from the PIP MART, show on your badge and profile. What you’ve bought and
+            your balance stay private. Deleting your account deletes all of this too.
+          </p>
         </Section>
       )}
 
