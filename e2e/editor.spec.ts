@@ -230,7 +230,9 @@ test('the member crops the photo: drag, keyboard and zoom pick what shows on the
   const use = async () => {
     const before = (await preview.count()) ? await preview.getAttribute('src') : null;
     await page.getByRole('button', { name: 'Use this photo' }).click();
+    // Wait for the new photo: a changed src, or the first one appearing (a slow runner reads too early).
     if (before) await expect(preview).not.toHaveAttribute('src', before);
+    else await expect(preview).toHaveAttribute('src', /./);
   };
   // Size of the saved photo and the colour in its middle.
   const saved = () =>
