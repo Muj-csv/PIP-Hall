@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="description" content="PIP-Hall — People, Identity & Projects Hall. Where every person has a place." />
+    <meta name="theme-color" content="#4E475D" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>PIP-Hall</title>
+    <script>
+      // Apply the saved theme before first paint so NIGHT never flashes DAY.
+      (function () {
+        var t = null;
+        try { t = localStorage.getItem('piphall-theme'); } catch (e) {}
+        if (t !== 'light' && t !== 'dark') t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', t);
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

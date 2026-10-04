@@ -71,18 +71,19 @@ Status key: ✅ done · 🛠️ in progress · ⏳ planned for v1.0 (6 Oct 2026)
 | Area | Feature | Status |
 |---|---|---|
 | **Data & security** | Postgres schema, Row Level Security, column-locked moderation, admin functions | ✅ |
-| | 52 automated security tests (e.g. a member can't approve their own card) | ✅ |
+| | 73 automated security tests (e.g. a member can't approve their own card) | ✅ |
 | **Design** | Design system: tokens, DAY/NIGHT themes, contrast-checked palette | ✅ |
 | | Playable design prototype: level, badge, handheld, motion | ✅ |
-| **Hall** | Side-scrolling card carousel: drag, swipe, arrow keys, ◀ ▶ controls | 🛠️ |
-| | 3D card flip with jump animation, lanyard swing, coin counter | 🛠️ |
-| | QR code on every card, with a full-screen "scan me" view | ⏳ |
-| **Members** | Google sign-in, connect GitHub (verified handle) | ⏳ |
-| | Card editor with live preview, photo upload, generated pixel avatar | ⏳ |
-| | GitHub repo picker (up to 6) plus manual projects | ⏳ |
-| | Submit for review; edits to a live card are re-reviewed while the approved version stays public | ⏳ |
-| **Admin** | Moderation queue: approve, reject with note, unpublish, feature, rename | ⏳ |
-| **Discovery** | Public profile at `/member/:username`; search and filters | ⏳ |
+| **Hall** | Side-scrolling card carousel: drag, swipe, arrow keys, ◀ ▶ controls | ✅ (sample data) |
+| | 3D card flip with jump animation, lanyard swing, coin counter | ✅ |
+| | QR code on every card, with a full-screen "scan me" view | ✅ |
+| **Members** | Google sign-in, connect GitHub (verified handle) | ✅ (needs your Supabase project) |
+| | Card editor with live preview, photo upload, generated pixel avatar | ✅ |
+| | GitHub repo picker (up to 6) plus manual projects | ✅ |
+| | Submit for review; edits to a live card are re-reviewed while the approved version stays public | ✅ |
+| **Admin** | Moderation queue: approve, reject with note, unpublish, feature, rename | ✅ |
+| **Discovery** | Public profile at `/member/:username` (what the QR opens) | ✅ |
+| | Search and filters | ⏳ |
 | **App** | Installable PWA with an offline shell and iOS install steps | ⏳ |
 
 ---
@@ -140,7 +141,7 @@ stateDiagram-v2
 |---|---|---|
 | UI | **React 19**, **TypeScript** (strict), **Vite** | Fast dev loop, typed components, static build |
 | Styling | **Tailwind CSS 4**, theme generated from design tokens | One source of truth for colour, type and spacing |
-| Motion | **Motion** (Framer Motion) + canvas sprites | Spring physics for cards, stepped frames for pixel art |
+| Motion | Hand-written springs on one `requestAnimationFrame` loop + canvas sprites | Spring physics for the camera and swing, stepped frames for pixel art, no animation library (D-031) |
 | Routing | **React Router** | Public and protected routes in one SPA |
 | Backend | **Supabase**: Postgres, Auth, Storage | Auth, database and file storage on one free tier; no custom server |
 | Auth | Google OAuth + linked GitHub identity | Google for contact email, GitHub for a verified handle and repos |
@@ -171,7 +172,7 @@ flowchart LR
 - **No server of our own.** The browser talks directly to Supabase. Security lives in the database: Row Level Security, column-level grants, and `security definer` functions for every state change.
 - **Drafts vs. snapshots.** `profiles` and `projects` hold private drafts. `published_cards` holds the public snapshot and is written only by admin functions ([ADR-002](docs/adr/ADR-002-published-snapshot.md)).
 - **One gateway to data.** Only modules in `src/services/` import the Supabase client, so components never touch the database directly.
-- **Custom carousel.** Built on Motion instead of a slider library, because cards hang, swing and overlap. It renders only the current card and two on each side ([ADR-001](docs/adr/ADR-001-stack-carousel.md)).
+- **Custom carousel.** Hand-written instead of a slider library, because cards hang, swing and overlap. It renders only the current card and two on each side ([ADR-001](docs/adr/ADR-001-stack-carousel.md)).
 
 ---
 
@@ -229,7 +230,7 @@ npm install
 npm run test:db
 ```
 
-This starts a throwaway Postgres, applies the migrations, and runs 52 security checks. No Supabase account needed.
+This starts a throwaway Postgres, applies the migrations, and runs 73 security checks. No Supabase account needed.
 
 ### 3. Set up Supabase
 
@@ -238,6 +239,8 @@ This starts a throwaway Postgres, applies the migrations, and runs 52 security c
    - `supabase/migrations/20261004000000_init.sql`
    - `supabase/migrations/20261004000100_storage.sql`
    - `supabase/migrations/20261004000200_image_paths.sql`
+   - `supabase/migrations/20261004000300_member_no.sql`
+   - `supabase/migrations/20261004000400_admin_checks.sql`
 3. **Authentication → Providers:** enable **Google** and **GitHub** and paste each provider's client ID and secret.
 4. **Authentication → Settings:** turn on **manual identity linking**. It's a beta feature, and it's what lets members connect GitHub to their Google account.
 5. **Authentication → URL configuration:** add `http://localhost:5173` and your production URL as redirect URLs.
@@ -288,11 +291,13 @@ To preview the design right now, open `docs/design/lab.html` in a browser.
 
 ## Deployment
 
+Step by step, with checks: [`docs/DEPLOY.md`](docs/DEPLOY.md). In short:
+
 1. Import the repo into **Vercel** (framework: Vite).
-2. Add the four `VITE_*` environment variables.
-3. `vercel.json` (added in Phase 1) rewrites every non-file route to `index.html`, so cold links like `/member/your-name` (what a QR scan opens) don't 404.
+2. Add the four `VITE_*` environment variables (`VITE_DATA_SOURCE=supabase`, `VITE_PUBLIC_ORIGIN` = the production URL).
+3. `vercel.json` rewrites every non-file route to `index.html`, so cold links like `/member/your-name` (what a QR scan opens) don't 404.
 4. Add the production URL to Supabase's redirect URLs.
-5. A weekly GitHub Actions workflow (added in Phase 2) pings the database so the free Supabase project isn't paused for inactivity. Check Supabase's current terms before relying on it.
+5. `.github/workflows/keepalive.yml` reads one public card every Monday so the free Supabase project isn't paused for inactivity. Add the repository secrets `SUPABASE_URL` and `SUPABASE_ANON_KEY` (Settings → Secrets and variables → Actions); without them the job skips with a warning. Check Supabase's current terms before relying on it.
 
 ---
 
@@ -336,10 +341,10 @@ PIP-Hall's look comes from two references: a pixel-art handheld scene (bezel, di
 **v1.0 · due end of 6 Oct 2026 (PHT)**
 
 - [x] Phase 0: architecture, decisions, schema and security tests, design system
-- [ ] Phase 1: hall, cards and carousel on sample data → design review (Gate 1)
-- [ ] Phase 2: Supabase, Google sign-in, connect GitHub
-- [ ] Phase 3: card editor, repo picker, submit for review
-- [ ] Phase 4: public profiles, QR, admin moderation, first deploy
+- [x] Phase 1: hall, cards and carousel on sample data → design review (Gate 1)
+- [x] Phase 2: Supabase, Google sign-in, connect GitHub
+- [x] Phase 3: card editor, repo picker, submit for review
+- [ ] Phase 4: public profiles, QR, admin moderation (built) · first deploy (owner step, `docs/DEPLOY.md`)
 - [ ] Phase 5: search and filters, PWA, polish
 - [ ] Phase 6: production check against the Definition of Done (Gate 2)
 

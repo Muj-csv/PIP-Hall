@@ -10,7 +10,7 @@
 The original spec is in `docs/spec/`. Where it conflicts with the files above, the files above win (e.g. D-008 full colour replaces monochrome).
 
 ## Hard rules
-- Stack: React + Vite + TypeScript (strict) + Tailwind 4 + Motion + React Router + Supabase. No Embla (ADR-001), no state library, no UI kit, no paid services.
+- Stack: React + Vite + TypeScript (strict) + Tailwind 4 + React Router + Supabase. Carousel springs, swing and sprites are hand-written on one `requestAnimationFrame` loop (D-031); no Motion, no Embla (ADR-001), no state library, no UI kit, no paid services.
 - Styling only through `src/styles/theme.css` tokens (generated from `docs/design/tokens.json` — edit the JSON and re-export, never the CSS). No raw hex in components, no stock palette classes, no `border-radius`, no blurred shadows.
 - Only `src/services/*` import the Supabase client. Components never call Supabase or `fetch` directly.
 - Never put the service-role key, OAuth secrets, or any secret in code, `.env` committed files, or chat. Client env is `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_DATA_SOURCE`, `VITE_PUBLIC_ORIGIN`.

@@ -5,7 +5,7 @@ Inputs: original spec (`docs/spec/`), decisions (`docs/DECISIONS.md`), design (`
 
 ## 1. Overview
 
-A React single-page app (Vite, TypeScript, Tailwind 4, Motion) talking directly to Supabase (Postgres, Auth, Storage). No server of our own. Security lives in the database: Row Level Security, column grants, and a handful of `security definer` functions for state changes. Visitors read one public table of approved card snapshots; members edit private drafts; admins publish drafts into snapshots. Hosted as static files on Vercel, installable as a PWA.
+A React single-page app (Vite, TypeScript, Tailwind 4) talking directly to Supabase (Postgres, Auth, Storage). No server of our own. Security lives in the database: Row Level Security, column grants, and a handful of `security definer` functions for state changes. Visitors read one public table of approved card snapshots; members edit private drafts; admins publish drafts into snapshots. Hosted as static files on Vercel, installable as a PWA.
 
 ```mermaid
 flowchart LR
@@ -52,7 +52,7 @@ flowchart LR
 
 ## 3. Stack
 
-Pin exact versions at scaffold time (`npm view <pkg> version` on 4 Oct showed): React 19.3, Vite 8.3, **TypeScript 6.0.3** (not 7.x: `typescript-eslint` 8.71 supports `typescript <6.1.0`, D-028), Tailwind CSS 4.3 (`@tailwindcss/vite`), Motion 14 (`motion/react`), React Router 8.4 (library mode), `@supabase/supabase-js` 2.117, `vite-plugin-pwa` 2.0, `qrcode.react` 4.2, `browser-image-compression` 2.0, `@fontsource/jersey-10`, `@fontsource/atkinson-hyperlegible-next`, `@fontsource/atkinson-hyperlegible-mono`, Vitest 5, Playwright 1.63. If a plugin doesn't support Vite 8 yet, drop to the newest Vite it supports rather than patching.
+Pin exact versions at scaffold time (`npm view <pkg> version` on 4 Oct showed): React 19.3, Vite 8.3, **TypeScript 6.0.3** (not 7.x: `typescript-eslint` 8.71 supports `typescript <6.1.0`, D-028), Tailwind CSS 4.3 (`@tailwindcss/vite`), React Router 8.4 (library mode), `@supabase/supabase-js` 2.117, `vite-plugin-pwa` 2.0, `qrcode.react` 4.2 (photos are resized with the native canvas, D-035), `@fontsource/jersey-10`, `@fontsource/atkinson-hyperlegible-next`, `@fontsource/atkinson-hyperlegible-mono`, Vitest 5, Playwright 1.63. If a plugin doesn't support Vite 8 yet, drop to the newest Vite it supports rather than patching.
 
 Not used, on purpose: Embla (ADR-001), a state library (local state + small hooks), a CSS component library (custom on tokens), any analytics.
 
@@ -69,11 +69,12 @@ erDiagram
 
 - **profiles** — the member's private draft. Status: `draft → pending_review → approved | rejected`, `approved → unpublished`. Any content edit by the member sets status back to `draft` (trigger). Moderation columns (`status`, `is_featured`, `review_note`, `github_username`, `username_locked`) have **no update grant** for members.
 - **projects** — private draft rows, `source` = `github | manual`; GitHub rows carry `github_repo_id` (unique per profile). Max 6 (trigger).
-- **published_cards** — the only table visitors read. One row per approved member: `username`, `card jsonb` (everything the public card and profile page show, including projects), `is_featured`. Written only by admin functions (ADR-002).
+- **published_cards** — the only table visitors read. One row per approved member: `username`, `card jsonb` (everything the public card and profile page show, including projects), `is_featured`, `member_no`. Written only by admin functions (ADR-002).
+- **member numbers** — `profiles.member_no` is assigned from `member_no_seq` at a member's first approval and never changes or gets reused (D-034); it is the No.### on the badge and in the QR serial.
 - **user_roles** — `member | admin`, created by trigger on sign-up; promoted only from the SQL editor (`supabase/seed_first_admin.sql`).
 - Storage: `avatars/<uid>/<uuid>.webp`, `project-covers/<uid>/<uuid>.webp`, public read, owner-only write, 2 MB limit, images only. New file name on every upload so approved snapshots keep their image. Rows store the **path** (`profiles.avatar_path`, `projects.cover_path`), never a URL; a check constraint pins it to the owner's folder, and the client builds the public URL (D-027).
 
-Source of truth: `supabase/migrations/`. Tests: `supabase/tests/security.test.mjs` (52 checks, all passing on 4 Oct).
+Source of truth: `supabase/migrations/`. Tests: `supabase/tests/security.test.mjs` (61 checks, all passing on 4 Oct).
 
 ## 5. Security model
 
@@ -139,7 +140,7 @@ src/
 
 Rules: components never import `supabase.ts`; only `services/` do. Pages get data from hooks that call services. `cardService` has two implementations behind one interface (`fixture`, `supabase`), chosen by `VITE_DATA_SOURCE`, so the card and carousel are built on fixtures first and switch with no component changes.
 
-Routes: `/` home carousel · `/explore` grid + search + filters · `/member/:username` public page · `/login` · `/auth/callback` · `/edit` (create and edit; `/create` redirects) · `/admin` (admin only) · `/settings` · `*` not found. Editor, admin and settings are lazy chunks.
+Routes: `/` home carousel · `/explore` grid + search + filters · `/member/:username` public page · `/login` · `/auth/callback` · `/edit` (create and edit; `/create` redirects) · `/admin` (admin only) · `/settings` · `*` not found. Member page, editor, admin and settings are lazy chunks.
 
 Search (FR-13): `cardService.listPublished()` loads all `published_cards` once (≈ 2–3 KB each; 300 cards ≈ 0.8 MB, cached by the service worker) and `lib/search.ts` filters in memory with a normalized haystack per card.
 
