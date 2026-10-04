@@ -55,8 +55,8 @@ test('the callback refuses to redirect off-site', async ({ page }) => {
 test('a member can connect GitHub; it asks Supabase to link the identity and goes to GitHub', async ({ page }) => {
   const log = await mockSupabase(page, { user: MEMBER });
   await page.goto('/edit');
-  await expect(page.getByRole('heading', { name: 'My card' })).toBeVisible();
-  await expect(page.getByText('member@example.org')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'My card', level: 1 })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Account' })).toContainText('member@example.org');
   await page.getByRole('button', { name: 'Connect GitHub' }).click();
   await expect(page).toHaveURL(/github\.com\/login\/oauth\/authorize/);
   const link = log.requests.find((r) => r.startsWith('GET /auth/v1/user/identities/authorize'));
@@ -66,12 +66,11 @@ test('a member can connect GitHub; it asks Supabase to link the identity and goe
 });
 
 test('after connecting, the verified handle shows and the callback syncs it to the profile', async ({ page }) => {
-  const log = await mockSupabase(page, { user: { ...MEMBER, github: 'octocat' } });
+  const log = await mockSupabase(page, { user: { ...MEMBER, github: 'octocat' }, githubRepos: [] });
   await page.goto('/auth/callback?next=%2Fedit');
   await expect(page).toHaveURL(/\/edit$/);
-  const github = page.getByRole('region', { name: 'GitHub' });
-  await expect(github.getByText('@octocat')).toBeVisible();
-  await expect(github.getByText('✓ VERIFIED')).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Projects' })).toContainText('Public repos of @octocat');
+  await expect(page.locator('.preview-stage .sticker').first()).toHaveText('✓ GITHUB');
   expect(log.requests).toContain('POST /rest/v1/rpc/sync_github_identity');
 });
 

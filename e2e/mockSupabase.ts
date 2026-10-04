@@ -1,6 +1,7 @@
 // A fake Supabase for e2e: intercepts every request to the fake project origin, so tests can
 // be signed out, a member or an admin without any real accounts or network.
 import type { Page, Route } from '@playwright/test';
+import { emptyDb, handleDb, type MockDb } from './mockDb';
 
 export const FAKE_SUPABASE_URL = 'https://pip-e2e.supabase.co';
 const STORAGE_KEY = 'sb-pip-e2e-auth-token';
@@ -12,6 +13,10 @@ export interface MockOptions {
   publishedCards?: unknown[];
   /** Status for published_cards (e.g. 500 to test the error state). */
   publishedStatus?: number;
+  /** Stateful rows for the card editor (profiles, projects, storage, RPCs). */
+  db?: MockDb;
+  /** GET api.github.com/users/:handle/repos: a list, or a rate-limit answer. */
+  githubRepos?: unknown[] | { rateLimitedUntil: Date };
 }
 
 export interface MockLog {
@@ -23,6 +28,8 @@ const b64url = (o: unknown) => Buffer.from(JSON.stringify(o)).toString('base64ur
 export async function mockSupabase(page: Page, opts: MockOptions = {}): Promise<MockLog> {
   const log: MockLog = { requests: [] };
   const user = opts.user ?? null;
+  // Signed-in pages read the member's own rows; default to an empty account.
+  const db = opts.db ?? (user ? emptyDb(user.github ?? null) : undefined);
 
   if (user) {
     const now = Math.floor(Date.now() / 1000);
@@ -46,6 +53,7 @@ export async function mockSupabase(page: Page, opts: MockOptions = {}): Promise<
     const req = route.request();
     const url = new URL(req.url());
     log.requests.push(`${req.method()} ${url.pathname}${url.search}`);
+    if (db && user && (await handleDb(route, db, user.id))) return;
     const json = (status: number, body: unknown) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
 
     if (url.pathname === '/rest/v1/user_roles') return json(200, user ? [{ role: user.role }] : []);
@@ -56,6 +64,21 @@ export async function mockSupabase(page: Page, opts: MockOptions = {}): Promise<
     if (url.pathname === '/auth/v1/user') return json(200, user ? { id: user.id, email: user.email } : {});
     return json(404, { message: `unmocked ${url.pathname}` });
   });
+
+  if (opts.githubRepos) {
+    const repos = opts.githubRepos;
+    await page.route('https://api.github.com/users/*/repos*', (route) => {
+      log.requests.push(`GET ${new URL(route.request().url()).pathname}`);
+      return Array.isArray(repos)
+        ? route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(repos) })
+        : route.fulfill({
+            status: 403,
+            contentType: 'application/json',
+            headers: { 'x-ratelimit-remaining': '0', 'x-ratelimit-reset': String(Math.floor(repos.rateLimitedUntil.getTime() / 1000)), 'access-control-expose-headers': 'x-ratelimit-remaining, x-ratelimit-reset' },
+            body: JSON.stringify({ message: 'API rate limit exceeded' }),
+          });
+    });
+  }
 
   // OAuth pages are outside the app: record the attempt and stop there.
   await page.route('https://github.com/**', (route) => route.fulfill({ status: 200, contentType: 'text/html', body: '<h1>GitHub (mock)</h1>' }));

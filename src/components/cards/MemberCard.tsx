@@ -23,16 +23,18 @@ interface Props {
   onActivate: () => void;
   onOpen: () => void;
   onShowQr: () => void;
+  /** Editor preview: a photo picked but not uploaded yet (object URL). */
+  photoUrl?: string | null;
 }
 
-export function MemberCard({ card, flipped, focusable, onActivate, onOpen, onShowQr }: Props) {
+export function MemberCard({ card, flipped, focusable, onActivate, onOpen, onShowQr, photoUrl }: Props) {
   const name = card.card.full_name;
   const tab = focusable ? 0 : -1;
   return (
     <div className="badge" data-flipped={flipped}>
       <div className="badge-face" data-side="front" inert={flipped}>
         <button type="button" className="badge-hit" tabIndex={tab} aria-pressed={flipped} aria-label={`Card of ${name}. Flip to see their projects.`} onClick={onActivate} />
-        <CardFront card={card} tab={tab} onShowQr={onShowQr} />
+        <CardFront card={card} tab={tab} onShowQr={onShowQr} photoUrl={photoUrl} />
       </div>
       <div className="badge-face" data-side="back" inert={!flipped}>
         <button type="button" className="badge-hit" tabIndex={tab} aria-pressed={flipped} aria-label={`Quest Log of ${name}. Flip back to the front.`} onClick={onActivate} />
@@ -95,7 +97,7 @@ function useFittedName() {
   return ref;
 }
 
-function CardFront({ card, tab, onShowQr }: { card: PublicCard; tab: number; onShowQr: () => void }) {
+function CardFront({ card, tab, onShowQr, photoUrl }: { card: PublicCard; tab: number; onShowQr: () => void; photoUrl?: string | null }) {
   const c = card.card;
   const stickers = useMemo(() => placeStickers(c), [c]);
   const nameRef = useFittedName();
@@ -112,7 +114,7 @@ function CardFront({ card, tab, onShowQr }: { card: PublicCard; tab: number; onS
         <div className="badge-inner">
           <div className="photo-window">
             <BadgeScene />
-            <PixelAvatar username={c.username} name={c.full_name} avatarPath={c.avatar_path} />
+            <PixelAvatar username={c.username} name={c.full_name} avatarPath={c.avatar_path} photoUrl={photoUrl} />
             <i className="corner" data-at="tl" />
             <i className="corner" data-at="tr" />
             <i className="corner" data-at="bl" />

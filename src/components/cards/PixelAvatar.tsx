@@ -7,15 +7,17 @@ interface Props {
   username: string;
   name: string;
   avatarPath: string | null;
+  /** Overrides the stored photo (the editor's unsaved pick). */
+  photoUrl?: string | null;
 }
 
 /** The member's photo, or a generated sprite when there is none or it fails to load. */
-export function PixelAvatar({ username, name, avatarPath }: Props) {
-  const url = publicImageUrl('avatars', avatarPath);
-  const [failed, setFailed] = useState(false);
+export function PixelAvatar({ username, name, avatarPath, photoUrl }: Props) {
+  const url = photoUrl ?? publicImageUrl('avatars', avatarPath);
+  const [failed, setFailed] = useState<string | null>(null);
 
-  if (url && !failed) {
-    return <img className="photo" src={url} alt={`Photo of ${name}`} loading="lazy" decoding="async" onError={() => setFailed(true)} />;
+  if (url && failed !== url) {
+    return <img className="photo" src={url} alt={`Photo of ${name}`} loading="lazy" decoding="async" onError={() => setFailed(url)} />;
   }
   return <GeneratedAvatar username={username} name={name} />;
 }

@@ -1001,6 +1001,228 @@ a.item-slot:focus-visible,
   color: var(--color-card-ink);
   box-shadow: inset 0 0 0 2px var(--color-card-ink);
 }
+/* ---------------------------------------------------------------- card editor (Phase 3) */
+.panel-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-h3);
+  font-weight: 400;
+  letter-spacing: 0.04em;
+}
+.editor-grid {
+  display: grid;
+  gap: 24px;
+  align-items: start;
+}
+@media (min-width: 1024px) {
+  .editor-grid {
+    grid-template-columns: 300px minmax(0, 1fr);
+  }
+  .editor-side {
+    position: sticky;
+    top: 16px;
+  }
+}
+.editor-side {
+  display: grid;
+  gap: 12px;
+}
+.preview-stage {
+  display: grid;
+  justify-items: center;
+  padding: 0 0 20px;
+  background: var(--color-world-sky);
+  box-shadow: inset 0 0 0 3px var(--color-border), inset 0 -16px 0 var(--color-world-grass);
+}
+.preview-stage .flipper {
+  width: calc(var(--p) * 56);
+}
+.field {
+  display: grid;
+  gap: 4px;
+  position: relative;
+}
+.field-label {
+  font-family: var(--font-display);
+  font-size: 17px;
+  letter-spacing: 0.04em;
+}
+.field-hint,
+.field-hint-inline {
+  margin: 0;
+  font-size: var(--text-caption);
+  color: var(--color-text-secondary);
+}
+.field-error {
+  margin: 0;
+  font-size: var(--text-caption);
+  font-weight: 700;
+  color: var(--color-danger);
+}
+.field-count {
+  justify-self: end;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+.field-count[data-over='true'] {
+  color: var(--color-danger);
+  font-weight: 600;
+}
+.pixel-input {
+  min-height: 44px;
+  padding: 8px 10px;
+  font: inherit;
+  color: var(--color-text-primary);
+  background: var(--color-surface-raised);
+  border: 3px solid var(--color-border);
+}
+textarea.pixel-input {
+  resize: vertical;
+}
+.pixel-input[readonly] {
+  background: transparent;
+}
+.pixel-input[aria-invalid='true'] {
+  border-color: var(--color-danger);
+  border-style: dashed; /* the dashes and the ! keep it readable without colour */
+}
+.pixel-input:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  cursor: pointer;
+}
+.toggle input {
+  width: 22px;
+  height: 22px;
+  accent-color: var(--color-accent);
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding-left: 8px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  background: var(--color-surface-raised);
+  box-shadow: inset 0 0 0 2px var(--color-border);
+}
+.chip-x {
+  min-width: 32px;
+  min-height: 32px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 18px;
+  cursor: pointer;
+}
+.status-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  font-family: var(--font-display);
+  font-size: 15px;
+  letter-spacing: 0.06em;
+  background: var(--color-surface-raised);
+  box-shadow: inset 0 0 0 2px var(--color-border);
+}
+.notice {
+  padding: 8px 12px;
+  font-size: var(--text-caption);
+  background: var(--color-surface);
+  border: 3px solid var(--color-border);
+}
+.notice-bad {
+  border-style: dashed;
+  border-color: var(--color-danger);
+  font-weight: 700;
+}
+.repo-list {
+  display: grid;
+  gap: 6px;
+  max-height: 360px;
+  overflow: auto;
+  margin: 0;
+  padding: 6px;
+  border: 3px solid var(--color-border);
+  background: var(--color-surface-raised);
+}
+.repo-row {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  padding: 8px;
+  cursor: pointer;
+  background: var(--color-surface);
+}
+.repo-row[data-picked='true'] {
+  box-shadow: inset 4px 0 0 var(--color-accent);
+}
+.repo-row input {
+  width: 22px;
+  height: 22px;
+  margin-top: 2px;
+  accent-color: var(--color-accent);
+}
+.repo-tag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 6px;
+  font-family: var(--font-display);
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  box-shadow: inset 0 0 0 2px var(--color-border);
+}
+.project-list {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.project-item {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  background: var(--color-surface-raised);
+  border: 3px solid var(--color-border);
+}
+.icon-btn {
+  min-width: 44px;
+  padding: 4px;
+  box-shadow: none;
+}
+.manual-form {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 12px;
+  border: 3px dashed var(--color-border);
+}
+.leave-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: color-mix(in srgb, var(--color-void) 70%, transparent);
+}
+
 /* ---------------------------------------------------------------- phone layout (brief §3) */
 @media (max-width: 860px) {
   .device {
