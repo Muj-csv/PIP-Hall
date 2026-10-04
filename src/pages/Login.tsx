@@ -5,6 +5,7 @@ import { Link, Navigate, useSearchParams } from 'react-router';
 import { useSession } from '../app/sessionContext';
 import { DialogueBox } from '../components/dialogue/DialogueBox';
 import { MenuPage, Panel } from '../components/shell/MenuPage';
+import { inAppBrowserName } from '../lib/inAppBrowser';
 import { describeAuthError, safeNext } from '../services/authErrors';
 import { authService } from '../services/authService';
 
@@ -17,6 +18,7 @@ export default function Login() {
     busy: false,
     error: urlError ? describeAuthError(urlError).message : null,
   });
+  const [inApp] = useState(() => inAppBrowserName(navigator.userAgent));
 
   if (session.status === 'signed-in') return <Navigate to={next} replace />;
 
@@ -43,8 +45,13 @@ export default function Login() {
   return (
     <MenuPage title="Make your card">
       <DialogueBox
-        text={state.error ?? 'Sign in with Google to make your card. Your email stays private unless you choose to show it.'}
-        emote={state.error ? 'attention' : undefined}
+        text={
+          state.error ??
+          (inApp
+            ? `Google doesn’t allow sign-in inside ${inApp === 'an app' ? 'an app’s' : `${inApp}’s`} browser. Tap the ⋯ menu, choose “Open in browser” (Chrome or Safari), and sign in there.`
+            : 'Sign in with Google to make your card. Your email stays private unless you choose to show it.')
+        }
+        emote={state.error || inApp ? 'attention' : undefined}
       />
       <Panel label="Sign in">
         <p className="m-0">

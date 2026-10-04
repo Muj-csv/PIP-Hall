@@ -100,6 +100,17 @@ test('signing out returns to the hall as a visitor', async ({ page }) => {
   expect(log.requests.some((r) => r.startsWith('POST /auth/v1/logout'))).toBe(true);
 });
 
+test('opened inside Messenger, the login page says to open it in a real browser', async ({ browser }) => {
+  const ctx = await browser.newContext({
+    userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel 7; wv) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36 [FB_IAB/MESSENGER;FBAV/450.0]',
+  });
+  const page = await ctx.newPage();
+  await mockSupabase(page);
+  await page.goto('/login');
+  await expect(page.locator('.dialogue .sr-only')).toContainText('Google doesn’t allow sign-in inside Messenger’s browser');
+  await ctx.close();
+});
+
 test('a device clock hours ahead does not loop token refreshes and role lookups', async ({ page }) => {
   // With the clock 15 hours ahead, every token looks expired.
   await page.clock.setSystemTime(new Date(Date.now() + 15 * 3600 * 1000));

@@ -161,3 +161,19 @@ test('a full card of 6 can swap a project (removals are saved first)', async ({ 
   await expect(page.getByRole('button', { name: 'Saved' }).first()).toBeVisible();
   expect(db.projects.map((p) => p.title)).toEqual(['Quest 1', 'Quest 2', 'Quest 3', 'Quest 4', 'Quest 5', 'hello-world']);
 });
+
+test('phone photos: the picker offers gallery and camera, and files with no type still work', async ({ page }) => {
+  await mockSupabase(page, { user: USER, db: emptyDb('octocat'), githubRepos: REPOS });
+  await page.goto('/edit');
+  const input = page.locator('input[type=file]');
+  await expect(input).toHaveAttribute('accept', 'image/*');
+  await expect(input).not.toHaveAttribute('capture');
+
+  // Some Android galleries hand over files with an empty type.
+  await input.setInputFiles({ name: 'IMG_2041.jpg', mimeType: '', buffer: TINY_PNG });
+  await expect(page.locator('.preview-stage img.photo')).toHaveAttribute('src', /^blob:/);
+
+  // A HEIC this browser can't open gets a clear way out.
+  await input.setInputFiles({ name: 'IMG_2042.HEIC', mimeType: 'image/heic', buffer: Buffer.from('not really an image') });
+  await expect(page.getByRole('alert')).toContainText('can’t open HEIC photos');
+});
