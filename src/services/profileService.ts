@@ -50,9 +50,26 @@ export function profileRow(form: CardForm, opts: { includeUsername: boolean }) {
   };
 }
 
+/**
+ * The project columns members may change after a project exists (the column grant in
+ * supabase/migrations/20261004000000_init.sql). `source` and `github_repo_id` are fixed at insert:
+ * sending them in an update makes Postgres refuse the whole row ("permission denied for table projects").
+ */
+export const PROJECT_UPDATE_COLUMNS = [
+  'title', 'description', 'cover_path', 'project_url', 'github_url', 'language', 'stars', 'tech_stack', 'project_date', 'sort_order',
+] as const;
+
+export type ProjectUpdate = Pick<ReturnType<typeof projectRow>, (typeof PROJECT_UPDATE_COLUMNS)[number]>;
+
+export function projectUpdate(row: ReturnType<typeof projectRow>): ProjectUpdate {
+  const out = {} as Record<string, unknown>;
+  for (const k of PROJECT_UPDATE_COLUMNS) out[k] = row[k];
+  return out as ProjectUpdate;
+}
+
 export interface ProjectPlan {
   remove: string[];
-  update: { id: string; row: ReturnType<typeof projectRow> }[];
+  update: { id: string; row: ProjectUpdate }[];
   insert: ReturnType<typeof projectRow>[];
 }
 
@@ -68,7 +85,7 @@ export function planProjects(saved: DraftProject[], next: DraftProject[]): Proje
   next.forEach((p, i) => {
     const row = projectRow(p, i);
     if (!p.id) plan.insert.push(row);
-    else if (before.get(p.id) !== JSON.stringify(row)) plan.update.push({ id: p.id, row });
+    else if (before.get(p.id) !== JSON.stringify(row)) plan.update.push({ id: p.id, row: projectUpdate(row) });
   });
   return plan;
 }

@@ -20,6 +20,8 @@ export function emptyDb(githubHandle: string | null = null): MockDb {
   return { profiles: [], projects: [], published: [], uploads: [], githubHandle };
 }
 
+const PROJECT_UPDATABLE = new Set(['title', 'description', 'cover_path', 'project_url', 'github_url', 'language', 'stars', 'tech_stack', 'project_date', 'sort_order']);
+
 const CONTENT = ['username', 'full_name', 'tagline', 'bio', 'role', 'org_position', 'department', 'avatar_path', 'linkedin_url', 'portfolio_url', 'public_email', 'show_email', 'skills'];
 
 export interface DbUser {
@@ -145,6 +147,8 @@ export async function handleDb(route: Route, db: MockDb, user: DbUser): Promise<
       return (await route.fulfill({ status: 201 })), true;
     }
     if (method === 'PATCH') {
+      // Like the column grant in the init migration: source and github_repo_id are fixed at insert.
+      if (Object.keys(body()).some((k) => !PROJECT_UPDATABLE.has(k))) return (await err(403, '42501', 'permission denied for table projects')), true;
       const p = db.projects.find((r) => r.id === eqFilter(url, 'id'));
       if (p) {
         Object.assign(p, body());
