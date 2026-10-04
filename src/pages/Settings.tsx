@@ -42,7 +42,9 @@ export default function Settings() {
   const user = session.user;
 
   const leave = async () => {
-    navigate('/', { replace: true });
+    // Leave first, synchronously: if the sign-out landed while the move was still pending, the
+    // guard on this page would send the visitor to /login instead of the hall.
+    await navigate('/', { replace: true, flushSync: true });
     await signOut().catch(() => {
       // the local session is cleared even if the server call fails
     });
