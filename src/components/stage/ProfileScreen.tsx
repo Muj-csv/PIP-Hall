@@ -1,7 +1,9 @@
-// The menu screen OPEN shows inside the device (brief §3): the player's full quest list.
-// The shareable page at /member/:username arrives in Phase 4; this is its in-hall preview.
+// The menu screen OPEN shows inside the device (brief §3): the player's full quest list,
+// with the way out to their shareable page at /member/:username.
 
 import { useEffect, useRef } from 'react';
+import { Link } from 'react-router';
+import { memberPath } from '../../lib/publicUrl';
 import type { PublicCard } from '../../types/card';
 
 export function ProfileScreen({ card, onBack }: { card: PublicCard; onBack: () => void }) {
@@ -36,6 +38,9 @@ export function ProfileScreen({ card, onBack }: { card: PublicCard; onBack: () =
       ) : (
         <p className="m-0">No quests yet.</p>
       )}
+      <Link to={memberPath(c.username)} className="hw-btn justify-self-start no-underline" data-variant="small">
+        FULL PAGE ▸<span className="sr-only"> for {c.full_name}</span>
+      </Link>
     </section>
   );
 }

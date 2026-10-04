@@ -1223,6 +1223,158 @@ textarea.pixel-input {
   background: color-mix(in srgb, var(--color-void) 70%, transparent);
 }
 
+/* ---------------------------------------------------------------- member page (FR-11) */
+.member-layout {
+  display: grid;
+  gap: 24px;
+  align-items: start;
+}
+@media (min-width: 1024px) {
+  .member-layout {
+    grid-template-columns: minmax(0, 560px) minmax(0, 1fr);
+  }
+  .member-badges {
+    position: sticky;
+    top: 16px;
+  }
+}
+.member-badges {
+  display: grid;
+  gap: 12px;
+}
+.member-faces {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.powerup-list,
+.link-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.link-list {
+  column-gap: 20px;
+  row-gap: 0;
+}
+.powerup-list li {
+  padding: 2px 8px;
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  box-shadow: inset 0 0 0 2px var(--color-border);
+}
+.link-list a,
+.quest-item a {
+  display: inline-block;
+  padding: 11px 0;
+  line-height: 22px;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+}
+.quest-list {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.quest-item {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+  border: 3px solid var(--color-border);
+  background: var(--color-surface);
+}
+@media (min-width: 640px) {
+  .quest-item:has(.quest-cover) {
+    grid-template-columns: 160px minmax(0, 1fr);
+  }
+}
+.quest-cover {
+  display: block;
+  width: 160px;
+  height: 90px;
+  object-fit: cover;
+  border: 3px solid var(--color-border);
+}
+
+/* ---------------------------------------------------------------- admin (FR-08) */
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.tab[aria-selected='true'] {
+  background: var(--color-text-primary);
+  color: var(--color-bg);
+}
+.tab[aria-selected='true']::before {
+  content: '▸ ';
+}
+.queue {
+  display: grid;
+  gap: 24px;
+  align-items: start;
+}
+@media (min-width: 1024px) {
+  .queue {
+    grid-template-columns: 300px minmax(0, 1fr);
+  }
+}
+.queue-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.queue-row {
+  all: unset;
+  box-sizing: border-box;
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 12px;
+  cursor: pointer;
+  background: var(--color-surface);
+  border: 3px solid var(--color-border);
+}
+.queue-row:hover {
+  background: var(--color-surface-hover);
+}
+.queue-row:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+.queue-row[aria-current='true'] {
+  border-style: double;
+  border-width: 6px;
+  padding: 5px 9px;
+}
+.queue-row small {
+  color: var(--color-text-secondary);
+  font-size: var(--text-caption);
+}
+.review-faces {
+  display: grid;
+  gap: 12px;
+}
+@media (min-width: 640px) {
+  .review-faces[data-count='2'] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.review-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
 /* ---------------------------------------------------------------- phone layout (brief §3) */
 @media (max-width: 860px) {
   .device {

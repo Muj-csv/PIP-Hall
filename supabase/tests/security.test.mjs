@@ -117,10 +117,22 @@ try {
   await expectErr(c, 'seventh project is refused', A, `insert into projects (profile_id, title) values ($1,'P7')`, [A], /PROJECT_LIMIT/);
 
   console.log('admin tools');
+  await expectErr(c, 'member cannot reject', A, `select reject_profile($1, 'no')`, [B], /NOT_ADMIN/);
+  await expectErr(c, 'member cannot unpublish', B, `select unpublish_profile($1)`, [A], /NOT_ADMIN/);
+  await expectErr(c, 'member cannot feature', A, `select set_featured($1, true)`, [A], /NOT_ADMIN/);
+  await expectErr(c, 'member cannot rename', A, `select admin_set_username($1, 'taken-over')`, [B], /NOT_ADMIN/);
+  await expectErr(c, 'anon cannot call moderation functions', 'anon', `select approve_profile($1)`, [A], /permission denied/);
+  await expectOk(c, 'admin reads every draft and its projects', ADMIN, `select count(*)::int as n from projects where profile_id=$1`, [A], (r) => r.rows[0].n === 6);
+  await expectErr(c, 'feature refuses a card that is not in the hall', ADMIN, `select set_featured($1, true)`, [B], /NOT_PUBLISHED/);
+  await expectErr(c, 'unpublish refuses a card that is not in the hall', ADMIN, `select unpublish_profile($1)`, [B], /NOT_PUBLISHED/);
+  await expectOk(c, 'refused unpublish leaves the draft alone', ADMIN, `select status, is_featured from profiles where id=$1`, [B], (r) => r.rows[0].status === 'draft' && r.rows[0].is_featured === false);
+  await expectErr(c, 'rename refuses a reserved username', ADMIN, `select admin_set_username($1, 'admin')`, [A], /check constraint/);
+  await expectErr(c, 'rename of a missing member is refused', ADMIN, `select admin_set_username($1, 'ghost')`, ['00000000-0000-0000-0000-0000000000ff'], /NO_PROFILE/);
   await expectOk(c, 'admin features a card', ADMIN, `select set_featured($1, true)`, [A]);
   await expectOk(c, 'feature shows on the public card', 'anon', `select is_featured, card->>'is_featured' as f from published_cards`, [], (r) => r.rows[0].is_featured === true && r.rows[0].f === 'true');
   await expectOk(c, 'admin renames a locked username', ADMIN, `select admin_set_username($1, 'Sensei')`, [A]);
   await expectOk(c, 'public card follows the rename', 'anon', `select username from published_cards`, [], (r) => r.rows[0].username === 'sensei');
+  await expectErr(c, 'rename refuses a username someone has', ADMIN, `select admin_set_username($1, 'sensei')`, [B], /duplicate key/);
   await expectOk(c, 'admin unpublishes', ADMIN, `select unpublish_profile($1)`, [A]);
   await expectOk(c, 'unpublished card is gone for visitors', 'anon', `select * from published_cards`, [], (r) => r.rowCount === 0);
   await expectOk(c, 'second member submits', B, `select submit_for_review()`, []);

@@ -17,6 +17,8 @@ export const LIMITS = {
   project_description: 200,
   project_language: 30,
   tech_stack: 8,
+  username: 20,
+  review_note: 280,
 } as const;
 
 /** Same list as the profiles.username check constraint. */

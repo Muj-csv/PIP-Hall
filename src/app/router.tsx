@@ -11,15 +11,17 @@ import { RequireAdmin, RequireAuth } from './guards';
 /* eslint-disable react-refresh/only-export-components */
 const Edit = lazy(() => import('../pages/Edit'));
 const Admin = lazy(() => import('../pages/Admin'));
+const Member = lazy(() => import('../pages/Member'));
 /* eslint-enable react-refresh/only-export-components */
 
 const lazyPage = (node: ReactNode) => <Suspense fallback={null}>{node}</Suspense>;
 
-// /explore, /member/:username and /settings arrive in Phases 4–5 (ARCHITECTURE §7).
+// /explore and /settings arrive in Phase 5 (ARCHITECTURE §7).
 export const router = createBrowserRouter([
   { path: '/', element: <Home /> },
   { path: '/login', element: <Login /> },
   { path: '/auth/callback', element: <AuthCallback /> },
+  { path: '/member/:username', element: lazyPage(<Member />) },
   { path: '/edit', element: <RequireAuth>{lazyPage(<Edit />)}</RequireAuth> },
   { path: '/create', element: <Navigate to="/edit" replace /> },
   { path: '/admin', element: <RequireAdmin>{lazyPage(<Admin />)}</RequireAdmin> },

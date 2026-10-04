@@ -4,7 +4,7 @@
 import type { EmoteKind } from '../components/dialogue/Emote';
 import type { AuthUser } from '../services/authService';
 import type { PublicCard } from '../types/card';
-import type { CardForm, MyCard, ProfileStatus } from '../types/draft';
+import type { CardForm, DraftProfile, DraftProject, MyCard, ProfileStatus } from '../types/draft';
 import { suggestUsername } from './validate';
 
 export function formFrom(mine: MyCard, user: AuthUser): CardForm {
@@ -56,6 +56,51 @@ export function previewCard(form: CardForm, mine: MyCard, user: AuthUser): Publi
       is_featured: mine.profile?.is_featured ?? false,
       projects: form.projects.map((p) => ({
         title: p.title || 'Untitled project',
+        description: p.description,
+        cover_path: p.cover_path,
+        project_url: p.project_url,
+        github_url: p.github_url,
+        language: p.language,
+        stars: p.stars,
+        tech_stack: p.tech_stack,
+        source: p.source,
+        project_date: p.project_date,
+      })),
+    },
+  };
+}
+
+/**
+ * A submitted draft drawn as a badge, the way build_card() would publish it (admin review).
+ * Mirrors supabase/migrations/20261004000200_image_paths.sql: the email shows only if opted in.
+ */
+export function cardFromDraft(profile: DraftProfile, projects: DraftProject[], submittedAt: string | null): PublicCard {
+  const no = profile.member_no ?? 0;
+  return {
+    profile_id: profile.id,
+    username: profile.username,
+    is_featured: profile.is_featured,
+    published_at: submittedAt ?? new Date().toISOString(),
+    member_no: no,
+    no,
+    card: {
+      username: profile.username,
+      full_name: profile.full_name,
+      tagline: profile.tagline,
+      bio: profile.bio,
+      role: profile.role,
+      org_position: profile.org_position,
+      department: profile.department,
+      avatar_path: profile.avatar_path,
+      github_username: profile.github_username,
+      linkedin_url: profile.linkedin_url,
+      portfolio_url: profile.portfolio_url,
+      public_email: profile.show_email ? profile.public_email : null,
+      skills: profile.skills,
+      theme: 'classic',
+      is_featured: profile.is_featured,
+      projects: projects.map((p) => ({
+        title: p.title,
         description: p.description,
         cover_path: p.cover_path,
         project_url: p.project_url,

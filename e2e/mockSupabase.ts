@@ -1,7 +1,7 @@
 // A fake Supabase for e2e: intercepts every request to the fake project origin, so tests can
 // be signed out, a member or an admin without any real accounts or network.
 import type { Page, Route } from '@playwright/test';
-import { emptyDb, handleDb, type MockDb } from './mockDb';
+import { emptyDb, filterRows, handleDb, type MockDb, type Row } from './mockDb';
 
 export const FAKE_SUPABASE_URL = 'https://pip-e2e.supabase.co';
 const STORAGE_KEY = 'sb-pip-e2e-auth-token';
@@ -53,11 +53,11 @@ export async function mockSupabase(page: Page, opts: MockOptions = {}): Promise<
     const req = route.request();
     const url = new URL(req.url());
     log.requests.push(`${req.method()} ${url.pathname}${url.search}`);
-    if (db && user && (await handleDb(route, db, user.id))) return;
+    if (db && user && (await handleDb(route, db, { id: user.id, role: user.role }))) return;
     const json = (status: number, body: unknown) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
 
     if (url.pathname === '/rest/v1/user_roles') return json(200, user ? [{ role: user.role }] : []);
-    if (url.pathname === '/rest/v1/published_cards') return json(opts.publishedStatus ?? 200, opts.publishedStatus ? { message: 'boom' } : (opts.publishedCards ?? []));
+    if (url.pathname === '/rest/v1/published_cards') return json(opts.publishedStatus ?? 200, opts.publishedStatus ? { message: 'boom' } : filterRows((opts.publishedCards ?? []) as Row[], url));
     if (url.pathname === '/rest/v1/rpc/sync_github_identity') return json(200, user?.github ?? null);
     if (url.pathname === '/auth/v1/user/identities/authorize') return json(200, { url: 'https://github.com/login/oauth/authorize?client_id=e2e' });
     if (url.pathname === '/auth/v1/logout') return route.fulfill({ status: 204 });

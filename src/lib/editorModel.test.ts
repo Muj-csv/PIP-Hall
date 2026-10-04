@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { AuthUser } from '../services/authService';
 import type { DraftProfile, MyCard } from '../types/draft';
-import { formFrom, previewCard, statusView } from './editorModel';
+import { cardFromDraft, formFrom, previewCard, statusView } from './editorModel';
 import { validateCard } from './validate';
 
 const user: AuthUser = { id: 'u1', email: 'jum@example.org', name: 'Jum Flores', githubHandle: 'Muj-csv' };
@@ -88,5 +88,15 @@ describe('previewCard', () => {
   it('carries the member number once approved', () => {
     const m = mine({ profile: profile({ member_no: 7 }) });
     expect(previewCard(formFrom(m, user), m, user).no).toBe(7);
+  });
+});
+
+describe('cardFromDraft', () => {
+  it('draws a submitted draft the way the database would publish it', () => {
+    const c = cardFromDraft(profile({ member_no: 3, show_email: false }), [], '2026-10-05T01:00:00Z');
+    expect(c.no).toBe(3);
+    expect(c.card.public_email).toBeNull();
+    expect(c.published_at).toBe('2026-10-05T01:00:00Z');
+    expect(cardFromDraft(profile({ show_email: true }), [], null).card.public_email).toBe('jum@example.org');
   });
 });

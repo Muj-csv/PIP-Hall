@@ -20,8 +20,10 @@ interface Props {
   flipped: boolean;
   /** Whether this badge's controls are in the tab order (only the current one in the carousel). */
   focusable: boolean;
-  onActivate: () => void;
-  onOpen: () => void;
+  /** Flips the badge. Left out where both faces are shown at once (the member page). */
+  onActivate?: () => void;
+  /** VIEW PROFILE on the back. Left out where the full profile is already on the page. */
+  onOpen?: () => void;
   onShowQr: () => void;
   /** Editor preview: a photo picked but not uploaded yet (object URL). */
   photoUrl?: string | null;
@@ -33,11 +35,15 @@ export function MemberCard({ card, flipped, focusable, onActivate, onOpen, onSho
   return (
     <div className="badge" data-flipped={flipped}>
       <div className="badge-face" data-side="front" inert={flipped}>
-        <button type="button" className="badge-hit" tabIndex={tab} aria-pressed={flipped} aria-label={`Card of ${name}. Flip to see their projects.`} onClick={onActivate} />
+        {onActivate && (
+          <button type="button" className="badge-hit" tabIndex={tab} aria-pressed={flipped} aria-label={`Card of ${name}. Flip to see their projects.`} onClick={onActivate} />
+        )}
         <CardFront card={card} tab={tab} onShowQr={onShowQr} photoUrl={photoUrl} />
       </div>
       <div className="badge-face" data-side="back" inert={!flipped}>
-        <button type="button" className="badge-hit" tabIndex={tab} aria-pressed={flipped} aria-label={`Quest Log of ${name}. Flip back to the front.`} onClick={onActivate} />
+        {onActivate && (
+          <button type="button" className="badge-hit" tabIndex={tab} aria-pressed={flipped} aria-label={`Quest Log of ${name}. Flip back to the front.`} onClick={onActivate} />
+        )}
         <CardBack card={card} tab={tab} onOpen={onOpen} />
       </div>
     </div>
@@ -173,7 +179,7 @@ function CardFront({ card, tab, onShowQr, photoUrl }: { card: PublicCard; tab: n
   );
 }
 
-function CardBack({ card, tab, onOpen }: { card: PublicCard; tab: number; onOpen: () => void }) {
+function CardBack({ card, tab, onOpen }: { card: PublicCard; tab: number; onOpen?: () => void }) {
   const c = card.card;
   return (
     <Holder>
@@ -205,9 +211,11 @@ function CardBack({ card, tab, onOpen }: { card: PublicCard; tab: number; onOpen
             ))}
           </ul>
         )}
-        <button type="button" className="badge-cta" tabIndex={tab} onClick={onOpen}>
-          VIEW PROFILE ▸
-        </button>
+        {onOpen && (
+          <button type="button" className="badge-cta" tabIndex={tab} onClick={onOpen}>
+            VIEW PROFILE ▸
+          </button>
+        )}
       </div>
     </Holder>
   );
