@@ -3,6 +3,8 @@
 // the current player, flips, coins or the dialogue line change.
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router';
+import { memberPath } from '../../lib/publicUrl';
 import { slotLook, slotX } from '../../lib/carousel';
 import { cssVarReader } from '../../lib/sprites';
 import { stepSwing, type SwingState } from '../../lib/swing';
@@ -33,11 +35,12 @@ import {
   type WorldAssets,
 } from '../world/world';
 import { Hud } from './Hud';
-import { ProfileScreen } from './ProfileScreen';
+import { MissingScreen, ProfileScreen } from './ProfileScreen';
 
 const BADGE_HALF_W = 28; // units
 const BOOT_KEY = 'piphall-booted';
 const HINT = 'Drag to browse. Tap a card to flip it.';
+const HALL_TITLE = 'PIP-Hall · Where every person has a place';
 
 type Line = { text: string; emote?: EmoteKind };
 
@@ -45,7 +48,12 @@ function titleCase(s: string) {
   return s.replace(/\b\p{L}/gu, (m) => m.toUpperCase());
 }
 
-export function Hall() {
+interface HallProps {
+  /** Username from /member/:username: that member's profile is open inside the device. */
+  profile?: string | null;
+}
+
+export function Hall({ profile = null }: HallProps) {
   const cardsState = useCards();
   const cards = useMemo(() => (cardsState.status === 'ready' ? cardsState.cards : []), [cardsState]);
   const count = cards.length;
@@ -55,7 +63,13 @@ export function Hall() {
   const [line, setLine] = useState<Line>({ text: HINT });
   const [flipped, setFlipped] = useState<ReadonlySet<string>>(() => new Set());
   const [coins, setCoins] = useState(0);
-  const [mode, setMode] = useState<'level' | 'profile'>('level');
+  const [mode, setMode] = useState<'level' | 'profile' | 'missing'>('level');
+  const navigate = useNavigate();
+  /** Opened from inside the hall (so BACK can step back in history) rather than from a link. */
+  const openedHere = useRef(false);
+  /** The hall has been on screen: later profile changes play the iris; a cold /member link doesn't. */
+  const shownOnce = useRef(false);
+  const startedOnProfile = useRef(Boolean(profile));
   const [qrCard, setQrCard] = useState<PublicCard | null>(null);
   const [ledBlink, setLedBlink] = useState(false);
 
@@ -142,19 +156,55 @@ export function Hall() {
     fx.current.iris = { t: 0, mid, done: false };
   }, []);
 
+  // The address decides what the screen shows: OPEN goes to /member/:username and BACK leaves it,
+  // and the effect below plays the iris either way (browser Back and Forward too).
   const openProfile = useCallback(() => {
-    if (live.current.count === 0 || live.current.mode === 'profile') return;
-    runIris(() => setMode('profile'));
-    setLine({ text: 'Profile screen. BACK or Esc returns to the hall.' });
-  }, [runIris]);
+    const l = live.current;
+    const c = l.cards[indexRef.current];
+    if (!c || l.mode !== 'level') return;
+    openedHere.current = true;
+    navigate(memberPath(c.username));
+  }, [indexRef, navigate]);
 
   const closeProfile = useCallback(() => {
-    runIris(() => {
-      setMode('level');
-      screenRef.current?.focus();
-    });
-    setLine({ text: 'Back in the hall.' });
-  }, [runIris]);
+    if (live.current.mode === 'level') return;
+    if (openedHere.current) {
+      openedHere.current = false;
+      navigate(-1);
+    } else navigate('/');
+  }, [navigate]);
+
+  // Syncs the screen to the address (an external system): state set here is the response to a
+  // navigation, not derived data, so the effect is the right place for it.
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    if (cardsState.status !== 'ready') return;
+    const want = profile?.toLowerCase() ?? null;
+    const cold = !shownOnce.current;
+    shownOnce.current = true;
+    const now = live.current.mode;
+    if (want) {
+      const i = cards.findIndex((c) => c.username === want);
+      const next = i < 0 ? 'missing' : 'profile';
+      if (i >= 0 && i !== indexRef.current) {
+        go(i);
+        if (cold || now !== 'level') camRef.current.x = slotX(i); // already behind the screen: no walk
+      }
+      if (now !== next) {
+        if (cold) setMode(next);
+        else runIris(() => setMode(next));
+      }
+      setLine({ text: next === 'profile' ? 'Profile screen. BACK or Esc returns to the hall.' : 'No card at that address.' });
+    } else if (now !== 'level') {
+      openedHere.current = false;
+      runIris(() => {
+        setMode('level');
+        screenRef.current?.focus();
+      });
+      setLine({ text: 'Back in the hall.' });
+    }
+  }, [profile, cardsState.status, cards, go, runIris, indexRef, camRef]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const onActivate = (i: number) => {
     if (moved.current) return; // a drag never flips
@@ -197,7 +247,8 @@ export function Hall() {
   useEffect(() => {
     if (reduce) return;
     try {
-      if (sessionStorage.getItem(BOOT_KEY)) return;
+      // A QR or shared link lands on a profile: skip the power-on show.
+      if (sessionStorage.getItem(BOOT_KEY) || startedOnProfile.current) return;
       sessionStorage.setItem(BOOT_KEY, '1');
     } catch {
       // storage blocked: boot every visit
@@ -335,7 +386,7 @@ export function Hall() {
 
   // ---- keyboard: ←/→ move, Enter/Space flip, O opens, Esc goes back (README, ADR-001)
   const onKeyDown = (e: React.KeyboardEvent) => {
-    if (mode === 'profile') {
+    if (mode !== 'level') {
       if (e.key === 'Escape') {
         e.preventDefault();
         closeProfile();
@@ -372,6 +423,10 @@ export function Hall() {
   } else if (count === 0) shown = { text: 'No players in the hall yet. Make your card and be the first!' };
 
   const current = cards[car.index];
+  const profileName = mode === 'profile' ? current?.card.full_name : null;
+  useEffect(() => {
+    document.title = profileName ? `${profileName} · PIP-Hall` : mode === 'missing' ? 'No card here · PIP-Hall' : HALL_TITLE;
+  }, [profileName, mode]);
   const screen = (
     <div
       ref={screenRef}
@@ -405,7 +460,8 @@ export function Hall() {
       <DialogueBox text={shown.text} emote={shown.emote}>
         {action}
       </DialogueBox>
-      {mode === 'profile' && current && <ProfileScreen card={current} onBack={closeProfile} />}
+      {mode === 'profile' && current && <ProfileScreen key={current.username} card={current} onBack={closeProfile} onShowQr={() => setQrCard(current)} />}
+      {mode === 'missing' && <MissingScreen username={profile ?? ''} onBack={closeProfile} />}
       <canvas ref={overlayRef} className="overlay-canvas pixelated" hidden aria-hidden="true" />
     </div>
   );
@@ -417,8 +473,8 @@ export function Hall() {
         onPrev={() => go(indexRef.current - 1)}
         onNext={() => go(indexRef.current + 1)}
         onFlip={requestFlip}
-        onOpen={mode === 'profile' ? closeProfile : openProfile}
-        openLabel={mode === 'profile' ? 'BACK' : 'OPEN'}
+        onOpen={mode === 'level' ? openProfile : closeProfile}
+        openLabel={mode === 'level' ? 'OPEN' : 'BACK'}
         controlsDisabled={count === 0}
         ledBlink={ledBlink}
       />

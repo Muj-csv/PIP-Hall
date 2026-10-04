@@ -169,6 +169,22 @@ export function CardEditor({ user, initial, onSignOut }: Props) {
     </div>
   );
 
+  // One action bar, shown once: beside the badge on wide screens, pinned to the bottom on phones
+  // (CSS hides the other copy with display: none, so it's never read twice either).
+  const actionBar = (
+    <>
+      {notice && (
+        <div className={notice.bad ? 'notice notice-bad' : 'notice'} role="status">
+          {notice.bad && <span aria-hidden="true">! </span>}
+          {notice.text}
+        </div>
+      )}
+      {actions}
+      {view.submitHint && <p className="field-hint m-0">{view.submitHint}</p>}
+      <p className="field-hint m-0">{dirty ? 'You have unsaved changes. Ctrl/⌘+S saves.' : 'All changes saved.'}</p>
+    </>
+  );
+
   return (
     <div className="editor-grid">
       <aside className="editor-side" aria-label="Your card">
@@ -190,15 +206,9 @@ export function CardEditor({ user, initial, onSignOut }: Props) {
           {flipped ? 'Show front' : 'Show Quest Log'}
         </button>
         <StatusBanner view={view} />
-        {notice && (
-          <div className={notice.bad ? 'notice notice-bad' : 'notice'} role="status">
-            {notice.bad && <span aria-hidden="true">! </span>}
-            {notice.text}
-          </div>
-        )}
-        {actions}
-        {view.submitHint && <p className="field-hint m-0">{view.submitHint}</p>}
-        <p className="field-hint m-0">{dirty ? 'You have unsaved changes. Ctrl/⌘+S saves.' : 'All changes saved.'}</p>
+        <div className="editor-actions" data-at="side">
+          {actionBar}
+        </div>
       </aside>
 
       <div ref={formRef} className="grid gap-space-4">
@@ -316,7 +326,9 @@ export function CardEditor({ user, initial, onSignOut }: Props) {
           </div>
         </Panel>
 
-        {actions}
+        <div className="editor-actions" data-at="bottom">
+          {actionBar}
+        </div>
       </div>
 
       {blocker.state === 'blocked' && (

@@ -48,7 +48,7 @@ test.describe('desktop', () => {
     await screen.focus();
     await page.keyboard.press('o');
     await expect(page.getByRole('heading', { level: 2, name: 'Sample Player 1' }).last()).toBeVisible();
-    await expect(page.getByRole('button', { name: '◀ BACK' })).toBeFocused();
+    await expect(page.getByRole('button', { name: /◀ BACK/ })).toBeFocused();
     await page.keyboard.press('Escape');
     await expect(page.locator('.menu-screen')).toHaveCount(0);
   });

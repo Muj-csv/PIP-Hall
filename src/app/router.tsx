@@ -13,7 +13,6 @@ import { RequireAdmin, RequireAuth } from './guards';
 /* eslint-disable react-refresh/only-export-components */
 const Edit = lazy(() => import('../pages/Edit'));
 const Admin = lazy(() => import('../pages/Admin'));
-const Member = lazy(() => import('../pages/Member'));
 const Privacy = lazy(() => import('../pages/Privacy'));
 const Explore = lazy(() => import('../pages/Explore'));
 const Settings = lazy(() => import('../pages/Settings'));
@@ -27,11 +26,12 @@ export const router = createBrowserRouter([
   {
     errorElement: <RouteError />,
     children: [
-      { path: '/', element: <Home /> },
+      // The hall stays mounted between / and /member/:username, so opening a profile is a screen
+      // change inside the device (iris), not a new page.
+      { path: '/', element: <Home />, children: [{ path: 'member/:username', element: null }] },
       { path: '/login', element: <Login /> },
       { path: '/auth/callback', element: <AuthCallback /> },
       { path: '/explore', element: lazyPage(<Explore />) },
-      { path: '/member/:username', element: lazyPage(<Member />) },
       { path: '/privacy', element: lazyPage(<Privacy />) },
       { path: '/edit', element: <RequireAuth>{lazyPage(<Edit />)}</RequireAuth> },
       { path: '/create', element: <Navigate to="/edit" replace /> },

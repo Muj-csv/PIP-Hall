@@ -140,7 +140,7 @@ src/
 
 Rules: components never import `supabase.ts`; only `services/` do. Pages get data from hooks that call services. `cardService` has two implementations behind one interface (`fixture`, `supabase`), chosen by `VITE_DATA_SOURCE`, so the card and carousel are built on fixtures first and switch with no component changes.
 
-Routes: `/` home carousel · `/explore` grid + search + filters · `/member/:username` public page · `/login` · `/auth/callback` · `/edit` (create and edit; `/create` redirects) · `/admin` (admin only) · `/settings` · `*` not found. Member page, editor, admin and settings are lazy chunks.
+Routes: `/` home carousel · `/explore` grid + search + filters · `/member/:username` (the hall with that member's profile open inside the device, D-054) · `/login` · `/auth/callback` · `/edit` (create and edit; `/create` redirects) · `/admin` (admin only) · `/settings` · `*` not found. Explore, editor, admin and settings are lazy chunks.
 
 Search (FR-13): `cardService.listPublished()` loads all `published_cards` once (≈ 2–3 KB each; 300 cards ≈ 0.8 MB, cached by the service worker) and `lib/search.ts` filters in memory with a normalized haystack per card.
 

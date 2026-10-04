@@ -457,6 +457,16 @@
 .badge-face[data-side='back'] {
   transform: rotateY(180deg);
 }
+/* backface-visibility alone isn't enough: Safari (every iPhone browser) still paints a face's own
+   layers (photo, canvases, QR) mirrored through the back. So the turned-away face is also hidden,
+   switching at the halfway point of the turn, when the badge is edge-on. */
+.badge-face {
+  transition: visibility 0s linear 260ms;
+}
+.badge[data-flipped='true'] > .badge-face[data-side='front'],
+.badge[data-flipped='false'] > .badge-face[data-side='back'] {
+  visibility: hidden;
+}
 /* The face turned away is `inert` (no focus) and never catches clicks. */
 .badge-face[inert] {
   pointer-events: none;
@@ -945,34 +955,37 @@ a.item-slot:focus-visible,
   background: var(--color-world-window);
   color: var(--color-world-window-ink);
 }
-.menu-screen h2 {
+.menu-screen > h2,
+.menu-screen header h2 {
   margin: 0;
   font-family: var(--font-display);
   font-size: 32px;
   font-weight: 400;
   line-height: 1.05;
+  overflow-wrap: anywhere;
 }
 .menu-screen .meta {
   font-family: var(--font-mono);
   font-size: 13px;
 }
-.menu-screen ol {
+/* The full profile inside the device: badge beside the details when the screen is wide enough. */
+.profile-screen {
+  container-type: inline-size;
+  overscroll-behavior: contain;
+}
+.profile-layout {
   display: grid;
-  gap: 8px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
+  gap: 16px;
+  align-items: start;
 }
-.menu-screen li {
-  padding: 8px 10px;
-  background: var(--color-card-cream);
-  color: var(--color-card-ink);
-  box-shadow: inset 0 0 0 3px var(--color-card-ink);
+.profile-badge {
+  display: grid;
+  gap: 12px;
 }
-.menu-screen li b {
-  font-family: var(--font-display);
-  font-size: 19px;
-  font-weight: 400;
+@container (min-width: 600px) {
+  .profile-layout {
+    grid-template-columns: minmax(0, 280px) minmax(0, 1fr);
+  }
 }
 
 .qr-sheet {
@@ -1067,6 +1080,30 @@ a.item-slot:focus-visible,
 .editor-side {
   display: grid;
   gap: 12px;
+}
+.editor-actions {
+  display: grid;
+  gap: 12px;
+}
+/* Phones and tablets: the bar sits under the form and stays in reach while scrolling. */
+.editor-actions[data-at='side'] {
+  display: none;
+}
+.editor-actions[data-at='bottom'] {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  padding: 12px 0 calc(12px + env(safe-area-inset-bottom, 0px));
+  background: var(--color-bg);
+  box-shadow: 0 -3px 0 var(--color-border);
+}
+@media (min-width: 1024px) {
+  .editor-actions[data-at='side'] {
+    display: grid;
+  }
+  .editor-actions[data-at='bottom'] {
+    display: none;
+  }
 }
 .preview-stage {
   display: grid;
@@ -1404,30 +1441,7 @@ textarea.pixel-input {
   letter-spacing: 0.05em;
 }
 
-/* ---------------------------------------------------------------- member page (FR-11) */
-.member-layout {
-  display: grid;
-  gap: 24px;
-  align-items: start;
-}
-@media (min-width: 1024px) {
-  .member-layout {
-    grid-template-columns: minmax(0, 560px) minmax(0, 1fr);
-  }
-  .member-badges {
-    position: sticky;
-    top: 16px;
-  }
-}
-.member-badges {
-  display: grid;
-  gap: 12px;
-}
-.member-faces {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
+/* ---------------------------------------------------------------- profile details (FR-11) */
 .powerup-list,
 .link-list {
   display: flex;
@@ -1603,6 +1617,7 @@ textarea.pixel-input {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .badge-face,
   .badge,
   .hw-btn,
   .pixel-btn { transition: none; }

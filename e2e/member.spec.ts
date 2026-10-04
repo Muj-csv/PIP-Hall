@@ -1,56 +1,72 @@
-// Phase 4 acceptance (docs/build/PHASE-4.md): the page a badge's QR code opens. Fixture data.
-import { expect, test } from '@playwright/test';
+// The member profile (FR-11) lives inside the PIXENDO screen: OPEN / VIEW PROFILE iris into it and
+// the address becomes /member/:username; that address (what a badge's QR opens) loads straight
+// onto it. Fixture data.
+import { expect, test, type Page } from '@playwright/test';
 
-test('a member page loads cold, with the full card, all projects, links and the QR sheet', async ({ page, isMobile }) => {
+const profile = (page: Page) => page.locator('.profile-screen');
+const badge = (page: Page) => profile(page).locator('.badge');
+
+test('a QR link loads cold onto the profile inside the device: tappable badge, all projects, QR sheet', async ({ page }) => {
   await page.goto('/member/sample-player-4');
-  await expect(page.getByRole('heading', { level: 1, name: 'Sample Player 4' })).toBeVisible();
+  await expect(page.locator('#profile-name, #missing-title')).toHaveText('Sample Player 4');
   await expect(page).toHaveTitle('Sample Player 4 · PIP-Hall');
-  await expect(page.getByText('@sample-player-4 · No.004')).toBeVisible();
+  await expect(profile(page).getByText('@sample-player-4 · No.004')).toBeVisible();
+  await expect(page.getByRole('button', { name: /◀ BACK/ }).first()).toBeFocused();
 
   // Every project, not just the three that fit on the badge.
-  await expect(page.locator('.quest-list > li')).toHaveCount(6);
+  await expect(profile(page).locator('.quest-list > li')).toHaveCount(6);
 
-  if (isMobile) {
-    // Phone: one badge that flips.
-    await expect(page.locator('.member-badges .badge')).toHaveCount(1);
-    await page.getByRole('button', { name: 'Show Quest Log' }).click();
-    await expect(page.locator('.member-badges .badge')).toHaveAttribute('data-flipped', 'true');
-  } else {
-    // Desktop: both faces side by side, nothing to flip.
-    await expect(page.locator('.member-badges .badge')).toHaveCount(2);
-    await expect(page.locator('.member-badges figcaption')).toHaveText(['FRONT', 'QUEST LOG']);
-    await expect(page.locator('.member-badges .badge-hit')).toHaveCount(0);
-  }
+  // One live badge that turns over when tapped, like My card.
+  await expect(badge(page)).toHaveCount(1);
+  await profile(page).getByRole('button', { name: /^Card of Sample Player 4/ }).click();
+  await expect(badge(page)).toHaveAttribute('data-flipped', 'true');
+  await expect(profile(page).getByRole('button', { name: 'Show front' })).toBeVisible();
+  await profile(page).getByRole('button', { name: /^Quest Log of Sample Player 4/ }).click();
+  await expect(badge(page)).toHaveAttribute('data-flipped', 'false');
 
-  await page.getByRole('button', { name: 'SCAN ME · show QR' }).click();
+  await profile(page).getByRole('button', { name: 'SCAN ME · show QR' }).click();
   const sheet = page.getByRole('dialog', { name: 'SCAN ME' });
   await expect(sheet).toContainText('https://pip-hall.example/member/sample-player-4');
-  await expect(sheet).toContainText('brightness');
   await page.keyboard.press('Escape');
   await expect(sheet).toBeHidden();
 
-  await page.getByRole('link', { name: '◀ Back to the collection' }).click();
-  await expect(page).toHaveURL(/\/$/);
+  // BACK returns to the hall, on that member's badge.
+  await profile(page).getByRole('button', { name: /◀ BACK/ }).click();
+  await expect(page).toHaveURL(/localhost:\d+\/$/);
+  await expect(profile(page)).toHaveCount(0);
+  await expect(page.locator('.hud span').last()).toHaveText('4/6');
+  await expect(page).toHaveTitle('PIP-Hall · Where every person has a place');
 });
 
-test('an unknown username gets the not-found dialogue', async ({ page }) => {
+test('VIEW PROFILE on a badge opens the profile inside the device, and browser Back closes it', async ({ page }) => {
+  await page.addInitScript(() => sessionStorage.setItem('piphall-booted', '1'));
+  await page.goto('/');
+  const current = page.locator('.slot:not([aria-hidden]) .badge');
+  await page.locator('.slot:not([aria-hidden]) .badge-face[data-side="front"] .badge-hit').click();
+  await expect(current).toHaveAttribute('data-flipped', 'true');
+  await page.locator('.slot:not([aria-hidden])').getByRole('button', { name: 'VIEW PROFILE ▸' }).click();
+  await expect(page).toHaveURL(/\/member\/sample-player-1$/);
+  await expect(page.locator('#profile-name, #missing-title')).toHaveText('Sample Player 1');
+  // Still the same page: the handheld is there and its button now says BACK.
+  await expect(page.locator('.device')).toHaveCount(1);
+  await expect(page.getByRole('button', { name: 'BACK', exact: true })).toBeVisible();
+
+  await page.goBack();
+  await expect(page).toHaveURL(/localhost:\d+\/$/);
+  await expect(profile(page)).toHaveCount(0);
+  await page.goForward();
+  await expect(page.locator('#profile-name, #missing-title')).toHaveText('Sample Player 1');
+});
+
+test('an unknown username shows the not-found dialogue inside the device', async ({ page }) => {
   await page.goto('/member/nobody-here');
-  await expect(page.getByRole('heading', { level: 1, name: 'No card here' })).toBeVisible();
-  await expect(page.locator('.dialogue .sr-only')).toContainText('Nobody in the hall goes by @nobody-here');
-  await expect(page.getByRole('link', { name: '◀ Back to the collection' })).toBeVisible();
+  await expect(page.locator('#profile-name, #missing-title')).toHaveText('No card here');
+  await expect(profile(page).locator('.dialogue .sr-only')).toContainText('Nobody in the hall goes by @nobody-here');
+  await profile(page).getByRole('button', { name: /◀ BACK/ }).click();
+  await expect(page).toHaveURL(/localhost:\d+\/$/);
 });
 
 test('a member with no projects says so', async ({ page }) => {
   await page.goto('/member/sample-player-3');
-  await expect(page.locator('.dialogue .sr-only')).toContainText('hasn’t added any quests yet');
-});
-
-test('the in-hall profile screen links to the full page', async ({ page, isMobile }) => {
-  test.skip(isMobile, 'same route on both; desktop covers the hall path');
-  await page.addInitScript(() => sessionStorage.setItem('piphall-booted', '1'));
-  await page.goto('/');
-  await page.getByRole('button', { name: 'OPEN', exact: true }).click();
-  await page.getByRole('link', { name: /FULL PAGE/ }).click();
-  await expect(page).toHaveURL(/\/member\/sample-player-1$/);
-  await expect(page.getByRole('heading', { level: 1, name: 'Sample Player 1' })).toBeVisible();
+  await expect(profile(page).locator('.dialogue .sr-only')).toContainText('hasn’t added any quests yet');
 });
