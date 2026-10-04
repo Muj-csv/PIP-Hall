@@ -1,5 +1,5 @@
 import { lazy, Suspense, type ReactNode } from 'react';
-import { createBrowserRouter, Navigate } from 'react-router';
+import { createBrowserRouter, Navigate, useLocation } from 'react-router';
 import Home from '../pages/Home';
 import NotFound from '../pages/NotFound';
 import Login from '../pages/Login';
@@ -14,9 +14,13 @@ import { RequireAdmin, RequireAuth } from './guards';
 const Edit = lazy(() => import('../pages/Edit'));
 const Admin = lazy(() => import('../pages/Admin'));
 const Privacy = lazy(() => import('../pages/Privacy'));
-const Explore = lazy(() => import('../pages/Explore'));
 const Museum = lazy(() => import('../pages/Museum'));
 const Settings = lazy(() => import('../pages/Settings'));
+/** /explore became the hall's search (D-072): old links and shared searches keep working. */
+function ExploreRedirect() {
+  const { search } = useLocation();
+  return <Navigate to={{ pathname: '/', search }} replace />;
+}
 /* eslint-enable react-refresh/only-export-components */
 
 const lazyPage = (node: ReactNode) => <Suspense fallback={<RouteLoading />}>{node}</Suspense>;
@@ -32,7 +36,7 @@ export const router = createBrowserRouter([
       { path: '/', element: <Home />, children: [{ path: 'member/:username', element: null }] },
       { path: '/login', element: <Login /> },
       { path: '/auth/callback', element: <AuthCallback /> },
-      { path: '/explore', element: lazyPage(<Explore />) },
+      { path: '/explore', element: <ExploreRedirect /> },
       { path: '/museum', element: lazyPage(<Museum />) },
       { path: '/privacy', element: lazyPage(<Privacy />) },
       { path: '/edit', element: <RequireAuth>{lazyPage(<Edit />)}</RequireAuth> },

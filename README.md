@@ -85,7 +85,7 @@ Status key: ✅ done · 🛠️ in progress · ⏳ planned for v1.0 (6 Oct 2026)
 | | Submit for review; edits to a live card are re-reviewed while the approved version stays public | ✅ |
 | **Admin** | Moderation queue: approve, reject with note, unpublish, feature, rename | ✅ |
 | **Discovery** | Public profile at `/member/:username` (what the QR opens) | ✅ |
-| | Explore: search by name, handle, role, skill or project; filter by department, skill, featured; Random player | ✅ |
+| | Search the hall: by name, handle, role, skill or project; filter by department, skill, featured; Random player walks Pip to someone. Results hang in the hall as live badges (flip, OPEN, QR) | ✅ |
 | **Account** | Settings: email choices, theme, sign out, delete account | ✅ |
 | **Museum** | A public gallery of members' projects, shuffled each visit; admins give affiliations (e.g. CS Student) that grant Museum access, and members choose which approved projects to show | ✅ |
 | **PIPs** | Earn PIPs for discovering members and getting projects approved; achievements on profiles (behind `VITE_FEATURE_PIPS`) | ✅ |
@@ -138,9 +138,9 @@ From the production build. The badges are labelled sample cards, not real member
 |:---:|:---:|
 | <img src="docs/images/app-hall-night.png" alt="The hall in night mode: dark sky, stars, and badges hanging from the block row" width="420"> | <img src="docs/images/app-phone.png" alt="Phone layout: the top bar, the tagline and the handheld's screen with one badge" width="180"> |
 
-| Member page (what the QR opens) | Explore |
+| Member page (what the QR opens) | Searching the hall |
 |:---:|:---:|
-| <img src="docs/images/app-member.png" alt="A member page with the badge front and Quest Log side by side, an About panel and the full project list" width="420"> | <img src="docs/images/app-explore.png" alt="Explore: a search box, department and skill filter chips and a grid of compact badges" width="420"> |
+| <img src="docs/images/app-member.png" alt="A member page with the badge front and Quest Log side by side, an About panel and the full project list" width="420"> | <img src="docs/images/app-explore.png" alt="The hall with the search box, department and skill filter chips above the PIXENDO device, which shows only the matching badges" width="420"> |
 
 The original design prototype, `docs/design/lab.html`, and its badge anatomy diagram are in [`docs/images/`](docs/images/).
 

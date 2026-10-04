@@ -122,7 +122,7 @@ Supabase settings required: Google + GitHub providers on; **Manual linking enabl
 ```text
 src/
   app/            router.tsx, providers (session, theme), RequireAuth, RequireAdmin
-  pages/          Home, Explore, Member, Login, AuthCallback, Edit, Admin, Settings, NotFound
+  pages/          Home, Museum, Login, AuthCallback, Edit, Admin, Settings, NotFound
   components/
     shell/        HandheldShell, Stage, HardwareBar, TopBar, ThemeToggle, InstallPrompt
     cards/        MemberCard, CardFront, CardBack, Lanyard, Sticker, PixelAvatar, QrBadge, QrFullscreen
@@ -140,7 +140,7 @@ src/
 
 Rules: components never import `supabase.ts`; only `services/` do. Pages get data from hooks that call services. `cardService` has two implementations behind one interface (`fixture`, `supabase`), chosen by `VITE_DATA_SOURCE`, so the card and carousel are built on fixtures first and switch with no component changes.
 
-Routes: `/` home carousel · `/explore` grid + search + filters · `/member/:username` (the hall with that member's profile open inside the device, D-054) · `/login` · `/auth/callback` · `/edit` (create and edit; `/create` redirects) · `/admin` (admin only) · `/settings` · `*` not found. Explore, editor, admin and settings are lazy chunks.
+Routes: `/` home carousel with search, filters and Random player above the device (D-072) · `/explore` redirects to `/` with the same search · `/museum` · `/member/:username` (the hall with that member's profile open inside the device, D-054) · `/login` · `/auth/callback` · `/edit` (create and edit; `/create` redirects) · `/admin` (admin only) · `/settings` · `*` not found. Museum, editor, admin and settings are lazy chunks.
 
 Search (FR-13): `cardService.listPublished()` loads all `published_cards` once (≈ 2–3 KB each; 300 cards ≈ 0.8 MB, cached by the service worker) and `lib/search.ts` filters in memory with a normalized haystack per card.
 
@@ -175,7 +175,7 @@ Search (FR-13): `cardService.listPublished()` loads all `published_cards` once (
 | FR-07/08 | StatusBanner, ModerationQueue, SQL functions | `security.test.mjs` + Playwright |
 | FR-09/10 | CardCarousel, MemberCard | Playwright: drag, keys, flip; AEGIS render check |
 | FR-11/12 | Member page, QrBadge, `vercel.json` | Playwright cold load + real phone scan |
-| FR-13 | Explore, `lib/search.ts` | Vitest |
+| FR-13 | `HallSearch`, `Hall`, `lib/search.ts` | Vitest, `e2e/explore.spec.ts` |
 | FR-14 | manifest, service worker | Lighthouse PWA audit + phone install |
 | FR-15 | ThemeToggle, tokens | AEGIS contrast (both modes) |
 | FR-16 | Settings, `delete_my_account` | `security.test.mjs` + Playwright |
