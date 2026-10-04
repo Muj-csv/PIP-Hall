@@ -19,7 +19,7 @@ test('the Museum shows exhibits, shuffles them, and links to their makers', asyn
 });
 
 test('the top bar leads to the Museum', async ({ page }) => {
-  await page.goto('/explore');
+  await page.goto('/privacy');
   await page.getByRole('link', { name: 'Museum' }).click();
   await expect(page).toHaveURL(/\/museum$/);
 });
