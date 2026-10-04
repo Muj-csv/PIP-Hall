@@ -12,6 +12,8 @@ export interface MockDb {
   published: Row[];
   uploads: string[];
   githubHandle: string | null;
+  /** Set once delete_my_account() ran. */
+  deletedAccount?: boolean;
 }
 
 export function emptyDb(githubHandle: string | null = null): MockDb {
@@ -223,6 +225,30 @@ export async function handleDb(route: Route, db: MockDb, user: DbUser): Promise<
     const p = db.profiles.find((r) => r.id === userId);
     if (p) p.github_username = db.githubHandle;
     return (await json(200, db.githubHandle)), true;
+  }
+
+  if (url.pathname === '/rest/v1/rpc/delete_my_account') {
+    db.profiles = db.profiles.filter((r) => r.id !== userId);
+    db.projects = db.projects.filter((r) => r.profile_id !== userId);
+    db.published = db.published.filter((r) => r.profile_id !== userId);
+    db.deletedAccount = true;
+    return (await route.fulfill({ status: 204 })), true;
+  }
+
+  // Storage: list and remove the member's own files (RLS keeps everyone to their own folder).
+  const list = url.pathname.match(/^\/storage\/v1\/object\/list\/(avatars|project-covers)$/);
+  if (list && method === 'POST') {
+    const prefix = String(body().prefix ?? '');
+    if (prefix !== userId) return (await json(200, [])), true;
+    const files = list[1] === 'avatars' ? db.uploads.filter((p) => p.startsWith(`${userId}/`)) : [];
+    return (await json(200, files.map((p) => ({ name: p.slice(userId.length + 1), id: crypto.randomUUID(), metadata: {} })))), true;
+  }
+  const remove = url.pathname.match(/^\/storage\/v1\/object\/(avatars|project-covers)$/);
+  if (remove && method === 'DELETE') {
+    const prefixes: string[] = body().prefixes ?? [];
+    if (prefixes.some((p) => !p.startsWith(`${userId}/`))) return (await err(403, '403', 'new row violates row-level security policy')), true;
+    db.uploads = db.uploads.filter((p) => !prefixes.includes(p));
+    return (await json(200, prefixes.map((name) => ({ name })))), true;
   }
 
   if (url.pathname.startsWith('/storage/v1/object/avatars/') && method === 'POST') {

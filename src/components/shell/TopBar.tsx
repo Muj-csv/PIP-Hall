@@ -18,6 +18,9 @@ export function TopBar() {
       </Link>
       <nav aria-label="Account" className="flex flex-wrap items-center gap-space-3">
         <ThemeToggle />
+        <Link to="/explore" className="pixel-btn">
+          Explore
+        </Link>
         {signedIn && session.role === 'admin' && (
           <Link to="/admin" className="pixel-btn">
             Admin

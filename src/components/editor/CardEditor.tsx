@@ -3,7 +3,7 @@
 // first. Every rule is checked again by the database on save.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useBlocker } from 'react-router';
+import { Link, useBlocker } from 'react-router';
 import { formFrom, previewCard } from '../../lib/editorModel';
 import { focusFirstError } from '../../lib/focusFirstError';
 import { LIMITS, validateCard, type FieldErrors } from '../../lib/validate';
@@ -302,13 +302,18 @@ export function CardEditor({ user, initial, onSignOut }: Props) {
           <p className="m-0">
             Signed in as <span className="font-mono">{user.email}</span>
           </p>
-          <button
-            type="button"
-            className="pixel-btn justify-self-start"
-            onClick={() => (dirty ? setNotice({ text: 'Save your changes before signing out, or they’ll be lost.', bad: true }) : onSignOut())}
-          >
-            Sign out
-          </button>
+          <div className="flex flex-wrap gap-space-2">
+            <Link to="/settings" className="pixel-btn">
+              Settings
+            </Link>
+            <button
+              type="button"
+              className="pixel-btn"
+              onClick={() => (dirty ? setNotice({ text: 'Save your changes before signing out, or they’ll be lost.', bad: true }) : onSignOut())}
+            >
+              Sign out
+            </button>
+          </div>
         </Panel>
 
         {actions}

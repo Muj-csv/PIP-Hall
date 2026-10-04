@@ -6,7 +6,7 @@ import type { ReactNode } from 'react';
 import { DialogueBox } from '../components/dialogue/DialogueBox';
 import { MenuPage, Panel } from '../components/shell/MenuPage';
 
-const LAST_UPDATED = '4 October 2026';
+const LAST_UPDATED = '5 October 2026';
 const CONTACT_URL = 'https://github.com/Muj-csv';
 const CONTACT_LABEL = 'github.com/Muj-csv';
 
@@ -63,7 +63,7 @@ export default function Privacy() {
       <Section title="Cookies and tracking">
         <p className="m-0">
           No ads, no analytics, no tracking cookies. Your browser stores your sign-in session and your DAY/NIGHT choice so you don’t have
-          to pick them again.
+          to pick them again. To open fast and work offline, your browser also keeps a copy of the site and of the public cards and photos.
         </p>
       </Section>
 
@@ -76,8 +76,12 @@ export default function Privacy() {
 
       <Section title="Changing or deleting your data">
         <p className="m-0">
-          You can change everything on your card from the card editor. To take your card down or delete your account and everything in
-          it, contact the maintainer at{' '}
+          You can change everything on your card from the card editor, and your email choices in Settings. To delete your account, open{' '}
+          <Link to="/settings" className="underline decoration-2">
+            Settings
+          </Link>{' '}
+          and choose Delete account: your card, page, photos, projects and sign-in are removed straight away. Questions? Contact the
+          maintainer at{' '}
           <a href={CONTACT_URL} className="underline decoration-2" rel="noopener noreferrer" target="_blank">
             {CONTACT_LABEL}
           </a>

@@ -4,6 +4,8 @@ import Home from '../pages/Home';
 import NotFound from '../pages/NotFound';
 import Login from '../pages/Login';
 import AuthCallback from '../pages/AuthCallback';
+import RouteError from '../pages/RouteError';
+import { RouteLoading } from './RouteLoading';
 import { RequireAdmin, RequireAuth } from './guards';
 
 // Member and admin screens are lazy chunks, so visitors never download them (NFR-01).
@@ -13,19 +15,29 @@ const Edit = lazy(() => import('../pages/Edit'));
 const Admin = lazy(() => import('../pages/Admin'));
 const Member = lazy(() => import('../pages/Member'));
 const Privacy = lazy(() => import('../pages/Privacy'));
+const Explore = lazy(() => import('../pages/Explore'));
+const Settings = lazy(() => import('../pages/Settings'));
 /* eslint-enable react-refresh/only-export-components */
 
-const lazyPage = (node: ReactNode) => <Suspense fallback={null}>{node}</Suspense>;
+const lazyPage = (node: ReactNode) => <Suspense fallback={<RouteLoading />}>{node}</Suspense>;
 
-// /explore and /settings arrive in Phase 5 (ARCHITECTURE §7).
+// One parent route so every screen shares the error screen (offline before a chunk was cached,
+// or a crash) instead of the router's default.
 export const router = createBrowserRouter([
-  { path: '/', element: <Home /> },
-  { path: '/login', element: <Login /> },
-  { path: '/auth/callback', element: <AuthCallback /> },
-  { path: '/member/:username', element: lazyPage(<Member />) },
-  { path: '/privacy', element: lazyPage(<Privacy />) },
-  { path: '/edit', element: <RequireAuth>{lazyPage(<Edit />)}</RequireAuth> },
-  { path: '/create', element: <Navigate to="/edit" replace /> },
-  { path: '/admin', element: <RequireAdmin>{lazyPage(<Admin />)}</RequireAdmin> },
-  { path: '*', element: <NotFound /> },
+  {
+    errorElement: <RouteError />,
+    children: [
+      { path: '/', element: <Home /> },
+      { path: '/login', element: <Login /> },
+      { path: '/auth/callback', element: <AuthCallback /> },
+      { path: '/explore', element: lazyPage(<Explore />) },
+      { path: '/member/:username', element: lazyPage(<Member />) },
+      { path: '/privacy', element: lazyPage(<Privacy />) },
+      { path: '/edit', element: <RequireAuth>{lazyPage(<Edit />)}</RequireAuth> },
+      { path: '/create', element: <Navigate to="/edit" replace /> },
+      { path: '/settings', element: <RequireAuth>{lazyPage(<Settings />)}</RequireAuth> },
+      { path: '/admin', element: <RequireAdmin>{lazyPage(<Admin />)}</RequireAdmin> },
+      { path: '*', element: <NotFound /> },
+    ],
+  },
 ]);
