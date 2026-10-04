@@ -306,7 +306,7 @@ h2{font-family:var(--f-display);font-weight:700;font-size:35px;line-height:1.1}
               <canvas id="bg"></canvas>
               <div class="cards" id="cards"></div>
               <canvas id="fg"></canvas>
-              <div class="hud" aria-hidden="true"><span>PIP-HALL</span><span class="coins"><canvas id="hudCoin" width="6" height="8"></canvas><span id="coinCount">×00</span></span><span id="hudWorld">WORLD ACM</span><span id="hudCount">1/3</span></div>
+              <div class="hud" aria-hidden="true"><span>PIP-HALL</span><span class="coins"><canvas id="hudCoin" width="6" height="8"></canvas><span id="coinCount">×00</span></span><span id="hudWorld">WORLD 1-1</span><span id="hudCount">1/3</span></div>
             </div>
             <div class="window">
               <div class="portrait" aria-hidden="true"><canvas id="pip" width="12" height="12"></canvas></div>
@@ -529,9 +529,9 @@ function avatarCanvas(handle){
 }
 function seedOf(s){ var h=7; for (var i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))>>>0; return h; }
 
-/* ---------------------------------------------------------------- data (Ian's card is real; samples are labelled) */
+/* ---------------------------------------------------------------- data (the creator's card is real; samples are labelled) */
 var CARDS = [
-  { no:1, name:'IAN PATRICK FLORES', handle:'muj-csv', dept:'BSCS-2A', role:'ACM · AUF · team lead on hackathon builds',
+  { no:1, name:'JUM FLORES', handle:'muj-csv', dept:'PIXENDO', role:'Creator of PIP-Hall · PIXENDO',
     bio:'Builds student tools with an AI layer. Civic tech, and PWAs that students actually open.',
     projects:[{t:'AGAPAI',d:'Taglish voice to emergency dispatch',l:'voice · AI'},{t:'TESSERA',d:'Private photo album, justified mosaic',l:'Next.js'},{t:'DODOTASK',d:'Canvas LMS + Gmail + Gemini',l:'PWA'}],
     skills:['Next.js','PWA','PostGIS','IndexedDB','Gemini'], links:{gh:true,li:false,web:false}, since:2026,
