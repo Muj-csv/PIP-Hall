@@ -75,6 +75,12 @@ Do these on the live URL and keep a screenshot of each.
 2. **Vercel → Environment Variables:** add `VITE_FEATURE_PIPS` = `on` (Production, and Preview if you want it there), then redeploy. Leave it unset or `off` to keep PIPs hidden; the migration is harmless while the switch is off.
 3. Check: sign in as a member whose card is in the hall, open another member's profile, and see Pip's "+5 PIPs" line and the HUD balance; Settings → PIPs shows the history.
 
+## MUSEUM and affiliations
+
+1. Supabase **SQL editor:** run `supabase/migrations/20261005000100_museum.sql` (after `…_pips_core.sql`). It also adds project ids to the cards already in the hall, so their projects can go in the Museum.
+2. In the app: **Admin → Affiliations**, add e.g. "CS Student" with **Gives Museum access**, and your organization as a label. Then **Published**, pick a member, and tick their affiliations.
+3. That member opens **My card**: a **Museum** panel lists their approved projects; ticking one puts it on `/museum` straight away.
+
 ## 6. Keep the free project awake
 
 Add repository secrets `SUPABASE_URL` and `SUPABASE_ANON_KEY` (GitHub → Settings → Secrets and variables → Actions). `.github/workflows/keepalive.yml` then reads one public card every Monday.

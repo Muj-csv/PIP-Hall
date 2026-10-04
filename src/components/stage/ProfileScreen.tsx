@@ -5,6 +5,7 @@
 import { useEffect, useRef } from 'react';
 import { serialFor } from '../../lib/publicUrl';
 import { useAchievements } from '../../lib/useAchievements';
+import { useAffiliations } from '../../lib/useAffiliations';
 import { publicImageUrl } from '../../services/storageService';
 import type { PublicCard, PublicProject } from '../../types/card';
 import { FlipBadge } from '../cards/BadgeStage';
@@ -22,6 +23,7 @@ export function ProfileScreen({ card, onBack, onShowQr, reward = null }: Props) 
   const back = useRef<HTMLButtonElement>(null);
   const c = card.card;
   const achievements = useAchievements(card.profile_id);
+  const affiliations = useAffiliations(card.profile_id);
   useEffect(() => back.current?.focus(), []);
 
   const meta = [`@${c.username}`, `No.${String(card.no).padStart(3, '0')}`, c.role, c.org_position, c.department].filter(Boolean).join(' · ');
@@ -46,6 +48,16 @@ export function ProfileScreen({ card, onBack, onShowQr, reward = null }: Props) 
           </p>
         )}
         {c.tagline && <p className="m-0">{c.tagline}</p>}
+        {affiliations.length > 0 && (
+          <ul className="powerup-list affiliation-list" aria-label="Affiliations">
+            {affiliations.map((a) => (
+              <li key={a.key}>
+                <span aria-hidden="true">◆ </span>
+                {a.name}
+              </li>
+            ))}
+          </ul>
+        )}
         {achievements.length > 0 && (
           <ul className="powerup-list" aria-label="Achievements">
             {achievements.map((a) => (

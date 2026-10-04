@@ -10,6 +10,7 @@ import type { PublicCard } from '../../types/card';
 import { FlipBadge } from '../cards/BadgeStage';
 import { QrFullscreen } from '../cards/QrFullscreen';
 import { TextArea, TextField } from '../editor/fields';
+import { MemberAffiliations } from './AffiliationsManager';
 
 type Done = (message: string) => void;
 
@@ -171,6 +172,7 @@ export function PublishedReview({ card, onDone }: Shared & { card: PublicCard })
           </div>
         </div>
       )}
+      <MemberAffiliations memberId={card.profile_id} name={name} onDone={onDone} />
       <RenameForm id={card.profile_id} name={name} current={card.username} onDone={onDone} />
       {qr && <QrFullscreen card={card} onClose={() => setQr(false)} />}
     </section>

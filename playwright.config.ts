@@ -28,17 +28,17 @@ export default defineConfig({
   projects: [
     {
       name: 'desktop',
-      testIgnore: /(data-source|admin|pips)\.spec/,
+      testIgnore: /(data-source|admin|pips|museum)\.spec/,
       use: { ...devices['Desktop Chrome'], baseURL: 'http://localhost:5173', viewport: { width: 1440, height: 1000 }, launchOptions: { executablePath } },
     },
     {
       name: 'phone',
-      testIgnore: /(data-source|admin|pips)\.spec/,
+      testIgnore: /(data-source|admin|pips|museum)\.spec/,
       use: { ...devices['Pixel 7'], baseURL: 'http://localhost:5173', launchOptions: { executablePath } },
     },
     {
       name: 'supabase-data',
-      testMatch: /(data-source|admin|pips)\.spec/,
+      testMatch: /(data-source|admin|pips|museum)\.spec/,
       use: { ...devices['Desktop Chrome'], baseURL: 'http://localhost:5174', viewport: { width: 1440, height: 1000 }, launchOptions: { executablePath } },
     },
   ],

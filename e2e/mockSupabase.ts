@@ -54,7 +54,7 @@ export async function mockSupabase(page: Page, opts: MockOptions = {}): Promise<
     const req = route.request();
     const url = new URL(req.url());
     log.requests.push(`${req.method()} ${url.pathname}${url.search}`);
-    if (db && user && (await handleDb(route, db, { id: user.id, role: user.role }))) return;
+    if (db && (await handleDb(route, db, user ? { id: user.id, role: user.role } : { id: '', role: 'anon' }))) return;
     const json = (status: number, body: unknown) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
 
     if (url.pathname === '/rest/v1/user_roles') return json(200, user ? [{ role: user.role }] : []);

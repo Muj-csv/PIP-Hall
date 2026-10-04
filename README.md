@@ -87,6 +87,8 @@ Status key: ✅ done · 🛠️ in progress · ⏳ planned for v1.0 (6 Oct 2026)
 | **Discovery** | Public profile at `/member/:username` (what the QR opens) | ✅ |
 | | Explore: search by name, handle, role, skill or project; filter by department, skill, featured; Random player | ✅ |
 | **Account** | Settings: email choices, theme, sign out, delete account | ✅ |
+| **Museum** | A public gallery of members' projects, shuffled each visit; admins give affiliations (e.g. CS Student) that grant Museum access, and members choose which approved projects to show | ✅ |
+| **PIPs** | Earn PIPs for discovering members and getting projects approved; achievements on profiles (behind `VITE_FEATURE_PIPS`) | ✅ |
 | **App** | Installable PWA with an offline shell and iOS install steps | ✅ |
 
 ---
