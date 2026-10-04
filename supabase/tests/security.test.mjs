@@ -245,6 +245,19 @@ try {
   await expectOk(c, 'deleting an affiliation removes it from members', ADMIN, `select admin_delete_affiliation('cs-student')`, []);
   await expectOk(c, '…and its chips are gone', 'anon', `select * from member_affiliations where member_id=$1`, [A], (r) => r.rowCount === 0);
 
+  // Cards approved before the Museum whose projects were renamed afterwards (20261005000200).
+  const rowIds = new Set((await c.query(`select id from projects where profile_id=$1`, [A])).rows.map((r) => r.id));
+  // A project deleted from the draft since approval has no row to link to, so it stays without an id.
+  const idsBefore = (await c.query(`select card->'projects' as p from published_cards where profile_id=$1`, [A])).rows[0].p.map((x) => (rowIds.has(x.id) ? x.id : null));
+  await c.query(`update published_cards set card = jsonb_set(card, '{projects}', (select jsonb_agg(e - 'id' order by n) from jsonb_array_elements(card->'projects') with ordinality t(e, n))) where profile_id=$1`, [A]);
+  await c.query(`update projects set title = 'Renamed after approval' where profile_id=$1 and github_url is not null`, [A]);
+  await c.query(`update projects set title = upper(title) || '  ' where profile_id=$1 and github_url is null`, [A]);
+  await c.query(readFileSync(join(here, '..', 'migrations', '20261005000200_museum_relink.sql'), 'utf8'));
+  await expectSu(c, 'relink matches renamed projects by link, and titles ignoring case and spaces', `select card->'projects' as p from published_cards where profile_id=$1`, [A],
+    (r) => r.rows[0].p.map((x) => x.id).join() === idsBefore.join() && idsBefore.filter(Boolean).length >= 2);
+  await c.query(readFileSync(join(here, '..', 'migrations', '20261005000200_museum_relink.sql'), 'utf8'));
+  await expectSu(c, 'relink is safe to run twice', `select card->'projects' as p from published_cards where profile_id=$1`, [A], (r) => r.rows[0].p.map((x) => x.id).join() === idsBefore.join());
+
   console.log('account deletion');
   await expectErr(c, 'anon cannot call delete_my_account', 'anon', `select delete_my_account()`, [], /permission denied/);
   await expectOk(c, 'member deletes own account', B, `select delete_my_account()`, []);
