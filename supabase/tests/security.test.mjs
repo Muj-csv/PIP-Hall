@@ -211,6 +211,40 @@ try {
   await expectOk(c, 'an unpublished member keeps their PIPs but stops earning', Ms[0], `select my_pips() as p`, [], (r) => r.rows[0].p.eligible === false && r.rows[0].p.balance === 150);
   await expectOk(c, "an unpublished member's achievements are no longer public", 'anon', `select * from member_achievements where member_id=$1`, [Ms[0]], (r) => r.rowCount === 0);
 
+  console.log('Museum and affiliations');
+  await expectErr(c, 'member cannot create affiliations', A, `select admin_save_affiliation('cs-student','CS Student', true)`, [], /NOT_ADMIN/);
+  await expectErr(c, 'member cannot write affiliations directly', A, `insert into affiliations (key, name) values ('x','X')`, [], /permission denied/);
+  await expectOk(c, 'admin creates a Museum affiliation', ADMIN, `select admin_save_affiliation('cs-student','CS Student', true)`, []);
+  await expectOk(c, 'admin creates an org affiliation', ADMIN, `select admin_save_affiliation('org','Org Member', false)`, []);
+  await expectErr(c, 'affiliation keys are checked', ADMIN, `select admin_save_affiliation('Bad Key!','X', false)`, [], /check constraint/);
+  await expectOk(c, 'anyone can read the affiliation list', 'anon', `select key from affiliations order by sort`, [], (r) => r.rows.map((x) => x.key).join() === 'cs-student,org');
+  await expectErr(c, 'member cannot grant themselves an affiliation', A, `select set_member_affiliation($1,'cs-student', true)`, [A], /NOT_ADMIN/);
+  await expectErr(c, 'member cannot insert member_affiliations', A, `insert into member_affiliations (member_id, key) values ($1,'cs-student')`, [A], /permission denied/);
+  await expectOk(c, 'snapshots carry project ids', 'anon', `select card->'projects' as p from published_cards where profile_id=$1`, [A], (r) => r.rows[0].p.length > 0 && r.rows[0].p.every((x) => typeof x.id === 'string'));
+  const liveA = (await c.query(`select (card->'projects'->0->>'id') as id from published_cards where profile_id=$1`, [A])).rows[0].id;
+  await expectErr(c, 'without Museum access a member cannot exhibit', A, `select set_museum($1, true)`, [liveA], /NO_MUSEUM_ACCESS/);
+  await expectOk(c, 'admin grants CS Student to A', ADMIN, `select set_member_affiliation($1,'cs-student', true)`, [A]);
+  await expectOk(c, 'affiliation chips are public for members in the hall', 'anon', `select key from member_affiliations where member_id=$1`, [A], (r) => r.rows[0]?.key === 'cs-student');
+  await expectOk(c, 'my_museum reports access and live projects', A, `select my_museum() as m`, [], (r) => r.rows[0].m.access === true && r.rows[0].m.live.includes(liveA) && r.rows[0].m.entries.length === 0);
+  await expectOk(c, 'a member with access exhibits a live project', A, `select set_museum($1, true) as on`, [liveA], (r) => r.rows[0].on === true);
+  await expectOk(c, 'visitors see the exhibit as approved', 'anon', `select museum_exhibits() as e`, [], (r) => r.rows[0].e.length === 1 && r.rows[0].e[0].project.id === liveA && r.rows[0].e[0].username === 'sensei');
+  await c.query(`insert into projects (profile_id, title) values ($1, 'Not yet approved')`, [B]);
+  const bProj = (await c.query(`select id from projects where profile_id=$1 limit 1`, [B])).rows[0].id;
+  await expectErr(c, "a member cannot exhibit someone else's project", A, `select set_museum($1, true)`, [bProj], /NOT_YOURS/);
+  await as(c, A, `delete from projects where id = (select id from projects where profile_id=$1 and id <> $2 order by sort_order desc limit 1)`, [A, liveA]); // make room (max 6)
+  const draftA = (await as(c, A, `insert into projects (profile_id, title) values ($1, 'Draft only') returning id`, [A])).rows[0].id;
+  await expectErr(c, 'a project not in the approved card cannot be exhibited', A, `select set_museum($1, true)`, [draftA], /NOT_LIVE/);
+  await expectErr(c, 'anon cannot exhibit', 'anon', `select set_museum($1, true)`, [liveA], /permission denied/);
+  await expectErr(c, 'anon cannot read anyone’s museum settings', 'anon', `select my_museum()`, [], /permission denied/);
+  await expectOk(c, "members can't see others' museum opt-ins", B, `select * from museum_entries`, [], (r) => r.rowCount === 0);
+  await expectOk(c, 'removing the affiliation hides the exhibit', ADMIN, `select set_member_affiliation($1,'cs-student', false)`, [A]);
+  await expectOk(c, '…from visitors', 'anon', `select museum_exhibits() as e`, [], (r) => r.rows[0].e.length === 0);
+  await expectOk(c, 'granting it again brings the exhibit back', ADMIN, `select set_member_affiliation($1,'cs-student', true)`, [A]);
+  await expectOk(c, '…for visitors', 'anon', `select jsonb_array_length(museum_exhibits()) as n`, [], (r) => r.rows[0].n === 1);
+  await expectOk(c, 'a member can take a project out of the Museum', A, `select set_museum($1, false) as on`, [liveA], (r) => r.rows[0].on === false);
+  await expectOk(c, 'deleting an affiliation removes it from members', ADMIN, `select admin_delete_affiliation('cs-student')`, []);
+  await expectOk(c, '…and its chips are gone', 'anon', `select * from member_affiliations where member_id=$1`, [A], (r) => r.rowCount === 0);
+
   console.log('account deletion');
   await expectErr(c, 'anon cannot call delete_my_account', 'anon', `select delete_my_account()`, [], /permission denied/);
   await expectOk(c, 'member deletes own account', B, `select delete_my_account()`, []);
