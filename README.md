@@ -71,7 +71,7 @@ Status key: ✅ done · 🛠️ in progress · ⏳ planned for v1.0 (6 Oct 2026)
 | Area | Feature | Status |
 |---|---|---|
 | **Data & security** | Postgres schema, Row Level Security, column-locked moderation, admin functions | ✅ |
-| | 44 automated security tests (e.g. a member can't approve their own card) | ✅ |
+| | 52 automated security tests (e.g. a member can't approve their own card) | ✅ |
 | **Design** | Design system: tokens, DAY/NIGHT themes, contrast-checked palette | ✅ |
 | | Playable design prototype: level, badge, handheld, motion | ✅ |
 | **Hall** | Side-scrolling card carousel: drag, swipe, arrow keys, ◀ ▶ controls | 🛠️ |
@@ -179,6 +179,7 @@ flowchart LR
 
 ```text
 pip-hall/
+├── .github/workflows/ci.yml      # Database security tests on every push
 ├── CLAUDE.md                     # Build rules for coding agents
 ├── README.md
 ├── package.json
@@ -192,6 +193,7 @@ pip-hall/
 │   │   ├── tokens.json           # Design tokens (source of truth)
 │   │   └── lab.html              # Playable design prototype
 │   ├── images/                   # README screenshots
+│   ├── plan/build-plan.html      # v1 build plan page (history)
 │   └── spec/                     # Original product spec (working title: PIXEL PASS)
 ├── src/
 │   └── styles/theme.css          # Generated from tokens.json; don't edit by hand
@@ -227,7 +229,7 @@ npm install
 npm run test:db
 ```
 
-This starts a throwaway Postgres, applies the migrations, and runs 44 security checks. No Supabase account needed.
+This starts a throwaway Postgres, applies the migrations, and runs 52 security checks. No Supabase account needed.
 
 ### 3. Set up Supabase
 
@@ -235,6 +237,7 @@ This starts a throwaway Postgres, applies the migrations, and runs 44 security c
 2. In the **SQL editor**, run the migrations in order:
    - `supabase/migrations/20261004000000_init.sql`
    - `supabase/migrations/20261004000100_storage.sql`
+   - `supabase/migrations/20261004000200_image_paths.sql`
 3. **Authentication → Providers:** enable **Google** and **GitHub** and paste each provider's client ID and secret.
 4. **Authentication → Settings:** turn on **manual identity linking**. It's a beta feature, and it's what lets members connect GitHub to their Google account.
 5. **Authentication → URL configuration:** add `http://localhost:5173` and your production URL as redirect URLs.
@@ -276,7 +279,7 @@ To preview the design right now, open `docs/design/lab.html` in a browser.
 
 | Layer | Tool | What it proves |
 |---|---|---|
-| Database security | `supabase/tests/security.test.mjs` on embedded Postgres | Members can't approve, feature or edit other people's cards; visitors only see approved snapshots; edits after approval go back to review; usernames lock after approval; max 6 projects |
+| Database security | `supabase/tests/security.test.mjs` on embedded Postgres | Members can't approve, feature or edit other people's cards; images must live in the member's own Storage folder; visitors only see approved snapshots; edits after approval go back to review; usernames lock after approval; max 6 projects |
 | Units | Vitest | Carousel index math, avatar and sticker determinism, validators, image resizing |
 | End to end | Playwright | Sign in → build card → submit → approve → appears in the hall; flip, drag, keyboard; QR route |
 | Design | AEGIS checks | Token contrast in both themes, layout at 390/768/1440px, no hard-coded colours |
@@ -299,6 +302,7 @@ To preview the design right now, open `docs/design/lab.html` in a browser.
 - **Column-level grants.** Members have no write access to `status`, `is_featured`, `review_note`, `github_username` or `username_locked`.
 - **Moderation only through functions.** `approve_profile`, `reject_profile`, `unpublish_profile`, `set_featured` and `admin_set_username` check `is_admin()` themselves.
 - **Verified GitHub handle,** copied server-side from the linked identity and never typed into a form.
+- **Images only from our own Storage.** Cards store a path inside the member's own folder (`<uid>/<uuid>.webp`), never a free URL, so an approved photo can't be swapped from outside.
 - **URL validation** in the browser and again as database constraints (HTTPS only, LinkedIn domain, GitHub repo shape).
 - **Public email is opt-in** and shown as tap-to-reveal text.
 - **Only public keys in the browser.**

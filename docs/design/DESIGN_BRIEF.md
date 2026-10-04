@@ -1,7 +1,7 @@
 # DESIGN_BRIEF — PIP-Hall
 
-Status: Locked — 2026-10-04, design v2 (platformer world). font.body awaiting confirmation; see "Picked for you"
-Updated: 2026-10-04 · Owner: Ian Patrick Flores · Values: `docs/design/tokens.json` → exported to `src/styles/theme.css`
+Status: Locked — 2026-10-04, design v2 (platformer world). font.body confirmed (D-030)
+Updated: 2026-10-04 · Owner: Jum Flores · Values: `docs/design/tokens.json` → exported to `src/styles/theme.css`
 Upstream: `docs/ARCHITECTURE.md`, `docs/DECISIONS.md`, original spec in `docs/spec/` · Tier: Standard (deadline 6 Oct), Council at Gate 1 (card) and Gate 2 (app)
 
 > **For anyone building:** read this file, then build against `src/styles/theme.css` (generated from `tokens.json`; never hand-edit it). Three rules: (1) only theme tokens, no raw hex and no stock Tailwind palette classes (`bg-indigo-500` etc.); (2) every component state listed in §10 exists; (3) run the AEGIS checks before calling a screen done.
@@ -12,7 +12,7 @@ Upstream: `docs/ARCHITECTURE.md`, `docs/DECISIONS.md`, original spec in `docs/sp
 
 `docs/spec/DESIGN_SYSTEM.md` §2 ("visually monochrome") is **superseded by D-008: full colour, like the references.** Everything else in the spec's design system (square/stepped corners, thick outlines, hard shadows, tactile buttons, 200–400ms motion, reduced motion, card as hero) still holds.
 
-**Design v2 (D-020 to D-024):** the stage is a Mario-era *style* side-scrolling level (a requirement Ian stated). §3, §7 and §10 below are updated; §13–§16 hold the construction details. Reference implementation: `docs/design/lab.html` (open it in a browser). Port its behaviour and measurements, not its code style: it's a single-file prototype.
+**Design v2 (D-020 to D-024):** the stage is a Mario-era *style* side-scrolling level (a requirement Jum stated). §3, §7 and §10 below are updated; §13–§16 hold the construction details. Reference implementation: `docs/design/lab.html` (open it in a browser). Port its behaviour and measurements, not its code style: it's a single-file prototype.
 
 ## 1. Anchor
 
@@ -37,7 +37,7 @@ Upstream: `docs/ARCHITECTURE.md`, `docs/DECISIONS.md`, original spec in `docs/sp
 ## 4. Typography
 
 - `font.display` **Jersey 10** (ref; replaced Pixelify Sans on 2026-10-04 because Pixelify's C/O and B/8 merge at badge sizes): chunky, condensed pixel lettering matching ref1's dialogue box and ref2's bold name. Single weight, so set `font-synthesis: none` (no faux bold) and size it 1.25× the body scale. Used for the wordmark, names, labels, buttons, sticker text, dialogue text. Always caps with 0.04em tracking for labels; never for paragraphs.
-- `font.body` **Atkinson Hyperlegible Next** (aegis-default, awaiting your OK): bios, project descriptions, form fields, help text. Chosen for legibility next to a decorative face.
+- `font.body` **Atkinson Hyperlegible Next** (user, confirmed D-030): bios, project descriptions, form fields, help text. Chosen for legibility next to a decorative face.
 - `font.mono` **Atkinson Hyperlegible Mono** (aegis-default): handles, URLs, repo names. Real data, same family as body.
 - All three are OFL and self-hosted with `@fontsource` so the PWA works offline.
 - **Scale:** 1.25 ratio from 16px (`size.*`). Card text uses `caption` and `body` only; the card never shrinks below 13px text.
@@ -55,7 +55,7 @@ Upstream: `docs/ARCHITECTURE.md`, `docs/DECISIONS.md`, original spec in `docs/sp
 | `color.gold` · `ember` · `wood` · `card.frame` | Sticker fills. Always with ink text. | ref1/ref2 |
 | `color.card.*` | The badge. Identical in DAY and NIGHT: the card is a physical object, it stays lit. | ref2 |
 
-Contrast evidence (`tokens_export.py --check`, 2026-10-04): 0 errors; every text pair passes AA in both modes. Lowest: accent on NIGHT surface 4.47 (UI-only use, needs 3.0), band ink 4.76. The only warning is the HOLD on `font.body`.
+Contrast evidence (`tokens_export.py --check`, 2026-10-04): 0 errors; every text pair passes AA in both modes. Lowest: accent on NIGHT surface 4.47 (UI-only use, needs 3.0), band ink 4.76. No warnings remain (the `font.body` HOLD was cleared by D-030).
 
 Rules: `color.card.band` takes ink text only (white fails at 3.4:1). Stickers: `gold` and `ember` take ink text, `wood` takes white (4.9:1). `color.led`, `gold`, `ember`, `wood` are fills, never text.
 
@@ -136,7 +136,7 @@ Library: none. Everything is custom on top of the theme.
 ## 12. Log
 
 - Explored & rejected: strict monochrome (original spec) — replaced by D-008. Landscape badge like ref2 — rejected for portrait (D-009), fills a phone and matches spec §5. Flat vector card — rejected for pixel-drawn badge (D-010).
-- Picked for you (confirm or change): `font.body` Atkinson Hyperlegible Next, `font.mono` Atkinson Hyperlegible Mono, type scale 1.25, easing curve, breakpoints.
+- Picked for you (confirm or change): `font.body` confirmed (D-030); `font.mono` Atkinson Hyperlegible Mono, type scale 1.25, easing curve, breakpoints.
 - Open questions for AERIAL: none blocking. Sticker sources depend on `skills[]`, `org_position`, `is_featured` and `github_username` (all in the schema).
 
 

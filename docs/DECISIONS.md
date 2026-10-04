@@ -1,6 +1,6 @@
 # PIP-Hall — Decision log
 
-Format: `ID — decision — date — who — rationale — affects`. **user** = Ian decided. **recommended** = AERIAL's pick, standing unless Ian objects. Superseding a decision adds a new row; old rows stay.
+Format: `ID — decision — date — who — rationale — affects`. **user** = Jum decided. **recommended** = AERIAL's pick, standing unless Jum objects. Superseding a decision adds a new row; old rows stay.
 
 | ID | Decision | Date | Who | Rationale | Affects |
 |---|---|---|---|---|---|
@@ -28,9 +28,12 @@ Format: `ID — decision — date — who — rationale — affects`. **user** =
 | D-022 | Handheld becomes a two-grip slab: MOVE rocker left, FLIP/OPEN/theme right; folds into one row on phones | 2026-10-04 | delegated | Thumb positions of a real handheld without copying any console | brief §14 |
 | D-023 | Two-clock motion: stepped sprite frames + spring physics; signature move is jump-to-flip | 2026-10-04 | delegated | Feels like a 16-bit game while physical things stay smooth | brief §7 §15 |
 | D-024 | Pip, an original critter, is PIXENDO's host: the hero in the level and the face in the text window | 2026-10-04 | delegated | One character for both voice and action | sprites |
-| D-025 | **Project renamed from PIXEL PASS (working title) to PIP-Hall — People, Identity & Projects Hall.** Tagline: "Where every person has a place." PIXENDO stays as the in-world console brand; Pip stays as the host | 2026-10-04 | user | Ian's chosen name and tagline | all docs, UI copy, repo name, DB setting `piphall.internal`, reserved usernames, QR serial prefix `PIP` |
-
+| D-025 | **Project renamed from PIXEL PASS (working title) to PIP-Hall — People, Identity & Projects Hall.** Tagline: "Where every person has a place." PIXENDO stays as the in-world console brand; Pip stays as the host | 2026-10-04 | user | Jum's chosen name and tagline | all docs, UI copy, repo name, DB setting `piphall.internal`, reserved usernames, QR serial prefix `PIP` |
 | D-026 | Display font is **Jersey 10**, not Pixelify Sans | 2026-10-04 | delegated (legibility fix) | Render check with real fonts: Pixelify merged C/O and B/8 at 11–16px; Jersey 10 stayed legible and fits badge widths | tokens `font.display`, brief §4 |
+| D-027 | **Images are Storage paths, not URLs.** `avatar_url`/`cover_url` become `avatar_path`/`cover_path`, pinned by a check to `<owner id>/<uuid>.<ext>`; the client builds the public URL | 2026-10-04 | user (AERIAL review H2) | Any https URL let a member swap an approved photo from a server they control, bypassing D-002 | migration `20261004000200_image_paths.sql`, `build_card()`, 8 new security tests |
+| D-028 | Pin **TypeScript 6.0.3**, not 7.x | 2026-10-04 | user (AERIAL review H1) | `typescript-eslint` 8.71 (latest) supports `typescript <6.1.0`; TS 7 would break `npm run lint` | ARCHITECTURE §3 |
+| D-029 | **PIP-Hall and PIXENDO are the only brands.** The hall never names a host organization, chapter or school; sample and prototype data carry no org/school codes. Repo holds the project at its root (no zip) | 2026-10-04 | user | PIP-Hall is the product, PIXENDO its world; it shouldn't read as one org's page | `docs/design/lab.html` (HUD `WORLD 1-1`), `docs/plan/build-plan.html`, fixtures in Phase 1 |
+| D-030 | Credits name is **Jum Flores** (@Muj-csv). `font.body` Atkinson Hyperlegible Next confirmed | 2026-10-04 | user | Clears the last design HOLD before Gate 1 | README, docs owner lines, brief §4 |
 
 ## Picked for you (design) — confirm or change
-- `font.body` Atkinson Hyperlegible Next · `font.mono` Atkinson Hyperlegible Mono · type ratio 1.25 · easing curve · breakpoints 640/768/1024.
+- ~~`font.body` Atkinson Hyperlegible Next~~ confirmed (D-030) · `font.mono` Atkinson Hyperlegible Mono · type ratio 1.25 · easing curve · breakpoints 640/768/1024.

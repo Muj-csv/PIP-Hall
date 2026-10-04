@@ -1,6 +1,6 @@
 # PIP-Hall — Architecture
 
-Version 1.0 · 2026-10-04 · Status: Accepted for build · Owner: Ian Patrick Flores
+Version 1.0 · 2026-10-04 · Status: Accepted for build · Owner: Jum Flores
 Inputs: original spec (`docs/spec/`), decisions (`docs/DECISIONS.md`), design (`docs/design/DESIGN_BRIEF.md`, `tokens.json`).
 
 ## 1. Overview
@@ -52,7 +52,7 @@ flowchart LR
 
 ## 3. Stack
 
-Pin exact versions at scaffold time (`npm view <pkg> version` on 4 Oct showed): React 19.3, Vite 8.3, TypeScript 7.0, Tailwind CSS 4.3 (`@tailwindcss/vite`), Motion 14 (`motion/react`), React Router 8.4 (library mode), `@supabase/supabase-js` 2.117, `vite-plugin-pwa` 2.0, `qrcode.react` 4.2, `browser-image-compression` 2.0, `@fontsource/jersey-10`, `@fontsource/atkinson-hyperlegible-next`, `@fontsource/atkinson-hyperlegible-mono`, Vitest 5, Playwright 1.63. If a plugin doesn't support Vite 8 yet, drop to the newest Vite it supports rather than patching.
+Pin exact versions at scaffold time (`npm view <pkg> version` on 4 Oct showed): React 19.3, Vite 8.3, **TypeScript 6.0.3** (not 7.x: `typescript-eslint` 8.71 supports `typescript <6.1.0`, D-028), Tailwind CSS 4.3 (`@tailwindcss/vite`), Motion 14 (`motion/react`), React Router 8.4 (library mode), `@supabase/supabase-js` 2.117, `vite-plugin-pwa` 2.0, `qrcode.react` 4.2, `browser-image-compression` 2.0, `@fontsource/jersey-10`, `@fontsource/atkinson-hyperlegible-next`, `@fontsource/atkinson-hyperlegible-mono`, Vitest 5, Playwright 1.63. If a plugin doesn't support Vite 8 yet, drop to the newest Vite it supports rather than patching.
 
 Not used, on purpose: Embla (ADR-001), a state library (local state + small hooks), a CSS component library (custom on tokens), any analytics.
 
@@ -71,9 +71,9 @@ erDiagram
 - **projects** — private draft rows, `source` = `github | manual`; GitHub rows carry `github_repo_id` (unique per profile). Max 6 (trigger).
 - **published_cards** — the only table visitors read. One row per approved member: `username`, `card jsonb` (everything the public card and profile page show, including projects), `is_featured`. Written only by admin functions (ADR-002).
 - **user_roles** — `member | admin`, created by trigger on sign-up; promoted only from the SQL editor (`supabase/seed_first_admin.sql`).
-- Storage: `avatars/<uid>/<uuid>.webp`, `project-covers/<uid>/<uuid>.webp`, public read, owner-only write, 2 MB limit, images only. New file name on every upload so approved snapshots keep their image.
+- Storage: `avatars/<uid>/<uuid>.webp`, `project-covers/<uid>/<uuid>.webp`, public read, owner-only write, 2 MB limit, images only. New file name on every upload so approved snapshots keep their image. Rows store the **path** (`profiles.avatar_path`, `projects.cover_path`), never a URL; a check constraint pins it to the owner's folder, and the client builds the public URL (D-027).
 
-Source of truth: `supabase/migrations/`. Tests: `supabase/tests/security.test.mjs` (44 checks, all passing on 4 Oct).
+Source of truth: `supabase/migrations/`. Tests: `supabase/tests/security.test.mjs` (52 checks, all passing on 4 Oct).
 
 ## 5. Security model
 
@@ -161,7 +161,7 @@ Search (FR-13): `cardService.listPublished()` loads all `published_cards` once (
 | Manual identity linking is beta | GitHub connect fails | Low | Fallback: manual GitHub username field marked "unverified" (no verified sticker) |
 | Google consent screen left in Testing | Only test users can sign in | Medium | Setup checklist step; Gate 2 tests with a second Google account |
 | Free project pauses | Cards and QRs dead | Medium (breaks) | keepalive workflow |
-| Tool versions newer than examples (Vite 8, TS 7, RR 8) | Plugin incompatibility on scaffold | Medium | Pin to the newest set that builds; Phase 1 starts with a clean build |
+| Tool versions newer than examples (Vite 8, RR 8; TS held at 6.0.3, D-028) | Plugin incompatibility on scaffold | Medium | Pin to the newest set that builds; Phase 1 starts with a clean build |
 | Scope vs 2.5 days | Unfinished features | Medium | Cut list in the plan; nothing new after Tue noon |
 
 ## 11. Traceability

@@ -16,6 +16,7 @@ const db = new EmbeddedPostgres({ databaseDir: dir, user: 'postgres', password: 
 const A = '00000000-0000-0000-0000-00000000000a'; // member
 const B = '00000000-0000-0000-0000-00000000000b'; // another member
 const ADMIN = '00000000-0000-0000-0000-0000000000ad';
+const IMG = '11111111-2222-3333-4444-555555555555.webp'; // storage file name: <uuid>.<ext>
 
 let pass = 0, fail = 0;
 const ok = (name) => { pass++; console.log('  ✓', name); };
@@ -58,11 +59,14 @@ try {
   await c.query(`update public.user_roles set role='admin' where user_id=$1`, [ADMIN]);
 
   console.log('drafts and privileges');
-  await expectOk(c, 'member creates own draft', A, `insert into profiles (id, username, full_name, bio) values ($1,'muj-csv','Ian Patrick Flores','Builds things')`, [A]);
+  await expectOk(c, 'member creates own draft', A, `insert into profiles (id, username, full_name, bio) values ($1,'muj-csv','Jum Flores','Builds things')`, [A]);
   await expectErr(c, 'member cannot create a draft for someone else', A, `insert into profiles (id, username, full_name) values ($1,'other','X')`, [B], /row-level security/);
   await expectErr(c, 'member cannot insert with status approved', A, `insert into profiles (id, username, full_name, status) values ($1,'sneaky','X','approved')`, [B], /permission denied/);
   await expectErr(c, 'reserved username rejected', B, `insert into profiles (id, username, full_name) values ($1,'admin','B')`, [B], /check constraint/);
   await expectOk(c, 'second member creates own draft', B, `insert into profiles (id, username, full_name) values ($1,'bee','B Member')`, [B]);
+  await expectErr(c, 'avatar cannot be an outside URL', A, `update profiles set avatar_path='https://evil.example/me.png' where id=$1`, [A], /check constraint/);
+  await expectErr(c, "avatar cannot point into another member's folder", A, `update profiles set avatar_path=$2 where id=$1`, [A, `${B}/${IMG}`], /check constraint/);
+  await expectOk(c, 'avatar in own storage folder accepted', A, `update profiles set avatar_path=$2 where id=$1 returning avatar_path`, [A, `${A}/${IMG}`], (r) => r.rows[0].avatar_path === `${A}/${IMG}`);
   await expectErr(c, 'member cannot self-approve (status column)', A, `update profiles set status='approved' where id=$1`, [A], /permission denied/);
   await expectErr(c, 'member cannot self-feature', A, `update profiles set is_featured=true where id=$1`, [A], /permission denied/);
   await expectErr(c, 'member cannot write github_username', A, `update profiles set github_username='someone' where id=$1`, [A], /permission denied/);
@@ -81,6 +85,9 @@ try {
   await expectErr(c, 'github project needs a repo id', A, `insert into projects (profile_id, source, title) values ($1,'github','X')`, [A], /check constraint/);
   await expectErr(c, 'member cannot add a project to another card', A, `insert into projects (profile_id, title) values ($1,'X')`, [B], /row-level security/);
   await expectErr(c, 'http (not https) project URL rejected', A, `insert into projects (profile_id, title, project_url) values ($1,'X','http://x.org')`, [A], /check constraint/);
+  await expectErr(c, 'project cover cannot be an outside URL', A, `update projects set cover_path='https://evil.example/c.png' where profile_id=$1`, [A], /check constraint/);
+  await expectErr(c, "project cover cannot point into another member's folder", A, `update projects set cover_path=$2 where profile_id=$1`, [A, `${B}/${IMG}`], /check constraint/);
+  await expectOk(c, 'project cover in own storage folder accepted', A, `update projects set cover_path=$2 where profile_id=$1 and title='Tessera' returning cover_path`, [A, `${A}/${IMG}`], (r) => r.rowCount === 1);
 
   console.log('review flow');
   await expectErr(c, 'member cannot approve', A, `select approve_profile($1)`, [A], /NOT_ADMIN/);
@@ -91,6 +98,7 @@ try {
   await expectOk(c, 'admin approves', ADMIN, `select approve_profile($1)`, [A]);
   await expectOk(c, 'anon sees the published card with projects', 'anon', `select card from published_cards where username='muj-csv'`, [], (r) => r.rowCount === 1 && r.rows[0].card.projects.length === 2 && r.rows[0].card.github_username === 'Muj-csv');
   await expectOk(c, 'hidden email stays out of the public card', 'anon', `select card->'public_email' as e from published_cards`, [], (r) => r.rows[0].e === null);
+  await expectOk(c, 'public card carries the storage paths', 'anon', `select card from published_cards`, [], (r) => r.rows[0].card.avatar_path === `${A}/${IMG}` && r.rows[0].card.projects.some((p) => p.cover_path === `${A}/${IMG}`) && !('avatar_url' in r.rows[0].card));
 
   console.log('edits after approval (D-002)');
   await expectOk(c, 'editing an approved card returns it to draft', A, `update profiles set bio='New bio' where id=$1 returning status`, [A], (r) => r.rows[0].status === 'draft');
@@ -98,6 +106,8 @@ try {
   await expectErr(c, 'username is locked after approval', A, `update profiles set username='newname' where id=$1`, [A], /USERNAME_LOCKED/);
   await expectOk(c, 'email opt-in change does not reset review', A, `select submit_for_review()`, []);
   await expectOk(c, 'toggling email_updates keeps pending status', A, `update profiles set email_updates=true where id=$1 returning status`, [A], (r) => r.rows[0].status === 'pending_review');
+  await expectOk(c, 'changing the photo returns the card to draft', A, `update profiles set avatar_path=$2 where id=$1 returning status`, [A, `${A}/22222222-3333-4444-5555-666666666666.webp`], (r) => r.rows[0].status === 'draft');
+  await as(c, A, `select submit_for_review()`);
   await expectOk(c, 'adding a project returns the card to draft', A, `insert into projects (profile_id, title) values ($1,'DoDoTask')`, [A]);
   await expectOk(c, 'status is draft after project change', A, `select status from profiles where id=$1`, [A], (r) => r.rows[0].status === 'draft');
   for (let i = 0; i < 3; i++) await as(c, A, `insert into projects (profile_id, title) values ($1,$2)`, [A, 'P' + i]);

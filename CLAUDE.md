@@ -17,6 +17,8 @@ The original spec is in `docs/spec/`. Where it conflicts with the files above, t
 - Database changes = a new file in `supabase/migrations/` + new cases in `supabase/tests/security.test.mjs`. All tests must pass.
 - Public pages read `published_cards` only (ADR-002). Moderation happens only through the SQL functions.
 - The stage is a Mario-era *style* platformer level (D-020), but no Mario, no Nintendo characters, items, logos, sounds, music, level art, console silhouettes or button layouts. No art copied from the two references. All pixel art is original and lives in `src/lib/sprites.ts`.
+- PIP-Hall and PIXENDO are the only brands (D-029). Never put a host organization, chapter or school name or code in UI copy, fixtures, sprites or docs.
+- Images are stored as Storage paths (`avatar_path`, `cover_path` = `<owner id>/<uuid>.<ext>`), never URLs (D-027). Build public URLs in `storageService`.
 - No invented people in anything a visitor sees. Fixture data lives in `src/data/sample-cards.json` and is used only when `VITE_DATA_SOURCE=fixture`.
 - Every screen handles loading, empty and error states (empty/error speak through `DialogueBox`).
 - Accessibility floor: WCAG 2.2 AA, keyboard path for everything, `prefers-reduced-motion`, 44px touch targets, status never by colour alone.
