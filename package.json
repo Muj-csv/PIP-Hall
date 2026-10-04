@@ -10,7 +10,7 @@
     "typecheck": "tsc -p tsconfig.json",
     "lint": "eslint .",
     "test": "vitest run",
-    "test:db": "node supabase/tests/security.test.mjs",
+    "test:db": "node supabase/tests/security.test.mjs && node supabase/tests/upgrade.test.mjs",
     "test:e2e": "playwright test"
   },
   "devDependencies": {

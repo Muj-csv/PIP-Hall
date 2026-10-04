@@ -254,6 +254,9 @@ export async function handleDb(route: Route, db: MockDb, user: DbUser): Promise<
       const row = { profile_id: p.id, username: p.username, card: buildCard(db, p), is_featured: Boolean(p.is_featured), published_at: new Date().toISOString(), member_no: no };
       if (live) Object.assign(live, row);
       else db.published.push(row);
+      // The Museum follows the approved card (D-071).
+      const kept = new Set(((row.card as Row).projects as Row[]).map((x) => String(x.id)));
+      db.museumEntries = (db.museumEntries ?? []).filter((e) => e.member_id !== p.id || kept.has(String(e.project_id)));
       rewardApproval(db, String(p.id));
     } else if (fn === 'reject_profile') {
       if (!args.p_note?.trim()) return (await err(400, 'P0001', 'NOTE_REQUIRED')), true;
@@ -341,18 +344,33 @@ export async function handleDb(route: Route, db: MockDb, user: DbUser): Promise<
     return (await json(200, null)), true;
   }
   if (url.pathname === '/rest/v1/rpc/my_museum') {
-    return (await json(200, { access: hasMuseum(userId), live: liveIds(userId), entries: (db.museumEntries ?? []).filter((e) => e.member_id === userId).map((e) => e.project_id) })), true;
+    const approved = (((db.published.find((r) => r.profile_id === userId)?.card as Row | undefined)?.projects as Row[] | undefined) ?? []).filter((p) => p.id).map((p) => ({ id: p.id, title: p.title }));
+    return (await json(200, { access: hasMuseum(userId), live: liveIds(userId), projects: approved, entries: (db.museumEntries ?? []).filter((e) => e.member_id === userId).map((e) => e.project_id) })), true;
   }
   if (url.pathname === '/rest/v1/rpc/set_museum') {
     const { p_project, p_on } = body() as { p_project: string; p_on: boolean };
-    if (!db.projects.some((p) => p.id === p_project && p.profile_id === userId)) return (await err(400, 'P0001', 'NOT_YOURS')), true;
     db.museumEntries ??= [];
-    db.museumEntries = db.museumEntries.filter((e) => e.project_id !== p_project);
-    if (!p_on) return (await json(200, false)), true;
+    if (!p_on) {
+      db.museumEntries = db.museumEntries.filter((e) => !(e.project_id === p_project && e.member_id === userId));
+      return (await json(200, false)), true;
+    }
+    const live = liveIds(userId).includes(p_project);
+    if (!live && !db.projects.some((p) => p.id === p_project && p.profile_id === userId)) return (await err(400, 'P0001', 'NOT_YOURS')), true;
     if (!hasMuseum(userId)) return (await err(400, 'P0001', 'NO_MUSEUM_ACCESS')), true;
     if (!liveIds(userId).includes(p_project)) return (await err(400, 'P0001', 'NOT_LIVE')), true;
-    db.museumEntries.push({ project_id: p_project, member_id: userId });
+    if (!db.museumEntries.some((e) => e.project_id === p_project)) db.museumEntries.push({ project_id: p_project, member_id: userId });
     return (await json(200, true)), true;
+  }
+  if (url.pathname === '/rest/v1/rpc/admin_museum_summary') {
+    if (!admin) return (await err(403, '42501', 'NOT_ADMIN')), true;
+    const rows = db.published.filter((c) => hasMuseum(String(c.profile_id))).map((c) => ({
+      profile_id: c.profile_id,
+      username: c.username,
+      full_name: (c.card as Row).full_name,
+      projects: (((c.card as Row).projects as Row[] | undefined) ?? []).length,
+      exhibits: (db.museumEntries ?? []).filter((e) => e.member_id === c.profile_id).length,
+    }));
+    return (await json(200, rows)), true;
   }
   if (url.pathname === '/rest/v1/rpc/museum_exhibits') {
     const out = (db.museumEntries ?? []).flatMap((e) => {

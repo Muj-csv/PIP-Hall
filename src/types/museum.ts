@@ -24,6 +24,17 @@ export interface MyMuseum {
   access: boolean;
   /** Project ids in the member's approved card. */
   live: string[];
+  /** The member's approved projects, as approved (D-071). */
+  projects: { id: string; title: string }[];
   /** Project ids the member put in the Museum. */
   entries: string[];
+}
+
+/** Admin → Affiliations: one member with Museum access. */
+export interface MuseumSummaryRow {
+  profile_id: string;
+  username: string;
+  full_name: string;
+  projects: number;
+  exhibits: number;
 }

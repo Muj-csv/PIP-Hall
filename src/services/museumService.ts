@@ -2,7 +2,7 @@
 // the fixture shows every sample project so the gallery can be built and tested without a backend.
 
 import type { PublishedCardRow } from '../types/card';
-import type { Affiliation, Exhibit, MyMuseum } from '../types/museum';
+import type { Affiliation, Exhibit, MuseumSummaryRow, MyMuseum } from '../types/museum';
 import { requireSupabase } from './supabase';
 
 const useSupabase = import.meta.env.VITE_DATA_SOURCE === 'supabase';
@@ -33,6 +33,13 @@ export const museumService = {
     const { data, error } = await requireSupabase().rpc('my_museum');
     if (error) throw error;
     return data as MyMuseum;
+  },
+
+  /** Admins: members with Museum access, their approved projects and exhibits. */
+  async summary(): Promise<MuseumSummaryRow[]> {
+    const { data, error } = await requireSupabase().rpc('admin_museum_summary');
+    if (error) throw error;
+    return (data ?? []) as MuseumSummaryRow[];
   },
 
   /** Puts one of my live projects in the Museum or takes it out. Never resets review. */

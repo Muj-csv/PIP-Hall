@@ -258,6 +258,27 @@ try {
   await c.query(readFileSync(join(here, '..', 'migrations', '20261005000200_museum_relink.sql'), 'utf8'));
   await expectSu(c, 'relink is safe to run twice', `select card->'projects' as p from published_cards where profile_id=$1`, [A], (r) => r.rows[0].p.map((x) => x.id).join() === idsBefore.join());
 
+  // The Museum follows the approved card, not the draft (20261005000300, D-071).
+  await as(c, ADMIN, `select admin_save_affiliation('cs-student','CS Student', true)`);
+  await as(c, ADMIN, `select set_member_affiliation($1,'cs-student', true)`, [A]);
+  const linked = idsBefore.filter(Boolean);
+  await expectOk(c, 'my_museum lists approved projects with their approved titles', A, `select my_museum() as m`, [],
+    (r) => r.rows[0].m.projects.some((p) => p.title === 'AgapAI') && !r.rows[0].m.projects.some((p) => p.title === 'Renamed after approval'));
+  await expectOk(c, 'a member exhibits two approved projects', A, `select set_museum($1, true), set_museum($2, true)`, [linked[0], linked[1]]);
+  await as(c, A, `delete from projects where id=$1`, [linked[0]]);
+  await expectOk(c, 'deleting a draft project leaves its approved exhibit in the Museum', 'anon', `select jsonb_array_length(museum_exhibits()) as n`, [], (r) => r.rows[0].n === 2);
+  await expectOk(c, '…and it can still be taken out', A, `select set_museum($1, false) as on`, [linked[0]], (r) => r.rows[0].on === false);
+  await as(c, A, `select set_museum($1, true)`, [linked[0]]);
+  await as(c, A, `select submit_for_review()`);
+  await as(c, ADMIN, `select approve_profile($1)`, [A]);
+  await expectSu(c, 'approval drops the exhibit whose project left the card, keeps the rest', `select project_id from museum_entries where member_id=$1`, [A], (r) => r.rowCount === 1 && r.rows[0].project_id === linked[1]);
+  await expectOk(c, '…and the Museum shows only what is on the approved card', 'anon', `select museum_exhibits() as e`, [], (r) => r.rows[0].e.length === 1 && r.rows[0].e[0].project.id === linked[1]);
+  await expectErr(c, 'a member cannot read the admin Museum summary', A, `select admin_museum_summary()`, [], /NOT_ADMIN/);
+  await expectErr(c, 'anon cannot read the admin Museum summary', 'anon', `select admin_museum_summary()`, [], /permission denied/);
+  await expectOk(c, 'admin Museum summary counts approved projects and exhibits', ADMIN, `select admin_museum_summary() as s`, [],
+    (r) => r.rows[0].s.length === 1 && r.rows[0].s[0].username === 'sensei' && r.rows[0].s[0].exhibits === 1 && r.rows[0].s[0].projects >= 1);
+  await expectErr(c, 'members cannot write museum entries directly', A, `insert into museum_entries (project_id, member_id) values (gen_random_uuid(), $1)`, [A], /permission denied/);
+
   console.log('account deletion');
   await expectErr(c, 'anon cannot call delete_my_account', 'anon', `select delete_my_account()`, [], /permission denied/);
   await expectOk(c, 'member deletes own account', B, `select delete_my_account()`, []);

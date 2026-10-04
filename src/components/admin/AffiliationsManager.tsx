@@ -2,8 +2,8 @@
 // "CS Student". One can grant Museum access. Names are data, so the code stays brand-neutral.
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { affiliationKey, affiliationService, museumErrorMessage } from '../../services/museumService';
-import type { Affiliation } from '../../types/museum';
+import { affiliationKey, affiliationService, museumErrorMessage, museumService } from '../../services/museumService';
+import type { Affiliation, MuseumSummaryRow } from '../../types/museum';
 import { DialogueBox } from '../dialogue/DialogueBox';
 import { TextField, Toggle } from '../editor/fields';
 
@@ -113,6 +113,7 @@ export function AffiliationsManager({ onDone }: { onDone: (message: string) => v
           </ul>
         )}
       </section>
+      <MuseumSummary reloadKey={attempt} />
       <form className="menu-panel" onSubmit={add} noValidate aria-labelledby="aff-new">
         <h2 id="aff-new" className="panel-title">
           New affiliation
@@ -124,6 +125,74 @@ export function AffiliationsManager({ onDone }: { onDone: (message: string) => v
         </button>
       </form>
     </div>
+  );
+}
+
+/** Who can use the Museum, and how much of it they use (D-071). */
+function MuseumSummary({ reloadKey }: { reloadKey: number }) {
+  const [rows, setRows] = useState<MuseumSummaryRow[] | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  useEffect(() => {
+    let on = true;
+    museumService
+      .summary()
+      .then((r) => {
+        if (!on) return;
+        setRows(r);
+        setFailed(false);
+      })
+      .catch(() => on && setFailed(true));
+    return () => {
+      on = false;
+    };
+  }, [reloadKey, attempt]);
+
+  const exhibits = rows?.reduce((n, r) => n + r.exhibits, 0) ?? 0;
+  return (
+    <section className="menu-panel" aria-labelledby="museum-summary">
+      <h2 id="museum-summary" className="panel-title">
+        Museum
+      </h2>
+      {failed ? (
+        <DialogueBox text="Can’t load the Museum summary right now." emote="attention">
+          <button type="button" className="hw-btn" data-variant="small" onClick={() => setAttempt((a) => a + 1)}>
+            RETRY
+          </button>
+        </DialogueBox>
+      ) : !rows ? (
+        <p className="m-0 field-hint">Loading…</p>
+      ) : rows.length === 0 ? (
+        <p className="m-0 field-hint">Nobody in the hall has Museum access yet. Give an affiliation with Museum access from the Published tab.</p>
+      ) : (
+        <>
+          <p className="m-0" role="status">
+            {rows.length} {rows.length === 1 ? 'member has' : 'members have'} Museum access · {exhibits} {exhibits === 1 ? 'exhibit' : 'exhibits'} on show
+          </p>
+          <table className="summary-table">
+            <caption className="sr-only">Members with Museum access</caption>
+            <thead>
+              <tr>
+                <th scope="col">Member</th>
+                <th scope="col">Approved projects</th>
+                <th scope="col">In the Museum</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.profile_id}>
+                  <th scope="row">
+                    {r.full_name} <span className="text-caption text-text-secondary">@{r.username}</span>
+                  </th>
+                  <td>{r.projects}</td>
+                  <td>{r.exhibits === 0 ? 'None yet' : r.exhibits}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
+    </section>
   );
 }
 
