@@ -462,14 +462,17 @@
   transform: rotateY(180deg);
 }
 /* backface-visibility alone isn't enough: Safari (every iPhone browser) still paints a face's own
-   layers (photo, canvases, QR) mirrored through the back. So the turned-away face is also hidden,
-   swapping at the moment the badge is edge-on, so one face is always showing. */
+   layers (photo, canvases, QR) mirrored through the back. So the turned-away face is also hidden.
+   The incoming face shows the moment the turn starts (it is still facing away, so backface-visibility
+   keeps it out of sight while the browser paints it); the outgoing face hides only once the badge is
+   edge-on. One face is always on screen, and nothing has to be painted mid-turn. */
 .badge-face {
-  transition: visibility 0s linear var(--flip-edge-ms);
+  transition: visibility 0s linear 0s;
 }
 .badge[data-flipped='true'] > .badge-face[data-side='front'],
 .badge[data-flipped='false'] > .badge-face[data-side='back'] {
   visibility: hidden;
+  transition-delay: var(--flip-edge-ms);
 }
 /* The face turned away is `inert` (no focus) and never catches clicks. */
 .badge-face[inert] {
