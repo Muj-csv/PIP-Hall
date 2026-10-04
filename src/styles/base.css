@@ -438,11 +438,15 @@
   perspective: 1200px;
 }
 .badge {
+  /* The turn and the moment it's edge-on belong together: this curve overshoots, so the badge
+     reaches 90° about 66ms into the 520ms turn (solve the bezier for y = 0.5 if you change it). */
+  --flip-ms: 520ms;
+  --flip-edge-ms: 66ms;
   position: relative;
   width: calc(var(--p) * 56);
   height: calc(var(--p) * 88);
   transform-style: preserve-3d;
-  transition: transform 520ms cubic-bezier(0.3, 1.35, 0.45, 1);
+  transition: transform var(--flip-ms) cubic-bezier(0.3, 1.35, 0.45, 1);
 }
 .badge[data-flipped='true'] {
   transform: rotateY(180deg);
@@ -459,9 +463,9 @@
 }
 /* backface-visibility alone isn't enough: Safari (every iPhone browser) still paints a face's own
    layers (photo, canvases, QR) mirrored through the back. So the turned-away face is also hidden,
-   switching at the halfway point of the turn, when the badge is edge-on. */
+   swapping at the moment the badge is edge-on, so one face is always showing. */
 .badge-face {
-  transition: visibility 0s linear 260ms;
+  transition: visibility 0s linear var(--flip-edge-ms);
 }
 .badge[data-flipped='true'] > .badge-face[data-side='front'],
 .badge[data-flipped='false'] > .badge-face[data-side='back'] {

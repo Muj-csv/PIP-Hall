@@ -8,6 +8,9 @@ import { requireSupabase } from './supabase';
 const BUCKETS: ImageBucket[] = ['avatars', 'project-covers'];
 const PAGE = 1000;
 
+/** The columns Settings writes (each must be in the profiles update grant). */
+export const PREF_COLUMNS = ['email_updates', 'show_email'] as const;
+
 export interface Preferences {
   email_updates: boolean;
   show_email: boolean;

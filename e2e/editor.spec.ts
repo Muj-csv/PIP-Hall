@@ -282,3 +282,20 @@ test('Save and Submit appear once at any width: beside the badge on desktop, pin
   await expect(page.locator('.editor-actions[data-at="bottom"]')).toBeVisible();
   await expect(page.locator('.editor-actions[data-at="side"]')).toBeHidden();
 });
+
+test('reordering saved GitHub projects on an approved card saves (only updatable columns are sent)', async ({ page }) => {
+  const db = emptyDb('octocat');
+  db.profiles.push({ id: USER.id, username: 'octocat', full_name: 'Test Member', tagline: null, bio: null, role: null, org_position: null, department: null, avatar_path: null, github_username: 'octocat', linkedin_url: null, portfolio_url: null, public_email: null, show_email: false, email_updates: false, skills: [], status: 'approved', review_note: null, is_featured: false, username_locked: true, member_no: 1 });
+  db.published.push({ profile_id: USER.id, username: 'octocat', card: {}, member_no: 1 });
+  for (const [i, r] of [REPOS[0]!, REPOS[1]!].entries()) {
+    db.projects.push({ id: `p${i}`, profile_id: USER.id, source: 'github', github_repo_id: r.id, title: r.name, description: r.description, cover_path: null, project_url: null, github_url: r.html_url, language: r.language, stars: r.stargazers_count, tech_stack: [], project_date: null, sort_order: i });
+  }
+  const log = await mockSupabase(page, { user: USER, db, githubRepos: REPOS });
+  await page.goto('/edit');
+  await page.getByRole('button', { name: 'Move spoon-knife up' }).click();
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.getByRole('status').filter({ hasText: /Saved/ }).first()).toBeVisible();
+  await expect(page.getByText('permission denied')).toHaveCount(0);
+  expect(db.projects.find((r) => r.id === 'p1')?.sort_order).toBe(0);
+  expect(log.requests.filter((r) => r.startsWith('PATCH /rest/v1/projects'))).toHaveLength(2);
+});
