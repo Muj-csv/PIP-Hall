@@ -6,6 +6,8 @@
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 @theme {
+  /* --strict: remove Tailwind's default palette so unexamined classes (bg-indigo-500…) don't exist */
+  --color-*: initial;
   --color-bg: #F0ECEB;
   --color-surface: #FFFFFF;
   --color-surface-raised: #E7E3E2;
@@ -35,6 +37,30 @@
   --color-card-face: #FFFFFF;
   --color-card-ink: #252425;
   --color-card-lanyard: #C8A9B1;
+  --color-card-frame-hi: #B7CFC6;
+  --color-card-frame-shade: #6F9184;
+  --color-card-cream: #F0E9D3;
+  --color-card-lanyard-dark: #A98A93;
+  --color-card-metal: #BCB0A2;
+  --color-card-metal-hi: #E8E7E2;
+  --color-card-sky: #8CC8F0;
+  --color-card-hill: #5DA55A;
+  --color-card-hill-dark: #3F7E46;
+  --color-card-ground: #B86A3C;
+  --color-card-grass: #6CBF4A;
+  --color-card-grass-light: #B7CFC6;
+  --color-card-block: #F0B23A;
+  --color-card-block-hi: #FFE08A;
+  --color-card-block-shade: #B8741C;
+  --color-card-coin: #F7C948;
+  --color-card-coin-shade: #C98A1E;
+  --color-card-coin-hi: #FFF3B8;
+  --color-card-gold: #E1B675;
+  --color-card-avatar-1: #BC2051;
+  --color-card-avatar-2: #4B656B;
+  --color-card-avatar-3: #9A653F;
+  --color-card-avatar-4: #4E475D;
+  --color-card-avatar-5: #E86537;
   --color-world-sky: #8CC8F0;
   --color-world-sky-band: #B4DCF5;
   --color-world-cloud: #FFFFFF;
@@ -61,6 +87,22 @@
   --color-world-hud: #252425;
   --color-world-window: #F0E9D3;
   --color-world-window-ink: #252425;
+  --color-world-coin-hi: #FFF3B8;
+  --color-world-pip-body: #F0E9D3;
+  --color-world-pip-cheek: #BC2051;
+  --color-world-pip-feet: #4E475D;
+  --color-world-flag: #BC2051;
+  --color-shell-hi: #E8E7E2;
+  --color-shell-deep: #8F887E;
+  --color-bezel-hi: #665E79;
+  --color-button: #4E475D;
+  --color-button-hi: #6C6484;
+  --color-button-ink: #F0E9D3;
+  --color-accent-hi: #D9476F;
+  --color-accent-fixed: #BC2051;
+  --color-on-accent-fixed: #FFFFFF;
+  --color-led-off: #3A3545;
+  --color-void: #151318;
   --font-display: "Jersey 10", "Pixelify Sans", "Courier New", monospace;
   --font-body: "Atkinson Hyperlegible Next", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "Atkinson Hyperlegible Mono", ui-monospace, Menlo, monospace;
@@ -139,6 +181,11 @@
   --color-world-hud: #F0E9D3;
   --color-world-window: #2A2731;
   --color-world-window-ink: #F0E9D3;
+  --color-shell-hi: #4B4558;
+  --color-shell-deep: #1C1A21;
+  --color-bezel-hi: #2A2731;
+  --color-button: #2A2731;
+  --color-button-hi: #403B4A;
 }
 
 /* Motion durations (use via var() in transitions) */

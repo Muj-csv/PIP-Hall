@@ -1,0 +1,326 @@
+[
+  {
+    "profile_id": "00000000-0000-4000-8000-000000000001",
+    "username": "sample-player-1",
+    "card": {
+      "username": "sample-player-1",
+      "full_name": "Sample Player 1",
+      "tagline": null,
+      "bio": "Sample card: three projects, links filled in, verified GitHub sticker (GitHub's own example account).",
+      "role": "Layout test card \u00b7 not a real member",
+      "org_position": "Team lead",
+      "department": "SAMPLE",
+      "avatar_path": null,
+      "github_username": "octocat",
+      "linkedin_url": "https://www.linkedin.com/company/example",
+      "portfolio_url": "https://example.org/",
+      "public_email": null,
+      "skills": [
+        "TypeScript",
+        "PWA",
+        "Postgres",
+        "Design"
+      ],
+      "theme": "classic",
+      "is_featured": false,
+      "projects": [
+        {
+          "title": "Sample Quest One",
+          "description": "Placeholder project for testing the layout.",
+          "cover_path": null,
+          "project_url": "https://example.org/",
+          "github_url": null,
+          "language": "TypeScript",
+          "stars": null,
+          "tech_stack": [],
+          "source": "manual",
+          "project_date": null
+        },
+        {
+          "title": "Sample Quest Two",
+          "description": "Placeholder project for testing the layout.",
+          "cover_path": null,
+          "project_url": "https://example.org/",
+          "github_url": null,
+          "language": "Python",
+          "stars": null,
+          "tech_stack": [],
+          "source": "manual",
+          "project_date": null
+        },
+        {
+          "title": "Sample Quest Three",
+          "description": "Placeholder project for testing the layout.",
+          "cover_path": null,
+          "project_url": "https://example.org/",
+          "github_url": null,
+          "language": "Go",
+          "stars": null,
+          "tech_stack": [],
+          "source": "manual",
+          "project_date": null
+        }
+      ]
+    },
+    "is_featured": false,
+    "published_at": "2026-10-01T00:00:00Z"
+  },
+  {
+    "profile_id": "00000000-0000-4000-8000-000000000002",
+    "username": "sample-player-2",
+    "card": {
+      "username": "sample-player-2",
+      "full_name": "Sample Player 2",
+      "tagline": null,
+      "bio": "Sample card: featured, so it carries the star and the FEATURED sticker.",
+      "role": "Layout test card \u00b7 not a real member",
+      "org_position": null,
+      "department": "SAMPLE",
+      "avatar_path": null,
+      "github_username": null,
+      "linkedin_url": null,
+      "portfolio_url": "https://example.org/",
+      "public_email": null,
+      "skills": [
+        "Sample"
+      ],
+      "theme": "classic",
+      "is_featured": true,
+      "projects": [
+        {
+          "title": "Sample Quest 1",
+          "description": "Placeholder project for testing the layout.",
+          "cover_path": null,
+          "project_url": "https://example.org/",
+          "github_url": null,
+          "language": "TypeScript",
+          "stars": null,
+          "tech_stack": [],
+          "source": "manual",
+          "project_date": null
+        }
+      ]
+    },
+    "is_featured": true,
+    "published_at": "2026-10-01T01:00:00Z"
+  },
+  {
+    "profile_id": "00000000-0000-4000-8000-000000000003",
+    "username": "sample-player-3",
+    "card": {
+      "username": "sample-player-3",
+      "full_name": "Sample Player Three With A Very Long Name To Test Line Wraps",
+      "tagline": null,
+      "bio": "Sample card: a 60-character name that wraps to two lines, and an empty Quest Log.",
+      "role": "Layout test card \u00b7 not a real member",
+      "org_position": null,
+      "department": "SAMPLE",
+      "avatar_path": null,
+      "github_username": null,
+      "linkedin_url": null,
+      "portfolio_url": null,
+      "public_email": null,
+      "skills": [],
+      "theme": "classic",
+      "is_featured": false,
+      "projects": []
+    },
+    "is_featured": false,
+    "published_at": "2026-10-01T02:00:00Z"
+  },
+  {
+    "profile_id": "00000000-0000-4000-8000-000000000004",
+    "username": "sample-player-4",
+    "card": {
+      "username": "sample-player-4",
+      "full_name": "Sample Player 4",
+      "tagline": null,
+      "bio": "Sample card: the maximum of six projects and eight skills.",
+      "role": "Layout test card \u00b7 not a real member",
+      "org_position": null,
+      "department": "SAMPLE",
+      "avatar_path": null,
+      "github_username": null,
+      "linkedin_url": null,
+      "portfolio_url": null,
+      "public_email": null,
+      "skills": [
+        "One",
+        "Two",
+        "Three",
+        "Four",
+        "Five",
+        "Six",
+        "Seven",
+        "Eight"
+      ],
+      "theme": "classic",
+      "is_featured": false,
+      "projects": [
+        {
+          "title": "Sample Quest 1",
+          "description": "Placeholder project for testing the layout.",
+          "cover_path": null,
+          "project_url": "https://example.org/",
+          "github_url": null,
+          "language": "Rust",
+          "stars": null,
+          "tech_stack": [],
+          "source": "manual",
+          "project_date": null
+        },
+        {
+          "title": "Sample Quest 2",
+          "description": "Placeholder project for testing the layout.",
+          "cover_path": null,
+          "project_url": "https://example.org/",
+          "github_url": null,
+          "language": "Kotlin",
+          "stars": null,
+          "tech_stack": [],
+          "source": "manual",
+          "project_date": null
+        },
+        {
+          "title": "Sample Quest 3",
+          "description": "Placeholder project for testing the layout.",
+          "cover_path": null,
+          "project_url": "https://example.org/",
+          "github_url": null,
+          "language": "Swift",
+          "stars": null,
+          "tech_stack": [],
+          "source": "manual",
+          "project_date": null
+        },
+        {
+          "title": "Sample Quest 4",
+          "description": "Placeholder project for testing the layout.",
+          "cover_path": null,
+          "project_url": "https://example.org/",
+          "github_url": null,
+          "language": "C#",
+          "stars": null,
+          "tech_stack": [],
+          "source": "manual",
+          "project_date": null
+        },
+        {
+          "title": "Sample Quest 5",
+          "description": "Placeholder project for testing the layout.",
+          "cover_path": null,
+          "project_url": "https://example.org/",
+          "github_url": null,
+          "language": "Lua",
+          "stars": null,
+          "tech_stack": [],
+          "source": "manual",
+          "project_date": null
+        },
+        {
+          "title": "Sample Quest 6",
+          "description": "Placeholder project for testing the layout.",
+          "cover_path": null,
+          "project_url": "https://example.org/",
+          "github_url": null,
+          "language": "Elixir",
+          "stars": null,
+          "tech_stack": [],
+          "source": "manual",
+          "project_date": null
+        }
+      ]
+    },
+    "is_featured": false,
+    "published_at": "2026-10-02T03:00:00Z"
+  },
+  {
+    "profile_id": "00000000-0000-4000-8000-000000000005",
+    "username": "sample-player-5",
+    "card": {
+      "username": "sample-player-5",
+      "full_name": "Sample Player 5",
+      "tagline": null,
+      "bio": "Sample card: no photo and no links, so the generated avatar and dashed item slots show.",
+      "role": null,
+      "org_position": null,
+      "department": null,
+      "avatar_path": null,
+      "github_username": null,
+      "linkedin_url": null,
+      "portfolio_url": null,
+      "public_email": null,
+      "skills": [],
+      "theme": "classic",
+      "is_featured": false,
+      "projects": [
+        {
+          "title": "Sample Quest Solo",
+          "description": "Placeholder project for testing the layout.",
+          "cover_path": null,
+          "project_url": "https://example.org/",
+          "github_url": null,
+          "language": null,
+          "stars": null,
+          "tech_stack": [],
+          "source": "manual",
+          "project_date": null
+        }
+      ]
+    },
+    "is_featured": false,
+    "published_at": "2026-10-02T04:00:00Z"
+  },
+  {
+    "profile_id": "00000000-0000-4000-8000-000000000006",
+    "username": "sample-player-6",
+    "card": {
+      "username": "sample-player-6",
+      "full_name": "Sample Player 6",
+      "tagline": null,
+      "bio": "Sample card: the last player, where the goal flag stands.",
+      "role": "Layout test card \u00b7 not a real member",
+      "org_position": "Sample officer",
+      "department": "SAMPLE",
+      "avatar_path": null,
+      "github_username": null,
+      "linkedin_url": "https://www.linkedin.com/company/example",
+      "portfolio_url": null,
+      "public_email": null,
+      "skills": [
+        "Sample",
+        "Layout"
+      ],
+      "theme": "classic",
+      "is_featured": false,
+      "projects": [
+        {
+          "title": "Sample Quest 1",
+          "description": "Placeholder project for testing the layout.",
+          "cover_path": null,
+          "project_url": "https://example.org/",
+          "github_url": null,
+          "language": "TypeScript",
+          "stars": null,
+          "tech_stack": [],
+          "source": "manual",
+          "project_date": null
+        },
+        {
+          "title": "Sample Quest 2",
+          "description": "Placeholder project for testing the layout.",
+          "cover_path": null,
+          "project_url": "https://example.org/",
+          "github_url": null,
+          "language": "TypeScript",
+          "stars": null,
+          "tech_stack": [],
+          "source": "manual",
+          "project_date": null
+        }
+      ]
+    },
+    "is_featured": false,
+    "published_at": "2026-10-02T05:00:00Z"
+  }
+]
