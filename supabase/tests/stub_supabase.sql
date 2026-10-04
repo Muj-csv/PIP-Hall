@@ -17,3 +17,9 @@ create table auth.identities (
 create function auth.uid() returns uuid language sql stable
 as $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
 grant execute on function auth.uid() to anon, authenticated;
+
+-- Like a real Supabase project: new tables, functions and sequences in public are granted to the API
+-- roles by default, so every migration must revoke what it doesn't mean to expose.
+alter default privileges in schema public grant all on tables to anon, authenticated, service_role;
+alter default privileges in schema public grant all on functions to anon, authenticated, service_role;
+alter default privileges in schema public grant all on sequences to anon, authenticated, service_role;
