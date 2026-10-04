@@ -21,6 +21,9 @@ export function TopBar() {
         <Link to="/explore" className="pixel-btn">
           Explore
         </Link>
+        <Link to="/museum" className="pixel-btn">
+          Museum
+        </Link>
         {signedIn && session.role === 'admin' && (
           <Link to="/admin" className="pixel-btn">
             Admin

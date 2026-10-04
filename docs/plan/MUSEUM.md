@@ -1,6 +1,6 @@
 # MUSEUM and affiliations (spec)
 
-**Status:** building on `feat/museum` · **Date:** 2026-10-05 · **Decisions:** D-067…D-070
+**Status:** built on `feat/museum`; evidence in `docs/build/evidence/museum/` · **Date:** 2026-10-05 · **Decisions:** D-067…D-070
 
 ## What it is
 - **Affiliations** are labels an admin gives members, such as "ACM" or "CS Student" (D-067, D-068). Each one can grant **Museum access** and, from E2, name a perk frame (D-070). They show as public chips on the member's profile.

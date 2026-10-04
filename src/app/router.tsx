@@ -15,6 +15,7 @@ const Edit = lazy(() => import('../pages/Edit'));
 const Admin = lazy(() => import('../pages/Admin'));
 const Privacy = lazy(() => import('../pages/Privacy'));
 const Explore = lazy(() => import('../pages/Explore'));
+const Museum = lazy(() => import('../pages/Museum'));
 const Settings = lazy(() => import('../pages/Settings'));
 /* eslint-enable react-refresh/only-export-components */
 
@@ -32,6 +33,7 @@ export const router = createBrowserRouter([
       { path: '/login', element: <Login /> },
       { path: '/auth/callback', element: <AuthCallback /> },
       { path: '/explore', element: lazyPage(<Explore />) },
+      { path: '/museum', element: lazyPage(<Museum />) },
       { path: '/privacy', element: lazyPage(<Privacy />) },
       { path: '/edit', element: <RequireAuth>{lazyPage(<Edit />)}</RequireAuth> },
       { path: '/create', element: <Navigate to="/edit" replace /> },

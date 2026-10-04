@@ -4,6 +4,8 @@
 export type ProjectSource = 'github' | 'manual';
 
 export interface PublicProject {
+  /** Project row id, in snapshots approved since the Museum (D-069); used to match exhibits. */
+  id?: string | null;
   title: string;
   description: string | null;
   cover_path: string | null;

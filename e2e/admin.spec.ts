@@ -149,8 +149,13 @@ test('tabs work from the keyboard', async ({ page }) => {
   await expect(page.getByRole('tab', { name: 'Published (1)' })).toBeFocused();
   await expect(page.getByRole('tab', { name: 'Published (1)' })).toHaveAttribute('aria-selected', 'true');
   await page.keyboard.press('End');
+  await expect(page.getByRole('tab', { name: 'Affiliations' })).toBeFocused();
+  await page.keyboard.press('ArrowLeft');
   await expect(page.getByRole('tab', { name: 'Featured (0)' })).toBeFocused();
   await expect(page.locator('.dialogue .sr-only')).toContainText('No featured cards yet');
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('ArrowRight'); // wraps to the first tab
+  await expect(page.getByRole('tab', { name: 'Pending (2)' })).toBeFocused();
 });
 
 test('a member cannot moderate: the screen turns them away and the database refuses the call', async ({ page }) => {

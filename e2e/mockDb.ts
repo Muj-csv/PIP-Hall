@@ -18,6 +18,10 @@ export interface MockDb {
   ledger?: Row[];
   discoveries?: Row[];
   memberAchievements?: Row[];
+  /** MUSEUM and affiliations (mirrors supabase/migrations/*_museum.sql). */
+  affiliations?: Row[];
+  memberAffiliations?: Row[];
+  museumEntries?: Row[];
 }
 
 export const ACHIEVEMENTS = [
@@ -77,7 +81,7 @@ const CONTENT = ['username', 'full_name', 'tagline', 'bio', 'role', 'org_positio
 
 export interface DbUser {
   id: string;
-  role: 'member' | 'admin';
+  role: 'member' | 'admin' | 'anon';
 }
 
 const NOT_FILTERS = new Set(['select', 'order', 'limit', 'offset', 'on_conflict', 'columns']);
@@ -104,6 +108,7 @@ function buildCard(db: MockDb, p: Row): Row {
     .filter((r) => r.profile_id === p.id)
     .sort((a, b) => Number(a.sort_order) - Number(b.sort_order))
     .map((r) => ({
+      id: r.id,
       title: r.title,
       description: r.description ?? null,
       cover_path: r.cover_path ?? null,
@@ -305,6 +310,59 @@ export async function handleDb(route: Route, db: MockDb, user: DbUser): Promise<
   if (url.pathname === '/rest/v1/member_achievements' && method === 'GET') {
     const rows = filterRows(db.memberAchievements ?? [], url).filter((r) => inHall(String(r.member_id)));
     return (await json(200, rows)), true;
+  }
+
+  // ---- MUSEUM and affiliations
+  const hasMuseum = (id: string) => (db.memberAffiliations ?? []).some((m) => m.member_id === id && (db.affiliations ?? []).some((a) => a.key === m.key && a.grants_museum));
+  const liveIds = (id: string) => (((db.published.find((r) => r.profile_id === id)?.card as Row | undefined)?.projects as Row[] | undefined) ?? []).map((p) => String(p.id)).filter((x) => x !== 'undefined');
+  if (url.pathname === '/rest/v1/affiliations' && method === 'GET') return (await json(200, [...(db.affiliations ?? [])].sort((a, b) => Number(a.sort) - Number(b.sort)))), true;
+  if (url.pathname === '/rest/v1/member_affiliations' && method === 'GET') {
+    const rows = filterRows(db.memberAffiliations ?? [], url).filter((r) => admin || inHall(String(r.member_id)));
+    return (await json(200, rows)), true;
+  }
+  const AFF_ADMIN = ['admin_save_affiliation', 'admin_delete_affiliation', 'set_member_affiliation'];
+  if (url.pathname.startsWith('/rest/v1/rpc/') && AFF_ADMIN.includes(fn)) {
+    if (!admin) return (await err(403, '42501', 'NOT_ADMIN')), true;
+    const a = body() as { p_key: string; p_name?: string; p_grants_museum?: boolean; p_member?: string; p_on?: boolean };
+    db.affiliations ??= [];
+    db.memberAffiliations ??= [];
+    if (fn === 'admin_save_affiliation') {
+      if (!/^[a-z0-9][a-z0-9-]{1,23}$/.test(a.p_key)) return (await err(400, '23514', 'new row violates check constraint')), true;
+      const found = db.affiliations.find((r) => r.key === a.p_key);
+      if (found) Object.assign(found, { name: a.p_name, grants_museum: a.p_grants_museum });
+      else db.affiliations.push({ key: a.p_key, name: a.p_name, grants_museum: a.p_grants_museum, frame_key: null, sort: db.affiliations.length + 1 });
+    } else if (fn === 'admin_delete_affiliation') {
+      db.affiliations = db.affiliations.filter((r) => r.key !== a.p_key);
+      db.memberAffiliations = db.memberAffiliations.filter((r) => r.key !== a.p_key);
+    } else {
+      db.memberAffiliations = db.memberAffiliations.filter((r) => !(r.member_id === a.p_member && r.key === a.p_key));
+      if (a.p_on) db.memberAffiliations.push({ member_id: a.p_member, key: a.p_key });
+    }
+    return (await json(200, null)), true;
+  }
+  if (url.pathname === '/rest/v1/rpc/my_museum') {
+    return (await json(200, { access: hasMuseum(userId), live: liveIds(userId), entries: (db.museumEntries ?? []).filter((e) => e.member_id === userId).map((e) => e.project_id) })), true;
+  }
+  if (url.pathname === '/rest/v1/rpc/set_museum') {
+    const { p_project, p_on } = body() as { p_project: string; p_on: boolean };
+    if (!db.projects.some((p) => p.id === p_project && p.profile_id === userId)) return (await err(400, 'P0001', 'NOT_YOURS')), true;
+    db.museumEntries ??= [];
+    db.museumEntries = db.museumEntries.filter((e) => e.project_id !== p_project);
+    if (!p_on) return (await json(200, false)), true;
+    if (!hasMuseum(userId)) return (await err(400, 'P0001', 'NO_MUSEUM_ACCESS')), true;
+    if (!liveIds(userId).includes(p_project)) return (await err(400, 'P0001', 'NOT_LIVE')), true;
+    db.museumEntries.push({ project_id: p_project, member_id: userId });
+    return (await json(200, true)), true;
+  }
+  if (url.pathname === '/rest/v1/rpc/museum_exhibits') {
+    const out = (db.museumEntries ?? []).flatMap((e) => {
+      const c = db.published.find((r) => r.profile_id === e.member_id);
+      const card = c?.card as Row | undefined;
+      const project = ((card?.projects as Row[] | undefined) ?? []).find((p) => p.id === e.project_id);
+      if (!c || !project || !hasMuseum(String(e.member_id))) return [];
+      return [{ project_id: e.project_id, username: c.username, full_name: card!.full_name, avatar_path: card!.avatar_path ?? null, member_no: c.member_no, project }];
+    });
+    return (await json(200, out)), true;
   }
 
   if (url.pathname === '/rest/v1/rpc/delete_my_account') {

@@ -19,6 +19,7 @@ import { DialogueBox } from '../dialogue/DialogueBox';
 import { Panel } from '../shell/MenuPage';
 import { TextArea, TextField, Toggle } from './fields';
 import { ManualProjectForm } from './ManualProjectForm';
+import { MuseumPanel } from './MuseumPanel';
 import { PhotoField } from './PhotoField';
 import { ProjectList } from './ProjectList';
 import { RepoPicker } from './RepoPicker';
@@ -306,6 +307,8 @@ export function CardEditor({ user, initial, onSignOut }: Props) {
           />
           <ManualProjectForm disabled={form.projects.length >= LIMITS.projects} onAdd={(p) => setProjects((ps) => [...ps, p])} />
         </Panel>
+
+        {mine.hasLiveCard && <MuseumPanel projects={mine.projects} />}
 
         <Panel label="Account">
           <h2 className="panel-title">Account</h2>
