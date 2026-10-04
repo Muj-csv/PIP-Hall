@@ -69,6 +69,12 @@ Do these on the live URL and keep a screenshot of each.
 - [ ] **Explore:** search for a member by name, @handle, skill and a project title.
 - [ ] **Delete account:** with a test account, Settings → Delete account. Its card disappears from `/` and `/member/<username>` says "No card here".
 
+## PIP Progression (E1) — when you're ready to turn it on
+
+1. Supabase **SQL editor:** run `supabase/migrations/20261005000000_pips_core.sql`. It also gives members already in the hall their approval rewards (D-062).
+2. **Vercel → Environment Variables:** add `VITE_FEATURE_PIPS` = `on` (Production, and Preview if you want it there), then redeploy. Leave it unset or `off` to keep PIPs hidden; the migration is harmless while the switch is off.
+3. Check: sign in as a member whose card is in the hall, open another member's profile, and see Pip's "+5 PIPs" line and the HUD balance; Settings → PIPs shows the history.
+
 ## 6. Keep the free project awake
 
 Add repository secrets `SUPABASE_URL` and `SUPABASE_ANON_KEY` (GitHub → Settings → Secrets and variables → Actions). `.github/workflows/keepalive.yml` then reads one public card every Monday.

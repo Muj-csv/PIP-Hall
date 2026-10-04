@@ -5,6 +5,7 @@ import { Link } from 'react-router';
 import type { ReactNode } from 'react';
 import { DialogueBox } from '../components/dialogue/DialogueBox';
 import { MenuPage, Panel } from '../components/shell/MenuPage';
+import { pipsEnabled } from '../lib/features';
 
 const LAST_UPDATED = '5 October 2026';
 const CONTACT_URL = 'https://github.com/Muj-csv';
@@ -52,6 +53,17 @@ export default function Privacy() {
         </p>
         <p className="m-0">Hall admins can see your draft card while they review it.</p>
       </Section>
+
+      {pipsEnabled && (
+        <Section title="PIPs and achievements">
+          <p className="m-0">
+            Once your card is in the hall you earn PIPs, the hall’s points, for things like opening other members’ profiles and having
+            projects approved. PIP-Hall keeps a list of your PIP rewards and of the members you’ve discovered so it only rewards each one
+            once. Only you can see your PIPs and whom you’ve discovered; nobody, admins included, gets a “who viewed you” list.
+          </p>
+          <p className="m-0">Achievements you unlock show on your profile. Deleting your account deletes all of this too.</p>
+        </Section>
+      )}
 
       <Section title="Emails">
         <p className="m-0">

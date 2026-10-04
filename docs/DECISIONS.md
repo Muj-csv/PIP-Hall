@@ -69,6 +69,7 @@ Format: `ID — decision — date — who — rationale — affects`. **user** =
 | D-063 | **PIP balance is private; achievements are public** on the member's profile | 2026-10-05 | user | No wallet comparisons; earned status is worth showing | E1 RLS, profile screen |
 | D-064 | **The hall's HUD coin counter shows the PIP balance** for signed-in approved members, with a coin pickup on each reward; visitors keep the flip-count toy | 2026-10-05 | user | The coin already lives in the HUD; it should mean something | `Hud`, `Hall` |
 | D-065 | **Daily and weekly tasks are called Missions**; the badge's back keeps QUEST LOG for projects | 2026-10-05 | user | Avoids one name meaning two things on the same screen | E3 copy |
+| D-066 | **The database test stub applies Supabase's default grants** (new tables, functions and sequences in `public` go to `anon` and `authenticated`), so a migration that forgets to revoke something fails the security tests instead of shipping open | 2026-10-05 | recommended | Supabase does this in production; the stub didn't, so missing revokes were invisible | `supabase/tests/stub_supabase.sql` |
 
 ## Picked for you (design) — confirm or change
 - ~~`font.body` Atkinson Hyperlegible Next~~ confirmed (D-030) · `font.mono` Atkinson Hyperlegible Mono · type ratio 1.25 · easing curve · breakpoints 640/768/1024.

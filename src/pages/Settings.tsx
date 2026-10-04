@@ -10,6 +10,8 @@ import { DialogueBox } from '../components/dialogue/DialogueBox';
 import { MenuPage, Panel } from '../components/shell/MenuPage';
 import { ThemeToggle } from '../components/shell/ThemeToggle';
 import { InstallPrompt } from '../components/install/InstallPrompt';
+import { PipsPanel } from '../components/pips/PipsPanel';
+import { pipsEnabled } from '../lib/features';
 import { useInstallMode } from '../lib/install';
 import { accountService, type Preferences } from '../services/accountService';
 import { profileService } from '../services/profileService';
@@ -91,6 +93,8 @@ export default function Settings() {
         )}
         {load.status === 'ready' && load.mine.profile && <EmailPrefs userId={user.id} mine={load.mine} onSaved={() => setAttempt((a) => a + 1)} />}
       </Panel>
+
+      {pipsEnabled && <PipsPanel />}
 
       <Panel label="World">
         <h2 className="panel-title">World</h2>
