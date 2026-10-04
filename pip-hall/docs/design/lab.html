@@ -1,0 +1,862 @@
+<title>Pixel Pass Design Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400..700&family=Atkinson+Hyperlegible+Next:ital,wght@0,400;0,700;1,400&family=Atkinson+Hyperlegible+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: the live PIXENDO handheld is the hero; below it, how each part is built (badge, device, motion, sprites), then what changed in the docs. One reading column, the device breaks wider. */
+:root{
+  --p:4px;                      /* the pixel unit: every edge in world and badge is a multiple */
+  /* page */
+  --bg:#F0ECEB; --surface:#FFFFFF; --raised:#E7E3E2; --ink:#252425; --muted:#594C5D; --deco:#CFC7C5; --shadow:#252425;
+  --line:#4E475D; --accent:#BC2051; --on-accent:#FFFFFF;
+  /* device */
+  --shell:#D6D5CF; --shell-hi:#E8E7E2; --shell-shade:#B3ADA2; --shell-deep:#8F887E; --bezel:#4E475D; --bezel-hi:#665E79; --led:#62E856; --btn:#4E475D; --btn-hi:#6C6484;
+  /* world, DAY */
+  --sky:#8CC8F0; --sky-band:#B4DCF5; --cloud:#FFFFFF; --cloud-shade:#CFE6F5; --hill:#5DA55A; --hill-dark:#3F7E46;
+  --bush:#7BC46A; --grass:#6CBF4A; --grass-dark:#3F8F3A; --dirt:#B86A3C; --dirt-dark:#8A4A2A;
+  --brick:#C8693A; --mortar:#6E3420; --block:#F0B23A; --block-hi:#FFE08A; --block-shade:#B8741C; --used:#8C7A6A;
+  --coin:#F7C948; --coin-shade:#C98A1E; --tube:#6A5F86; --tube-hi:#8E84AC; --rim:#E1B675; --star:#FFFFFF;
+  --hud:#252425; --window:#F0E9D3; --window-ink:#252425;
+  /* badge: identical in DAY and NIGHT */
+  --c-frame:#97B5AA; --c-frame-hi:#B7CFC6; --c-frame-shade:#6F9184; --c-band:#A185AB; --c-plum:#594C5D; --c-face:#FFFFFF;
+  --c-ink:#252425; --c-cream:#F0E9D3; --c-lanyard:#C8A9B1; --c-lanyard-dark:#A98A93; --c-metal:#BCB0A2; --c-metal-hi:#E8E7E2;
+  --c-sky:#8CC8F0; --c-hill:#5DA55A; --c-ground:#B86A3C; --c-grass:#6CBF4A;
+  --gold:#E1B675; --ember:#E86537; --wood:#9A653F;
+  --f-display:"Pixelify Sans", "Courier New", monospace;
+  --f-body:"Atkinson Hyperlegible Next", "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono:"Atkinson Hyperlegible Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#1C1A21; --surface:#2A2731; --raised:#35313E; --ink:#F0E9D3; --muted:#BCB0A2; --deco:#4A4555; --shadow:#0E0D11;
+  --line:#9A8FB0; --accent:#E8607F; --on-accent:#252425;
+  --shell:#3A3545; --shell-hi:#4B4558; --shell-shade:#2A2731; --shell-deep:#1C1A21; --bezel:#151318; --bezel-hi:#2A2731; --btn:#2A2731; --btn-hi:#403B4A;
+  --sky:#1E2A44; --sky-band:#2A3A5C; --cloud:#3A4A6A; --cloud-shade:#2E3C58; --hill:#2E5A3E; --hill-dark:#224530;
+  --bush:#3B6E46; --grass:#3E7A3A; --grass-dark:#2A5A2A; --dirt:#6A3E26; --dirt-dark:#4E2C1A;
+  --brick:#7A4630; --mortar:#3A2016; --block:#C48A2A; --block-hi:#E0B060; --block-shade:#8A5A14; --used:#5A4E46;
+  --coin:#E8B83C; --coin-shade:#A86E14; --tube:#4A4266; --tube-hi:#665E86; --rim:#B8915A; --star:#F0E9D3;
+  --hud:#F0E9D3; --window:#2A2731; --window-ink:#F0E9D3; color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#1C1A21; --surface:#2A2731; --raised:#35313E; --ink:#F0E9D3; --muted:#BCB0A2; --deco:#4A4555; --shadow:#0E0D11;
+  --line:#9A8FB0; --accent:#E8607F; --on-accent:#252425;
+  --shell:#3A3545; --shell-hi:#4B4558; --shell-shade:#2A2731; --shell-deep:#1C1A21; --bezel:#151318; --bezel-hi:#2A2731; --btn:#2A2731; --btn-hi:#403B4A;
+  --sky:#1E2A44; --sky-band:#2A3A5C; --cloud:#3A4A6A; --cloud-shade:#2E3C58; --hill:#2E5A3E; --hill-dark:#224530;
+  --bush:#3B6E46; --grass:#3E7A3A; --grass-dark:#2A5A2A; --dirt:#6A3E26; --dirt-dark:#4E2C1A;
+  --brick:#7A4630; --mortar:#3A2016; --block:#C48A2A; --block-hi:#E0B060; --block-shade:#8A5A14; --used:#5A4E46;
+  --coin:#E8B83C; --coin-shade:#A86E14; --tube:#4A4266; --tube-hi:#665E86; --rim:#B8915A; --star:#F0E9D3;
+  --hud:#F0E9D3; --window:#2A2731; --window-ink:#F0E9D3; color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.55;padding-inline:16px;padding-block:0 72px}
+.wrap{max-width:820px;margin:0 auto}
+.wide{max-width:1040px;margin:0 auto}
+a{color:inherit;text-underline-offset:3px}
+button{font:inherit}
+:focus-visible{outline:3px solid var(--line);outline-offset:3px}
+h1,h2,h3{text-wrap:balance;margin:0}
+p{margin:0}
+code{font-family:var(--f-mono);font-size:.88em}
+
+/* ---------- page header ---------- */
+.top{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;justify-content:space-between;padding-block:24px 16px;border-bottom:4px solid var(--ink)}
+.brand{font-family:var(--f-display);font-weight:700;font-size:15px;letter-spacing:.08em;display:flex;align-items:center;gap:10px}
+.brand canvas{width:24px;height:24px;image-rendering:pixelated}
+.ver{font-family:var(--f-mono);font-size:13px;color:var(--muted)}
+.hero{padding-block:24px 4px;display:grid;gap:12px}
+.hero h1{font-family:var(--f-display);font-weight:700;font-size:clamp(30px,6vw,46px);line-height:1.04}
+.hero p{max-width:64ch;color:var(--muted);font-size:17px}
+
+/* ---------- device ---------- */
+.stepc{clip-path:polygon(0 16px,4px 16px,4px 8px,8px 8px,8px 4px,16px 4px,16px 0,calc(100% - 16px) 0,calc(100% - 16px) 4px,calc(100% - 8px) 4px,calc(100% - 8px) 8px,calc(100% - 4px) 8px,calc(100% - 4px) 16px,100% 16px,100% calc(100% - 16px),calc(100% - 4px) calc(100% - 16px),calc(100% - 4px) calc(100% - 8px),calc(100% - 8px) calc(100% - 8px),calc(100% - 8px) calc(100% - 4px),calc(100% - 16px) calc(100% - 4px),calc(100% - 16px) 100%,16px 100%,16px calc(100% - 4px),8px calc(100% - 4px),8px calc(100% - 8px),4px calc(100% - 8px),4px calc(100% - 16px),0 calc(100% - 16px))}
+.step8{clip-path:polygon(0 8px,4px 8px,4px 4px,8px 4px,8px 0,calc(100% - 8px) 0,calc(100% - 8px) 4px,calc(100% - 4px) 4px,calc(100% - 4px) 8px,100% 8px,100% calc(100% - 8px),calc(100% - 4px) calc(100% - 8px),calc(100% - 4px) calc(100% - 4px),calc(100% - 8px) calc(100% - 4px),calc(100% - 8px) 100%,8px 100%,8px calc(100% - 4px),4px calc(100% - 4px),4px calc(100% - 8px),0 calc(100% - 8px))}
+.dev-outer{margin-top:28px;filter:drop-shadow(8px 8px 0 var(--shadow))}
+.device{background:var(--shell);padding:20px 20px 28px;box-shadow:inset 4px 4px 0 var(--shell-hi),inset -4px -12px 0 var(--shell-shade),inset 0 -16px 0 var(--shell-deep);
+  display:grid;grid-template-columns:132px minmax(0,1fr) 132px;gap:18px;align-items:center;position:relative}
+.screw{position:absolute;width:8px;height:8px;background:var(--shell-shade);box-shadow:inset 2px 2px 0 var(--shell-deep)}
+.screw.a{top:14px;left:14px}.screw.b{top:14px;right:14px}.screw.c{bottom:26px;left:14px}.screw.d{bottom:26px;right:14px}
+.grip{display:grid;justify-items:center;gap:14px;align-self:stretch;align-content:center}
+.grip-label{font-family:var(--f-display);font-weight:700;font-size:12px;letter-spacing:.12em;color:var(--muted)}
+.rocker{width:112px;height:112px;background:var(--shell-shade);display:grid;grid-template-columns:1fr 1fr;padding:8px;gap:8px;box-shadow:inset 4px 4px 0 var(--shell-deep)}
+.rocker button{all:unset;cursor:pointer;background:var(--btn);color:#F0E9D3;display:grid;place-items:center;font-family:var(--f-display);font-weight:700;font-size:22px;box-shadow:inset 4px 4px 0 var(--btn-hi),0 6px 0 var(--shadow);transition:transform 90ms steps(2),box-shadow 90ms steps(2)}
+.rocker button:active,.pbtn:active{transform:translateY(4px);box-shadow:inset 4px 4px 0 var(--btn-hi),0 2px 0 var(--shadow)}
+.rocker button:focus-visible,.pbtn:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
+.pbtns{display:grid;gap:12px;justify-items:center}
+.pbtn{all:unset;cursor:pointer;min-width:100px;min-height:44px;display:grid;place-items:center;font-family:var(--f-display);font-weight:700;font-size:15px;letter-spacing:.06em;background:var(--btn);color:#F0E9D3;box-shadow:inset 4px 4px 0 var(--btn-hi),0 6px 0 var(--shadow);transition:transform 90ms steps(2),box-shadow 90ms steps(2)}
+.pbtn.flip{background:#BC2051;color:#FFFFFF;box-shadow:inset 4px 4px 0 #D9476F,0 6px 0 var(--shadow);min-height:56px}
+.pbtn.small{min-width:72px;min-height:44px;font-size:12px}
+.grille{display:grid;grid-template-columns:repeat(5,6px);gap:5px}
+.grille i{width:6px;height:6px;background:var(--shell-deep);display:block}
+.mid{display:grid;gap:10px;min-width:0}
+.bezel{background:var(--bezel);padding:14px 16px 10px;box-shadow:inset 4px 4px 0 var(--bezel-hi)}
+.bezel-print{display:flex;align-items:center;gap:8px;justify-content:space-between;padding:8px 2px 0;font-family:var(--f-display);font-weight:700;font-size:11px;letter-spacing:.14em;color:#BCB0A2}
+.led-wrap{display:flex;align-items:center;gap:6px}
+.led{width:8px;height:8px;background:var(--led);box-shadow:0 0 0 2px #151318}
+.led.off{background:#3A3545}
+.led.blink{animation:ledb .25s steps(2) 4}
+@keyframes ledb{50%{background:#3A3545}}
+.wordmark{text-align:center;font-family:var(--f-display);font-weight:700;font-size:18px;letter-spacing:.3em;color:var(--shell-deep);text-shadow:1px 1px 0 var(--shell-hi)}
+
+/* screen */
+.screen{position:relative;overflow:hidden;background:var(--sky);touch-action:pan-y;user-select:none;-webkit-user-select:none;outline:none}
+.screen:focus-visible{box-shadow:0 0 0 3px #F0E9D3}
+.play{position:relative;height:calc(var(--p) * 144)}
+.play > canvas{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated;image-rendering:crisp-edges;pointer-events:none}
+#bg{z-index:0}#fg{z-index:30}#fx{z-index:40}
+.hud{position:absolute;left:0;right:0;top:0;height:calc(var(--p)*8);z-index:35;display:flex;justify-content:space-between;align-items:center;padding:0 12px;font-family:var(--f-display);font-weight:700;font-size:13px;letter-spacing:.08em;color:var(--hud);pointer-events:none}
+.hud .coins{display:flex;align-items:center;gap:6px}
+.hud canvas{position:static;width:12px;height:16px;image-rendering:pixelated}
+.cards{position:absolute;inset:0;z-index:10}
+.window{position:relative;z-index:20;display:flex;gap:10px;align-items:stretch;padding:10px 12px;background:var(--window);box-shadow:inset 0 4px 0 #252425;min-height:84px}
+.portrait{flex:none;width:60px;background:#97B5AA;box-shadow:inset 0 0 0 3px #252425;display:grid;place-items:center}
+.portrait canvas{width:48px;height:48px;image-rendering:pixelated}
+.say{flex:1;min-width:0;color:var(--window-ink);font-family:var(--f-display);font-weight:600;font-size:16px;line-height:1.3;align-self:center;position:relative;padding-right:22px}
+.say::after{content:"";position:absolute;right:2px;bottom:2px;width:8px;height:8px;background:var(--window-ink);clip-path:polygon(0 0,100% 0,50% 100%);animation:blink 1s steps(2) infinite}
+@keyframes blink{50%{opacity:0}}
+
+/* ---------- badge (shared by device + anatomy) ---------- */
+.slot{position:absolute;top:calc(var(--p)*20);left:0;width:calc(var(--p)*56);transform-origin:50% 0;will-change:transform}
+.strap{display:block;width:calc(var(--p)*4);height:calc(var(--p)*4);margin:0 auto;background:var(--c-lanyard);
+  background-image:repeating-linear-gradient(0deg,transparent 0 4px,var(--c-lanyard-dark) 4px 8px);box-shadow:inset -4px 0 0 rgba(0,0,0,.12)}
+.clip{display:block;width:calc(var(--p)*10);height:calc(var(--p)*4);margin:0 auto}
+.clip canvas,.clip svg{display:block;width:100%;height:100%;image-rendering:pixelated}
+.flipper{perspective:1200px}
+.card{all:unset;display:block;width:calc(var(--p)*56);height:calc(var(--p)*88);position:relative;cursor:pointer;transform-style:preserve-3d;transition:transform 520ms cubic-bezier(.3,1.35,.45,1)}
+.card[aria-pressed="true"]{transform:rotateY(180deg)}
+.card:focus-visible{outline:3px dashed #F0E9D3;outline-offset:6px}
+.face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;color:var(--c-ink)}
+.face.back{transform:rotateY(180deg)}
+.holder{position:absolute;inset:0;background:var(--c-frame);padding:calc(var(--p)*4) calc(var(--p)*3) calc(var(--p)*5);
+  box-shadow:inset 0 0 0 var(--p) var(--c-ink),inset var(--p) var(--p) 0 calc(var(--p)*1) var(--c-frame-hi),inset calc(var(--p)*-1) calc(var(--p)*-1) 0 calc(var(--p)*1) var(--c-frame-shade)}
+.hole{position:absolute;top:calc(var(--p)*1.5);left:50%;transform:translateX(-50%);width:calc(var(--p)*10);height:calc(var(--p)*1.5);background:#151318;box-shadow:0 0 0 2px var(--c-frame-shade)}
+.holder-print{position:absolute;bottom:calc(var(--p)*1);left:0;right:0;text-align:center;font-family:var(--f-display);font-weight:700;font-size:9px;letter-spacing:.3em;color:var(--c-frame-shade);line-height:calc(var(--p)*3)}
+.doodle{position:absolute;width:calc(var(--p)*3);height:calc(var(--p)*3);image-rendering:pixelated}
+.insert{position:relative;height:100%;background:var(--c-face);box-shadow:inset 0 0 0 3px var(--c-ink);display:flex;flex-direction:column;overflow:hidden}
+.band{display:flex;align-items:center;gap:7px;padding:6px 8px;background:var(--c-band);box-shadow:inset 0 -3px 0 var(--c-ink),inset 3px 3px 0 var(--c-ink),inset -3px 0 0 var(--c-ink)}
+.emblem{width:24px;height:24px;flex:none;image-rendering:pixelated}
+.band b{font-family:var(--f-display);font-weight:700;font-size:14px;letter-spacing:.05em;line-height:1}
+.band .no{margin-left:auto;font-family:var(--f-mono);font-size:11px;font-weight:600}
+.inner{padding:6px 8px 7px;display:flex;flex-direction:column;gap:5px;flex:1;min-height:0}
+.window-photo{position:relative;height:calc(var(--p)*22);background:var(--c-sky);box-shadow:inset 0 0 0 3px var(--c-ink);overflow:hidden;flex:none}
+.window-photo canvas.scene{position:absolute;inset:3px;width:calc(100% - 6px);height:calc(100% - 6px);image-rendering:pixelated}
+.window-photo .av{position:absolute;left:50%;bottom:calc(var(--p)*3 + 3px);width:calc(var(--p)*12);height:calc(var(--p)*12);transform:translateX(-50%);image-rendering:pixelated}
+.corner{position:absolute;width:8px;height:8px;border-color:#FFFFFF;border-style:solid;border-width:0}
+.corner.tl{top:7px;left:7px;border-top-width:3px;border-left-width:3px}.corner.tr{top:7px;right:7px;border-top-width:3px;border-right-width:3px}
+.corner.bl{bottom:7px;left:7px;border-bottom-width:3px;border-left-width:3px}.corner.br{bottom:7px;right:7px;border-bottom-width:3px;border-right-width:3px}
+.dept{position:absolute;right:6px;bottom:6px;font-family:var(--f-display);font-weight:700;font-size:11px;letter-spacing:.04em;background:var(--c-face);padding:1px 6px;box-shadow:inset 0 0 0 2px var(--c-ink)}
+.star-badge{position:absolute;right:8px;top:8px;width:16px;height:16px;image-rendering:pixelated}
+.nm{font-family:var(--f-display);font-weight:700;font-size:16px;line-height:1.02;letter-spacing:.01em;overflow-wrap:anywhere}
+.hd{font-family:var(--f-mono);font-size:12px;color:var(--c-plum);line-height:1.2}
+.rl{font-size:11.5px;color:var(--c-plum);line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
+.stat{background:var(--c-cream);box-shadow:inset 0 0 0 2px var(--c-ink);padding:2px 4px;display:flex;justify-content:space-between;align-items:baseline;font-family:var(--f-display);font-weight:700;font-size:10px;letter-spacing:.04em}
+.stat span{font-size:13px}
+.coinline{height:8px;background-image:radial-gradient(circle at 4px 4px,var(--c-band) 2px,transparent 2.5px);background-size:12px 8px;background-repeat:repeat-x;flex:none}
+.foot{margin-top:auto;display:flex;align-items:flex-end;justify-content:space-between;gap:6px}
+.slots{display:flex;gap:5px}
+.islot{width:28px;height:28px;background:var(--c-cream);box-shadow:inset 0 0 0 2px var(--c-ink);display:grid;place-items:center}
+.islot canvas{width:20px;height:20px;image-rendering:pixelated}
+.islot.empty{background:transparent;box-shadow:none;outline:2px dashed var(--c-plum);outline-offset:-2px}
+.islot.empty canvas{opacity:.35}
+.qrbox{display:grid;justify-items:center;gap:1px}
+.qr{width:52px;height:52px;background:#fff;padding:3px;box-shadow:inset 0 0 0 2px var(--c-ink)}
+.qr svg{display:block;width:100%;height:100%}
+.serial{font-family:var(--f-mono);font-size:8.5px;letter-spacing:.08em;color:var(--c-plum)}
+.glare{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.glare i{position:absolute;top:-20%;width:14px;height:140%;background:rgba(255,255,255,.28);transform:translateX(var(--gx,0px)) rotate(28deg);left:22%}
+.glare i+i{left:32%;width:6px}
+.sticker{position:absolute;z-index:3;display:flex;align-items:center;gap:4px;font-family:var(--f-display);font-weight:700;font-size:11px;letter-spacing:.04em;padding:3px 7px;color:var(--c-ink);
+  box-shadow:inset 0 0 0 2px var(--c-ink),0 0 0 3px #FFFFFF,0 0 0 5px var(--c-ink),3px 5px 0 5px rgba(37,36,37,.25);white-space:nowrap}
+.sticker.s-gold{background:var(--gold)}.sticker.s-ember{background:var(--ember)}.sticker.s-wood{background:var(--wood);color:#FFFFFF}.sticker.s-frame{background:#97B5AA}
+/* back */
+.b-bio{font-size:12px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.quests{display:grid;gap:4px}
+.quest{display:grid;grid-template-columns:22px 1fr;gap:6px;align-items:center;background:var(--c-cream);box-shadow:inset 0 0 0 2px var(--c-ink);padding:4px 6px}
+.quest .n{font-family:var(--f-display);font-weight:700;font-size:11px;background:var(--c-ink);color:var(--c-cream);text-align:center;line-height:18px}
+.quest b{font-family:var(--f-display);font-weight:700;font-size:12px;display:block;line-height:1.1}
+.quest span{font-size:10.5px;color:var(--c-plum);line-height:1.2;display:block}
+.quest.none{grid-template-columns:1fr;text-align:center;font-family:var(--f-display);font-weight:600;font-size:12px;color:var(--c-plum);padding:10px}
+.pups{display:flex;flex-wrap:wrap;gap:3px}
+.pup{font-family:var(--f-mono);font-size:10px;padding:0 4px;box-shadow:inset 0 0 0 2px var(--c-band)}
+.cta{margin-top:auto;font-family:var(--f-display);font-weight:700;font-size:12px;letter-spacing:.06em;text-align:center;background:#BC2051;color:#FFFFFF;padding:6px;box-shadow:inset 0 0 0 3px var(--c-ink),inset 3px 3px 0 3px #D9476F}
+
+/* profile view inside screen */
+.profile{position:absolute;inset:0;z-index:50;background:var(--window);color:var(--window-ink);padding:44px 18px 18px;overflow:auto;display:grid;gap:12px;align-content:start}
+.profile h3{font-family:var(--f-display);font-weight:700;font-size:26px;line-height:1.05}
+.profile .meta{font-family:var(--f-mono);font-size:13px;opacity:.85}
+.profile ol{margin:0;padding:0;list-style:none;display:grid;gap:8px}
+.profile li{background:var(--c-cream);color:var(--c-ink);box-shadow:inset 0 0 0 3px var(--c-ink);padding:8px 10px}
+.profile li b{font-family:var(--f-display);font-size:15px}
+.profile .back-btn{justify-self:start}
+#iris{position:absolute;inset:0;z-index:60;width:100%;height:100%;image-rendering:pixelated;pointer-events:none}
+
+/* ---------- sections ---------- */
+section{padding-top:52px;display:grid;gap:16px}
+h2{font-family:var(--f-display);font-weight:700;font-size:28px;line-height:1.1}
+.kicker{font-family:var(--f-display);font-weight:600;font-size:15px;color:var(--muted)}
+.lede{max-width:66ch}
+.two{display:grid;grid-template-columns:minmax(0,300px) minmax(0,1fr);gap:28px;align-items:start}
+.specimen{position:relative;padding:24px 22px 40px;background:var(--raised);box-shadow:inset 0 0 0 3px var(--ink);display:grid;justify-items:center}
+.specimen .slot{position:relative;top:0}
+.gridov{position:absolute;inset:0;pointer-events:none;background-image:linear-gradient(rgba(188,32,81,.35) 1px,transparent 1px),linear-gradient(90deg,rgba(188,32,81,.35) 1px,transparent 1px);background-size:4px 4px;opacity:0;transition:opacity .2s}
+.specimen.grid-on .gridov{opacity:1}
+.pin{position:absolute;z-index:9;min-width:24px;height:24px;padding:0 4px;display:grid;place-items:center;font-family:var(--f-display);font-weight:700;font-size:12px;background:#BC2051;color:#FFFFFF;box-shadow:0 0 0 2px #FFFFFF,0 0 0 4px #252425}
+.parts{margin:0;padding:0;list-style:none;display:grid;gap:10px;counter-reset:pt}
+.parts li{display:grid;grid-template-columns:30px 1fr;gap:10px;align-items:start;font-size:15px}
+.parts li::before{counter-increment:pt;content:counter(pt);font-family:var(--f-display);font-weight:700;font-size:12px;height:24px;display:grid;place-items:center;background:var(--accent);color:var(--on-accent)}
+.parts b{font-weight:700}
+.tbtn{justify-self:start;font-family:var(--f-display);font-weight:700;font-size:13px;letter-spacing:.05em;background:var(--surface);color:var(--ink);border:3px solid var(--ink);padding:7px 12px;cursor:pointer;box-shadow:4px 4px 0 var(--shadow)}
+.tbtn:active{transform:translate(3px,3px);box-shadow:1px 1px 0 var(--shadow)}
+.rules{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:14px}
+.rule{background:var(--surface);box-shadow:inset 0 0 0 3px var(--ink);padding:14px 16px;display:grid;gap:6px;align-content:start}
+.rule h3{font-family:var(--f-display);font-weight:700;font-size:17px}
+.rule p{font-size:14.5px}
+.rule .demo{height:44px;display:flex;align-items:center;gap:10px}
+.schem{background:var(--surface);box-shadow:inset 0 0 0 3px var(--ink);padding:12px;overflow-x:auto}
+.schem svg{display:block;min-width:620px;width:100%;height:auto}
+.schem text{font-family:var(--f-display);font-weight:700;font-size:12px;fill:var(--ink)}
+.schem .s1{fill:var(--shell);stroke:var(--ink);stroke-width:3}
+.schem .s2{fill:var(--bezel);stroke:var(--ink);stroke-width:3}
+.schem .s3{fill:var(--sky);stroke:var(--ink);stroke-width:2}
+.schem .s4{fill:var(--btn);stroke:var(--ink);stroke-width:2}
+.schem .s5{fill:#BC2051;stroke:var(--ink);stroke-width:2}
+.schem .s6{fill:var(--window);stroke:var(--ink);stroke-width:2}
+.schem .lbl{fill:var(--ink)}
+.schem .lt{fill:#F0E9D3}
+.motion{border:3px solid var(--ink);background:var(--surface);overflow-x:auto}
+.motion table{border-collapse:collapse;width:100%;min-width:680px;font-size:14px}
+.motion th,.motion td{text-align:left;vertical-align:top;padding:10px 12px;border-bottom:2px solid var(--deco)}
+.motion th{font-family:var(--f-display);font-weight:700;font-size:13px;background:var(--ink);color:var(--bg)}
+.motion tr:last-child td{border-bottom:0}
+.motion td:first-child{font-family:var(--f-display);font-weight:700;font-size:15px;white-space:nowrap}
+.motion code{white-space:nowrap}
+.play-btn{font-family:var(--f-display);font-weight:700;font-size:12px;background:var(--accent);color:var(--on-accent);border:0;padding:6px 10px;cursor:pointer;box-shadow:0 4px 0 var(--shadow);white-space:nowrap}
+.play-btn:active{transform:translateY(3px);box-shadow:0 1px 0 var(--shadow)}
+.sheet{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:12px}
+.spr{background:var(--sky);box-shadow:inset 0 0 0 3px var(--ink);display:grid;justify-items:center;gap:6px;padding:12px 8px 8px}
+.spr canvas{image-rendering:pixelated;height:64px;width:auto}
+.spr span{font-family:var(--f-display);font-weight:700;font-size:12px;color:var(--hud);text-align:center}
+.genre{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,250px),1fr));gap:12px}
+.g{background:var(--surface);box-shadow:inset 0 0 0 3px var(--ink);padding:12px 14px;display:grid;gap:4px;align-content:start}
+.g b{font-family:var(--f-display);font-weight:700;font-size:15px}
+.g p{font-size:14px}
+.note{border-left:0;background:var(--surface);box-shadow:inset 0 0 0 3px var(--accent);padding:14px 16px;font-size:15px;max-width:72ch}
+.changes{margin:0;padding-left:20px;display:grid;gap:6px;max-width:72ch}
+
+@media (max-width:860px){
+  .device{grid-template-columns:minmax(0,1fr);padding:14px 12px 24px;gap:12px}
+  .device{grid-template-columns:auto minmax(0,1fr);grid-template-areas:"mid mid" "left right"}
+  .mid{grid-area:mid}.grip.left{grid-area:left}.grip.right{grid-area:right;justify-items:end}
+  .grip{align-content:center}
+  .grip-label,.grille{display:none}
+  .rocker{width:auto;height:64px;grid-template-columns:72px 72px}
+  .pbtns{grid-auto-flow:column;gap:10px}
+  .pbtn{min-width:76px}
+  .pbtn.flip{min-height:52px}
+  .two{grid-template-columns:minmax(0,1fr)}
+  .screw{display:none}
+}
+@media (max-width:520px){
+  .bezel{padding:8px 8px 6px}
+  .hud{font-size:11px;padding:0 8px}
+  .say{font-size:14px}
+  .portrait{width:48px}.portrait canvas{width:36px;height:36px}
+  .pbtn{min-width:64px;font-size:13px}
+  .rocker{grid-template-columns:52px 52px;height:56px;padding:6px;gap:6px}
+  .pbtns{gap:8px}
+  .pbtn,.pbtn.small{min-width:56px;font-size:12px;letter-spacing:.02em}
+  .pbtn.flip{min-height:48px}
+}
+@media (prefers-reduced-motion: reduce){
+  .card{transition:none}
+  .rocker button,.pbtn{transition:none}
+}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand"><canvas id="logoBlock" width="10" height="10" aria-hidden="true"></canvas>PIXENDO · PIXEL PASS DESIGN LAB</div>
+    <div class="ver">design v2 · 4 Oct 2026 · for Gate 1</div>
+  </header>
+  <div class="hero">
+    <h1>Pixel Pass, built as a platformer level</h1>
+    <p>The carousel is now a side-scrolling level. Badges hang from a row of blocks, a small hero walks to whoever you're looking at, and tapping a badge makes the hero jump and spin it over. A coin pops out of the block every time. The badge was rebuilt on real ID-card proportions, and the handheld got grips, a rocker and proper buttons. Every sprite here was drawn for this project.</p>
+  </div>
+</div>
+
+<div class="wide">
+  <div class="dev-outer">
+    <div class="device stepc" id="device">
+      <i class="screw a"></i><i class="screw b"></i><i class="screw c"></i><i class="screw d"></i>
+      <div class="grip left">
+        <span class="grip-label">MOVE</span>
+        <div class="rocker" role="group" aria-label="Move between players">
+          <button type="button" id="bPrev" aria-label="Previous player">◀</button>
+          <button type="button" id="bNext" aria-label="Next player">▶</button>
+        </div>
+        <div class="grille" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      </div>
+      <div class="mid">
+        <div class="bezel stepc">
+          <div class="screen" id="screen" tabindex="0" aria-label="Member world. Left and right arrows move, Enter flips, O opens the profile.">
+            <div class="play" id="play">
+              <canvas id="bg"></canvas>
+              <div class="cards" id="cards"></div>
+              <canvas id="fg"></canvas>
+              <div class="hud" aria-hidden="true"><span>PIXEL PASS</span><span class="coins"><canvas id="hudCoin" width="6" height="8"></canvas><span id="coinCount">×00</span></span><span id="hudWorld">WORLD ACM</span><span id="hudCount">1/3</span></div>
+            </div>
+            <div class="window">
+              <div class="portrait" aria-hidden="true"><canvas id="pip" width="12" height="12"></canvas></div>
+              <p class="say" id="say" aria-live="polite">Welcome to Member World. Drag or use ◀ ▶ to meet players.</p>
+            </div>
+            <div class="profile" id="profile" hidden></div>
+            <canvas id="iris" hidden></canvas>
+          </div>
+          <div class="bezel-print"><span class="led-wrap"><span class="led" id="led" role="img" aria-label="Online"></span>POWER</span><span>PIXEL PASS · MEMBER WORLD</span></div>
+        </div>
+        <div class="wordmark" aria-hidden="true">PIXENDO</div>
+      </div>
+      <div class="grip right">
+        <span class="grip-label">ACTION</span>
+        <div class="pbtns">
+          <button type="button" class="pbtn flip" id="bFlip">FLIP</button>
+          <button type="button" class="pbtn" id="bOpen">OPEN</button>
+          <button type="button" class="pbtn small" id="bTheme" aria-label="Switch day and night">DAY</button>
+        </div>
+        <div class="grille" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+  <!-- ===== badge anatomy ===== -->
+  <section id="badge">
+    <h2>The badge, part by part</h2>
+    <p class="lede">Real ID cards are 54 × 85.6 mm. The badge uses that shape on a 4px pixel grid: 56 × 88 pixels, shown at 224 × 352. It's built in three layers like a real lanyard ID: the plastic holder, the printed card inside it, and the clear sleeve's glare on top. Stickers sit outside all three so they can overlap the edges.</p>
+    <div class="two">
+      <div class="specimen" id="specimen"><div class="gridov" aria-hidden="true"></div></div>
+      <div style="display:grid;gap:14px">
+        <button type="button" class="tbtn" id="gridBtn" aria-pressed="false">SHOW PIXEL GRID</button>
+        <ol class="parts">
+          <li><span><b>Lanyard, clip and swivel.</b> Woven strap with stitch marks, a two-tone metal clip. It hangs from a block in the level, so the badge swings from a real pivot.</span></li>
+          <li><span><b>Holder.</b> Sage plastic, 3px thick, with a lit top-left edge and a shaded bottom-right so it reads as an object. The bottom lip carries the PIXENDO print.</span></li>
+          <li><span><b>Slot hole.</b> Where the clip passes through, punched out of the holder.</span></li>
+          <li><span><b>Header band.</b> PIXEL PASS emblem block, the wordmark, and the member number. Numbers are given in approval order.</span></li>
+          <li><span><b>Photo window.</b> A tiny level scene behind the member, with corner marks like a character-select screen. An uploaded photo replaces the scene; the generated sprite is the fallback.</span></li>
+          <li><span><b>Department tag.</b> Stamped over the window's corner so it reads at a glance.</span></li>
+          <li><span><b>Name plate.</b> Up to two lines in the pixel face, then the GitHub handle and role.</span></li>
+          <li><span><b>Stats.</b> Real counts only: projects, skills, and the year they joined.</span></li>
+          <li><span><b>Coin line.</b> The divider is a row of tiny coins, not a rule.</span></li>
+          <li><span><b>Item slots.</b> GitHub, LinkedIn and website as inventory slots. An empty slot is dashed, so a missing link looks unfilled, not broken.</span></li>
+          <li><span><b>QR and serial.</b> In the barcode spot. The serial (PXP·number·handle) is printed under it like a card ID.</span></li>
+          <li><span><b>Sleeve glare.</b> Two diagonal stripes that slide as the badge swings.</span></li>
+          <li><span><b>Stickers.</b> Die-cut: white rim, ink outline, a hard shadow. At most three, and their spots come from the username, so a card always looks the same.</span></li>
+        </ol>
+      </div>
+    </div>
+    <p class="lede"><b>Back of the badge (Quest Log):</b> a three-line bio, the first three projects as numbered stages with their language, skills shown as small tags (each skill is a power-up), and VIEW PROFILE. A member with no projects gets a "No quests yet" slot instead of an empty space.</p>
+  </section>
+
+  <!-- ===== device anatomy ===== -->
+  <section id="device-parts">
+    <h2>The handheld, and why it's shaped this way</h2>
+    <p class="lede">It's a wide slab you'd hold with both hands, with the screen in the middle. Movement controls sit on the left grip and actions on the right, so your thumbs stay where they would on a real handheld. On a phone the grips fold into one control row under the screen. The phone already is the handheld, so the shell gets out of the way.</p>
+    <div class="schem" role="img" aria-label="Diagram: desktop handheld with left grip, screen, right grip; phone layout with screen on top and a control row below.">
+      <svg viewBox="0 0 640 250">
+        <text x="10" y="18">DESKTOP · 1024 PX AND UP</text>
+        <rect class="s1" x="10" y="28" width="400" height="200"/>
+        <rect class="s4" x="26" y="92" width="60" height="60"/><text class="lt" x="40" y="127">◀ ▶</text>
+        <text x="26" y="80">MOVE</text>
+        <rect class="s2" x="100" y="40" width="220" height="150"/>
+        <rect class="s3" x="110" y="50" width="200" height="98"/>
+        <rect class="s6" x="110" y="148" width="200" height="28"/>
+        <text x="146" y="104">LEVEL + BADGES</text>
+        <text x="138" y="167">TEXT WINDOW</text>
+        <text x="174" y="212">PIXENDO</text>
+        <rect class="s5" x="334" y="80" width="60" height="30"/><text class="lt" x="347" y="100">FLIP</text>
+        <rect class="s4" x="334" y="118" width="60" height="26"/><text class="lt" x="345" y="136">OPEN</text>
+        <rect class="s4" x="342" y="152" width="44" height="22"/><text class="lt" x="349" y="168">DAY</text>
+        <text x="334" y="70">ACTION</text>
+        <text x="440" y="18">PHONE</text>
+        <rect class="s1" x="440" y="28" width="150" height="214"/>
+        <rect class="s2" x="448" y="36" width="134" height="146"/>
+        <rect class="s3" x="454" y="42" width="122" height="104"/>
+        <rect class="s6" x="454" y="146" width="122" height="30"/>
+        <text x="470" y="98">LEVEL</text>
+        <rect class="s4" x="448" y="194" width="44" height="36"/><text class="lt" x="453" y="217">◀ ▶</text>
+        <rect class="s5" x="498" y="190" width="40" height="40"/><text class="lt" x="501" y="214">FLIP</text>
+        <rect class="s4" x="542" y="194" width="40" height="36"/><text class="lt" x="544" y="217">OPEN</text>
+      </svg>
+    </div>
+    <div class="rules">
+      <div class="rule"><h3>One pixel size everywhere</h3><p>World, sprites and badge all use the same 4px pixel. Mixing pixel sizes (art drawn at 2px next to art at 4px) is what makes pixel UIs look cheap.</p></div>
+      <div class="rule"><h3>Light from the top left</h3><p>Every solid object (shell, buttons, blocks, holder) gets a lit top-left edge and a shaded bottom-right. Flat things like paper, stickers and the card print get none.</p></div>
+      <div class="rule"><h3>Staircase corners</h3><p>Corners are cut in 4px steps: two steps on small parts, four on the shell. No smooth rounded corners anywhere.</p></div>
+      <div class="rule"><h3>Buttons travel 4px</h3><p>Hardware buttons sit on a 6px shadow and drop 4px when pressed, in two frames. It feels like a click, not a fade.</p></div>
+      <div class="rule"><h3>The LED tells the truth</h3><p>Green when the app is online, dark when it's offline. Status lights only show real states.</p></div>
+      <div class="rule"><h3>Screws, grilles, print</h3><p>Small details that cost nothing and make it read as hardware: four screws, two dot grilles, an embossed wordmark.</p></div>
+    </div>
+  </section>
+
+  <!-- ===== motion ===== -->
+  <section id="motion">
+    <h2>Motion, one move at a time</h2>
+    <p class="lede">Two clocks run at once. Sprites animate on a frame clock (8 to 12 frames a second, stepped), so they feel like a real 16-bit game. Physical things like the badge swinging, the flip and the camera run on smooth springs. With reduced motion on, every row falls back to the last column.</p>
+    <div class="motion">
+      <table>
+        <thead><tr><th>Move</th><th>Trigger</th><th>How it moves</th><th>Reduced motion</th><th></th></tr></thead>
+        <tbody>
+          <tr><td>Power on</td><td>First visit per session</td><td>LED blinks 4 times, the screen dissolves in from random pixels (700ms), the hero drops onto the ground</td><td>Screen just appears</td><td><button class="play-btn" data-play="boot">PLAY</button></td></tr>
+          <tr><td>Walk</td><td>Drag, swipe, ◀ ▶, arrow keys</td><td>Camera on a spring (snaps by distance or flick speed); 3 parallax layers (clouds 0.2×, hills 0.5×, ground 1×); hero walks on a 2-frame cycle at 10fps</td><td>Instant jump to the next card</td><td><button class="play-btn" data-play="walk">PLAY</button></td></tr>
+          <tr><td>Swing</td><td>Any camera movement</td><td>Each badge is a pendulum on its clip; its tilt follows the camera's acceleration, with spring 0.09, damping 0.86 and a ±12° cap</td><td>No swing</td><td><button class="play-btn" data-play="swing">PLAY</button></td></tr>
+          <tr><td>Jump + flip</td><td>Tap the badge, FLIP, Enter</td><td>Hero jumps (rises 280ms) and headbutts the badge; the badge spins 180° with overshoot (520ms); the block above bumps 2px; a coin spins out and the counter ticks</td><td>Flip swaps sides instantly; coin still counts</td><td><button class="play-btn" data-play="flip">PLAY</button></td></tr>
+          <tr><td>Open profile</td><td>OPEN, O key, VIEW PROFILE</td><td>Pixel iris closes on the badge (320ms), the profile screen appears, the iris opens (320ms)</td><td>Cut straight to the profile</td><td><button class="play-btn" data-play="open">PLAY</button></td></tr>
+          <tr><td>Glare</td><td>Swing, hover</td><td>Sleeve stripes slide with the tilt</td><td>Static stripes</td><td><button class="play-btn" data-play="swing">PLAY</button></td></tr>
+          <tr><td>Featured twinkle</td><td>Featured members only</td><td>A 4-frame star twinkles on the photo window every 3s</td><td>Static star</td><td><button class="play-btn" data-play="featured">SHOW</button></td></tr>
+          <tr><td>Talk</td><td>Every dialogue line</td><td>Types at about 40 characters a second; a tap finishes it</td><td>Full line at once</td><td>—</td></tr>
+          <tr><td>Card approved</td><td>Member opens their card after approval</td><td>A coin shower (12 coins, 1.2s) and "CARD APPROVED!" in the text window</td><td>Text only</td><td><button class="play-btn" data-play="approved">PLAY</button></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ===== sprites ===== -->
+  <section id="sprites">
+    <h2>Sprite sheet</h2>
+    <p class="lede">All drawn for PIXEL PASS from text maps in code, so they're tiny and switch to night colours on their own. The hero is Pip, PIXENDO's host. It's also the face in the text window.</p>
+    <div class="sheet" id="sheet"></div>
+  </section>
+
+  <!-- ===== genre ===== -->
+  <section id="genre">
+    <h2>The Mario-era style, done our way</h2>
+    <p class="lede">These are the platformer habits that make it feel like that era of games. Each one is used for a real job in the app, not as decoration.</p>
+    <div class="genre">
+      <div class="g"><b>A level you walk through</b><p>Browsing members is walking right through a world, and the camera scrolls like a side-scroller.</p></div>
+      <div class="g"><b>Blocks overhead</b><p>Every badge hangs from its own block. Bump it from below and something comes out.</p></div>
+      <div class="g"><b>Coins and a counter</b><p>Each flip earns a coin. The HUD counter is a quiet record of how many cards you've looked at.</p></div>
+      <div class="g"><b>A hero who jumps</b><p>Pip is how you act on the world. Flipping is a jump, not a button press.</p></div>
+      <div class="g"><b>Warp tube and goal flag</b><p>The tube at the start of the level leads to Explore. The flag at the end says you've met everyone.</p></div>
+      <div class="g"><b>HUD and power-ups</b><p>Coins, world and player count across the top. Skills on the back of the badge are power-ups.</p></div>
+    </div>
+    <p class="note">The line we hold: no Mario, no other Nintendo characters, items, logos, sounds or console designs. Everything here is original and only shares the genre. That keeps the requirement and keeps the project safe to show publicly.</p>
+  </section>
+
+  <section id="changes">
+    <h2>What changes in the repo</h2>
+    <ul class="changes">
+      <li><code>tokens.json</code> gains a world palette for DAY and NIGHT (sky, hills, ground, brick, block, coin, tube). Every text-on-world pair is contrast-checked.</li>
+      <li><code>DESIGN_BRIEF.md</code> gets new sections: the level layout, the badge build at CR80 proportions, the handheld construction rules, the motion catalog and the sprite list.</li>
+      <li>New decisions D-020 to D-024 (platformer world, CR80 badge, grips and rocker, the two-clock motion system, the hero) are added to <code>DECISIONS.md</code>.</li>
+      <li>Phase 1 now also builds <code>World</code> (canvas layers), <code>Hero</code>, <code>sprites.ts</code> and <code>useSwingPhysics</code>. The carousel still renders only the current card and two on each side.</li>
+    </ul>
+  </section>
+</div>
+
+<script>
+(function(){
+'use strict';
+var P = 4;                                   // the pixel unit (CSS px)
+var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+var QR_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 31 31" shape-rendering="crispEdges"><path fill="#FFFFFF" d="M0 0h31v31H0z"/><path stroke="#111111" d="M1 1.5h7m3 0h2m1 0h3m1 0h4m1 0h7M1 2.5h1m5 0h1m2 0h2m1 0h5m3 0h1m1 0h1m5 0h1M1 3.5h1m1 0h3m1 0h1m1 0h4m1 0h1m1 0h1m4 0h1m1 0h1m1 0h3m1 0h1M1 4.5h1m1 0h3m1 0h1m1 0h2m2 0h1m1 0h2m1 0h1m4 0h1m1 0h3m1 0h1M1 5.5h1m1 0h3m1 0h1m1 0h1m1 0h1m4 0h2m1 0h3m1 0h1m1 0h3m1 0h1M1 6.5h1m5 0h1m1 0h4m5 0h2m1 0h1m1 0h1m5 0h1M1 7.5h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7M9 8.5h2m4 0h1m1 0h1m1 0h1m1 0h1M1 9.5h1m1 0h5m3 0h3m4 0h1m1 0h1m2 0h5M3 10.5h2m1 0h1m2 0h4m1 0h3m2 0h3m1 0h3m3 0h1M4 11.5h2m1 0h2m1 0h7m4 0h2m1 0h2M1 12.5h1m1 0h2m3 0h1m1 0h5m2 0h1m2 0h3m1 0h1m1 0h1m1 0h1M3 13.5h1m1 0h3m1 0h1m1 0h1m3 0h4m1 0h1m5 0h2M1 14.5h1m1 0h1m4 0h2m3 0h1m3 0h1m2 0h1m1 0h4m3 0h1M1 15.5h1m2 0h1m1 0h4m1 0h1m4 0h4m1 0h1m1 0h5M2 16.5h2m1 0h1m3 0h1m1 0h1m3 0h1m3 0h4m2 0h1m2 0h1M1 17.5h1m1 0h2m2 0h1m1 0h1m1 0h3m2 0h4m6 0h2M1 18.5h2m1 0h1m1 0h1m2 0h1m3 0h3m1 0h9m1 0h1m1 0h1M1 19.5h1m2 0h2m1 0h3m2 0h7m6 0h1m1 0h1M1 20.5h1m1 0h3m2 0h3m2 0h2m5 0h1m7 0h1M1 21.5h1m2 0h4m4 0h1m2 0h2m1 0h1m2 0h5m1 0h3M9 22.5h3m1 0h1m3 0h5m3 0h5M1 23.5h7m3 0h3m2 0h2m2 0h2m1 0h1m1 0h3M1 24.5h1m5 0h1m1 0h4m2 0h3m2 0h2m3 0h1m2 0h2M1 25.5h1m1 0h3m1 0h1m1 0h1m1 0h3m4 0h1m2 0h5m1 0h2M1 26.5h1m1 0h3m1 0h1m1 0h1m5 0h1m4 0h3m1 0h1m1 0h4M1 27.5h1m1 0h3m1 0h1m1 0h2m1 0h2m2 0h1m3 0h9M1 28.5h1m5 0h1m2 0h3m8 0h1m1 0h4m1 0h1M1 29.5h7m1 0h1m3 0h3m2 0h1m1 0h1m1 0h4m1 0h1"/></svg>';
+function css(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+
+/* ---------------------------------------------------------------- sprites (text maps, original) */
+var SPR = {
+  pipIdle: ['.....kk.....','......k.....','....kkkk....','...kwwwwk...','..kwwwwwwk..','..kwkwwkwk..','..kwwwwwwk..','..kwwrrwwk..','...kwwwwk...','....kkkk....','...kvk.kvk..','...kk...kk..'],
+  pipWalk:['.....kk.....','......k.....','....kkkk....','...kwwwwk...','..kwwwwwwk..','..kwwkwwkk..','..kwwwwwwk..','..kwwwrrwk..','...kwwwwk...','....kkkk....','....kvvk....','....kkkk....'],
+  pipJump:['.....kk.....','.....k......','....kkkk....','.k.kwwwwk.k.','.kkwwwwwwkk.','..kwkwwkwk..','..kwwwwwwk..','..kwwrrwwk..','...kwwwwk...','....kkkk....','..kvk..kvk..','..kk....kk..'],
+  coin0:['..kkkk..','.kyyyyk.','kyyhhyyk','kyhyyyyk','kyhyydyk','kyhyydyk','kyyyydyk','kyydddyk','.kyyyyk.','..kkkk..'],
+  coin1:['...kk...','..kyyk..','..kyhk..','..kyhk..','..kyhk..','..kyhk..','..kydk..','..kydk..','..kyyk..','...kk...'],
+  coin2:['...kk...','...kk...','...kk...','...kk...','...kk...','...kk...','...kk...','...kk...','...kk...','...kk...'],
+  block:['kkkkkkkkkk','khhhhhhhbk','khbbbbbbsk','khbkkkbbsk','khbkbbkbsk','khbkkkbbsk','khbkbbbbsk','khbkbbbbsk','kbssssssssk'.slice(0,10),'kkkkkkkkkk'],
+  used: ['kkkkkkkkkk','kuuuuuuuuk','kuuuuuuuuk','kuuuuuuuuk','kuuuuuuuuk','kuuuuuuuuk','kuuuuuuuuk','kuuuuuuuuk','kuuuuuuuuk','kkkkkkkkkk'],
+  brick:['mmmmmmmmmm','rrrrHmrrrr','rrrrrmrrrr','rrrrrmrrrr','mmmmmmmmmm','rrmrrrrHrr','rrmrrrrrrr','rrmrrrrrrr','rrmrrrrrrr','mmmmmmmmmm'],
+  ground:['gggggggggg','gGgggggGgg','GGgGGGGGgG','dddddddddd','ddDddddddd','dddddddDdd','dddddddddd','dDdddddddd','ddddddDddd','dddddddddd','ddddDddddd','dddddddddd'],
+  cloud:['......wwww..........','....wwwwwwww..ww....','..wwwwwwwwwwwwwwww..','.wwwwwwwwwwwwwwwwww.','wwwwwwwwwwwwwwwwwwww','wwwwwwwwwwwwwwwwwwww','.cccccccccccccccccc.'],
+  bush:['....bbbb......','..bbbbbbbb.bb.','.bbBbbbbbbbbbb','bbbbbbbBbbbbbb','bbbbbbbbbbbbbb'],
+  tube:['kkkkkkkkkkkkkk','kRRHRRRRRRRRRk','kRRHRRRRRRRRRk','kkkkkkkkkkkkkk','.kTTHTTTTTTTk.','.kTTHTTTTTTTk.','.kTTHTTTTTTTk.','.kTTHTTTTTTTk.','.kTTHTTTTTTTk.','.kTTHTTTTTTTk.','.kTTHTTTTTTTk.','.kTTHTTTTTTTk.','.kTTHTTTTTTTk.','.kTTHTTTTTTTk.'],
+  star0:['..y..','..y..','yyyyy','..y..','..y..'],
+  star1:['.....','..y..','.yyy.','..y..','.....'],
+  heart:['.kk.kk.','krrkrrk','krrrrrk','.krrrk.','..krk..','...k...'],
+  clip:['..kkkkkk..','.kMMMMMMk.','kMHkkkkMMk','kMk....kMk'],
+  flower:['.w.','wyw','.w.'],
+  grass:['g.g','ggg','...'],
+  iconCode:['.....','.k.k.','k...k','.k.k.','.....'],
+  iconCase:['.kkk.','kkkkk','k.k.k','kkkkk','.....'],
+  iconGlobe:['.kkk.','kk.kk','kkkkk','kk.kk','.kkk.'],
+  emblem:['kkkkkkkkkk','khhhhhhhbk','khbbbbbbsk','khbkkkbbsk','khbkbbkbsk','khbkkkbbsk','khbkbbbbsk','khbkbbbbsk','kbsssssssk','kkkkkkkkkk']
+};
+SPR.block[8]='kbsssssssk';
+function pal(){
+  return { k:'#252425', w:'#F0E9D3', r:'#BC2051', v:'#4E475D', y:css('--coin'), d:css('--coin-shade'), h:'#FFF3B8',
+    b:css('--block'), s:css('--block-shade'), u:css('--used'), m:css('--mortar'), H:css('--block-hi'),
+    g:css('--grass'), G:css('--grass-dark'), D:css('--dirt-dark'), c:css('--cloud-shade'),
+    B:css('--hill-dark'), R:css('--rim'), T:css('--tube'), M:'#BCB0A2' };
+}
+function palFixed(){ // badge sprites: same in both worlds
+  return { k:'#252425', w:'#FFFFFF', y:'#F7C948', d:'#C98A1E', h:'#FFF3B8', b:'#F0B23A', s:'#B8741C', H:'#FFE08A', g:'#6CBF4A', M:'#BCB0A2' };
+}
+function draw(ctx, map, p, x, y, flip, override){
+  for (var j=0;j<map.length;j++){ var row=map[j];
+    for (var i=0;i<row.length;i++){ var ch=row[i]; if(ch==='.')continue;
+      var col = (override && override[ch]) || p[ch]; if(!col) continue;
+      ctx.fillStyle=col; ctx.fillRect(x+(flip?row.length-1-i:i), y+j, 1, 1);
+    }}
+}
+function spriteCanvas(map, p, override){
+  var c=document.createElement('canvas'); c.width=map[0].length; c.height=map.length;
+  draw(c.getContext('2d'), map, p, 0, 0, false, override); return c;
+}
+
+/* generated member avatar: symmetric 10x10 from the handle */
+function avatarCanvas(handle){
+  var c=document.createElement('canvas'); c.width=10; c.height=10; var x=c.getContext('2d');
+  var h=2166136261; for (var i=0;i<handle.length;i++){ h^=handle.charCodeAt(i); h=Math.imul(h,16777619)>>>0; }
+  function rnd(){ h^=h<<13; h>>>=0; h^=h>>>17; h^=h<<5; h>>>=0; return h/4294967296; }
+  var body=['#BC2051','#4B656B','#9A653F','#4E475D','#E86537'][h%5];
+  var cells=[];
+  for (var y=1;y<9;y++) for (var col=1;col<5;col++){ if (rnd()<(y<3?0.42:y>6?0.62:0.58)) cells.push([col,y]); }
+  // outline pass then fill, so sprites read on any background
+  x.fillStyle='#252425'; cells.forEach(function(q){ x.fillRect(q[0],q[1],1,1); x.fillRect(9-q[0],q[1],1,1); });
+  x.fillStyle=body; cells.forEach(function(q){ if(q[1]>=4){ x.fillRect(q[0],q[1],1,1); x.fillRect(9-q[0],q[1],1,1);} });
+  x.fillStyle='#FFFFFF'; x.fillRect(3,4,1,1); x.fillRect(6,4,1,1);
+  return c;
+}
+function seedOf(s){ var h=7; for (var i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))>>>0; return h; }
+
+/* ---------------------------------------------------------------- data (Ian's card is real; samples are labelled) */
+var CARDS = [
+  { no:1, name:'IAN PATRICK FLORES', handle:'muj-csv', dept:'BSCS-2A', role:'ACM · AUF · team lead on hackathon builds',
+    bio:'Builds student tools with an AI layer. Civic tech, and PWAs that students actually open.',
+    projects:[{t:'AGAPAI',d:'Taglish voice to emergency dispatch',l:'voice · AI'},{t:'TESSERA',d:'Private photo album, justified mosaic',l:'Next.js'},{t:'DODOTASK',d:'Canvas LMS + Gmail + Gemini',l:'PWA'}],
+    skills:['Next.js','PWA','PostGIS','IndexedDB','Gemini'], links:{gh:true,li:false,web:false}, since:2026,
+    stickers:[['✓ GITHUB','s-gold'],['PWA','s-ember'],['TEAM LEAD','s-wood']], featured:false },
+  { no:2, name:'SAMPLE PLAYER', handle:'sample-two', dept:'SAMPLE', role:'Layout test card · not a real member',
+    bio:'This card only exists to test the carousel. It shows the featured star.',
+    projects:[{t:'SAMPLE QUEST',d:'Placeholder project for layout',l:'—'}], skills:['Sample'], links:{gh:true,li:true,web:true}, since:2026,
+    stickers:[['FEATURED','s-gold']], featured:true },
+  { no:3, name:'SAMPLE PLAYER WITH A LONG NAME', handle:'sample-three', dept:'SAMPLE', role:'Layout test card · no projects yet',
+    bio:'Tests a two-line name and an empty Quest Log.', projects:[], skills:[], links:{gh:false,li:false,web:false}, since:2026,
+    stickers:[], featured:false }
+];
+
+/* ---------------------------------------------------------------- badge builder (DOM) */
+function el(tag, cls, html){ var e=document.createElement(tag); if(cls) e.className=cls; if(html!=null) e.innerHTML=html; return e; }
+function esc(s){ return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+function badgeSceneCanvas(){
+  var c=document.createElement('canvas'); c.width=52; c.height=24; var x=c.getContext('2d');
+  x.fillStyle='#8CC8F0'; x.fillRect(0,0,52,24);
+  x.fillStyle='#FFFFFF'; [[4,3,8],[6,2,4],[36,5,10],[38,4,5]].forEach(function(q){ x.fillRect(q[0],q[1],q[2],2); });
+  x.fillStyle='#5DA55A'; for (var i=-12;i<=12;i++){ var hh=Math.round(Math.sqrt(144-i*i)*0.8); x.fillRect(40+i,21-hh,1,hh); }
+  x.fillStyle='#3F7E46'; [[38,13],[42,16],[36,17]].forEach(function(q){ x.fillRect(q[0],q[1],1,1); });
+  x.fillStyle='#6CBF4A'; x.fillRect(0,20,52,1); x.fillStyle='#B86A3C'; x.fillRect(0,21,52,3);
+  return c;
+}
+function buildBadge(d, opts){
+  opts=opts||{};
+  var slot=el('div','slot'); slot.dataset.no=d.no;
+  var strap=el('span','strap'); slot.appendChild(strap);
+  var clip=el('span','clip'); clip.appendChild(spriteCanvas(SPR.clip,{k:'#252425',M:'#BCB0A2',H:'#E8E7E2'})); slot.appendChild(clip);
+  var flipper=el('div','flipper'); slot.appendChild(flipper);
+  var card=el('button','card'); card.type='button'; card.setAttribute('aria-pressed','false');
+  card.setAttribute('aria-label','Pixel Pass of '+d.name.toLowerCase()+'. Press to flip.');
+  flipper.appendChild(card);
+  var pf=palFixed();
+  // FRONT
+  var front=el('div','face front'), holder=el('div','holder step8'); front.appendChild(holder);
+  holder.appendChild(el('span','hole'));
+  holder.appendChild(el('span','holder-print','PIXENDO'));
+  [['top:6px;left:6px','flower'],['top:6px;right:6px','flower'],['bottom:6px;left:8px','grass'],['top:48%;right:0px','flower']].forEach(function(q){
+    var dc=spriteCanvas(SPR[q[1]],{w:'#FFFFFF',y:'#E1B675',g:'#B7CFC6'}); dc.className='doodle'; dc.style.cssText=q[0]; dc.setAttribute('aria-hidden','true'); holder.appendChild(dc); });
+  var ins=el('div','insert'); holder.appendChild(ins);
+  var band=el('div','band'); var em=spriteCanvas(SPR.emblem,pf); em.className='emblem'; band.appendChild(em);
+  band.appendChild(el('b',null,'PIXEL PASS')); band.appendChild(el('span','no','No.'+String(d.no).padStart(3,'0'))); ins.appendChild(band);
+  var inner=el('div','inner'); ins.appendChild(inner);
+  var win=el('div','window-photo'); var sc=badgeSceneCanvas(); sc.className='scene'; win.appendChild(sc);
+  var av=avatarCanvas(d.handle); av.className='av'; av.setAttribute('role','img'); av.setAttribute('aria-label','Generated avatar for '+d.name.toLowerCase()); win.appendChild(av);
+  ['tl','tr','bl','br'].forEach(function(k){ win.appendChild(el('i','corner '+k)); });
+  win.appendChild(el('span','dept',esc(d.dept)));
+  if (d.featured){ var st=spriteCanvas(SPR.star0,{y:'#F7C948'}); st.className='star-badge twinkle'; st.setAttribute('aria-label','Featured'); st.setAttribute('role','img'); win.appendChild(st); }
+  inner.appendChild(win);
+  var idb=el('div'); idb.appendChild(el('div','nm',esc(d.name))); idb.appendChild(el('div','hd','@'+esc(d.handle))); idb.appendChild(el('div','rl',esc(d.role))); inner.appendChild(idb);
+  var stats=el('div','stats'); [['PRJ',d.projects.length],['SKL',d.skills.length],['SINCE',String(d.since).slice(2)]].forEach(function(s){ stats.appendChild(el('div','stat',s[0]+'<span>'+s[1]+'</span>')); }); inner.appendChild(stats);
+  inner.appendChild(el('div','coinline'));
+  var foot=el('div','foot'), slots=el('div','slots');
+  [['gh','iconCode','GitHub'],['li','iconCase','LinkedIn'],['web','iconGlobe','Website']].forEach(function(s){
+    var on=d.links[s[0]]; var b=el('span','islot'+(on?'':' empty')); b.title=s[2]+(on?'':' not added');
+    var ic=spriteCanvas(SPR[s[1]],{k:'#252425'}); b.appendChild(ic); slots.appendChild(b); });
+  foot.appendChild(slots);
+  var qb=el('div','qrbox'); var qr=el('div','qr'); qr.innerHTML=QR_SVG; qb.appendChild(qr);
+  qb.appendChild(el('span','serial','PXP·'+String(d.no).padStart(3,'0')+'·'+d.handle.slice(0,3).toUpperCase())); foot.appendChild(qb);
+  inner.appendChild(foot);
+  var gl=el('div','glare'); gl.appendChild(el('i')); gl.appendChild(el('i')); ins.appendChild(gl);
+  // stickers: deterministic spots from the handle
+  var spots=[['top:116px;left:-12px',-8],['top:196px;right:-14px',7],['bottom:-6px;left:24px',-4],['top:40px;right:-10px',6]];
+  var sd=seedOf(d.handle);
+  d.stickers.forEach(function(s,i){ var sp=spots[(sd+i)%spots.length]; var k=el('span','sticker '+s[1],esc(s[0])); k.style.cssText=sp[0]+';transform:rotate('+sp[1]+'deg)'; front.appendChild(k); });
+  card.appendChild(front);
+  // BACK
+  var back=el('div','face back'), hb=el('div','holder step8'); back.appendChild(hb);
+  hb.appendChild(el('span','hole')); hb.appendChild(el('span','holder-print','PIXENDO'));
+  var ib=el('div','insert'); hb.appendChild(ib);
+  var bb=el('div','band'); var em2=spriteCanvas(SPR.emblem,pf); em2.className='emblem'; bb.appendChild(em2); bb.appendChild(el('b',null,'QUEST LOG')); bb.appendChild(el('span','no',d.projects.length+'/6')); ib.appendChild(bb);
+  var bi=el('div','inner'); ib.appendChild(bi);
+  bi.appendChild(el('p','b-bio',esc(d.bio)));
+  var qs=el('div','quests');
+  if (!d.projects.length) qs.appendChild(el('div','quest none','No quests yet'));
+  d.projects.slice(0,3).forEach(function(p,i){ qs.appendChild(el('div','quest','<span class="n">'+String(i+1).padStart(2,'0')+'</span><span><b>'+esc(p.t)+'</b><span>'+esc(p.d)+' · '+esc(p.l)+'</span></span>')); });
+  bi.appendChild(qs);
+  if (d.skills.length){ var pu=el('div','pups'); d.skills.forEach(function(s){ pu.appendChild(el('span','pup','★ '+esc(s))); }); bi.appendChild(pu); }
+  bi.appendChild(el('div','cta','VIEW PROFILE ▸'));
+  var gl2=el('div','glare'); gl2.appendChild(el('i')); gl2.appendChild(el('i')); ib.appendChild(gl2);
+  card.appendChild(back);
+  return slot;
+}
+
+/* ---------------------------------------------------------------- the device */
+var screen=document.getElementById('screen'), play=document.getElementById('play');
+var bg=document.getElementById('bg'), fg=document.getElementById('fg');
+var bctx=bg.getContext('2d'), fctx=fg.getContext('2d');
+var cardsEl=document.getElementById('cards'), say=document.getElementById('say');
+var irisC=document.getElementById('iris'), ictx=irisC.getContext('2d'), profile=document.getElementById('profile');
+var W=0, H=144, SL=66;           // logical (pixel-unit) sizes; SL = slot spacing
+var slots=[], swing=[];
+var state={ idx:0, cam:0, camV:0, prevV:0, drag:false, sx:0, scam:0, lx:0, lt:0, flick:0, moved:false,
+  coins:0, mode:'level', bump:[], coinsFx:[], hero:{x:0,y:0,vy:0,face:1,frame:0,t:0,air:false,hit:false}, t:0, boot:null, iris:null, shower:null };
+var GROUND=132, CEIL=10;
+
+CARDS.forEach(function(d,i){
+  var s=buildBadge(d); cardsEl.appendChild(s); slots.push(s); swing.push({a:0,v:0}); state.bump.push(0);
+  var c=s.querySelector('.card');
+  c.addEventListener('click',function(e){ if(state.moved){ e.preventDefault(); return; } if(i!==state.idx){ go(i); } else { doFlip(); } });
+  s.querySelector('.cta').addEventListener('click',function(e){ e.stopPropagation(); openProfile(); });
+});
+state.hero.x = 0;
+
+function resize(){
+  var r=play.getBoundingClientRect();
+  W=Math.max(60,Math.round(r.width/P));
+  [bg,fg].forEach(function(c){ c.width=W; c.height=H; });
+  irisC.width=Math.round(screen.clientWidth/P); irisC.height=Math.round(screen.clientHeight/P);
+}
+window.addEventListener('resize',resize); resize();
+
+/* speak with typewriter */
+var typing=null;
+function speak(t){ if(typing) clearInterval(typing); if(reduce){ say.textContent=t; return; } var i=0; say.textContent=''; typing=setInterval(function(){ i+=2; say.textContent=t.slice(0,i); if(i>=t.length){ clearInterval(typing); typing=null; } },40); }
+say.parentNode.addEventListener('click',function(){ if(typing){ clearInterval(typing); typing=null; } });
+
+function go(i){
+  i=Math.max(0,Math.min(CARDS.length-1,i));
+  if (i===state.idx && !state.drag){ state.camV += (i===0?-1.5:1.5); }
+  state.idx=i; if(reduce){ state.cam=i*SL; state.camV=0; }
+  document.getElementById('hudCount').textContent=(i+1)+'/'+CARDS.length;
+  var d=CARDS[i];
+  speak(i===CARDS.length-1 ? 'Last player in this world. The flag means you met everyone.' : (d.name.indexOf('SAMPLE')===0 ? 'Sample card for testing the layout.' : 'Player '+d.no+': '+d.name.toLowerCase().replace(/\b\w/g,function(m){return m.toUpperCase();})+'. Tap to flip.'));
+}
+function doFlip(){
+  var h=state.hero; var c=slots[state.idx].querySelector('.card');
+  if (reduce || state.mode!=='level'){ toggle(c); addCoin(state.idx); return; }
+  if (h.air) return;
+  h.vy=-3.1; h.air=true; h.hit=false;
+}
+function toggle(c){ var on=c.getAttribute('aria-pressed')!=='true'; c.setAttribute('aria-pressed',on?'true':'false');
+  speak(on?'Quest log: the first three projects. OPEN shows everything.':'Front side. The QR opens this player’s page.'); }
+function addCoin(i){
+  state.coins++; document.getElementById('coinCount').textContent='×'+String(state.coins).padStart(2,'0');
+  if(!reduce){ state.bump[i]=6; state.coinsFx.push({x:i*SL, y:CEIL-2, vy:-2.6, t:0}); }
+}
+
+/* drag + keys */
+screen.addEventListener('pointerdown',function(e){ if(state.mode!=='level'||e.button>0) return; state.drag=true; state.moved=false; state.sx=e.clientX; state.scam=state.cam; state.lx=e.clientX; state.lt=performance.now(); state.flick=0; });
+window.addEventListener('pointermove',function(e){ if(!state.drag) return; var dx=e.clientX-state.sx; if(Math.abs(dx)>6) state.moved=true;
+  if(state.moved){ var now=performance.now(); var nc=state.scam-dx/P; var minC=-SL*0.4, maxC=(CARDS.length-1+0.4)*SL; if(nc<minC) nc=minC+(nc-minC)*0.3; if(nc>maxC) nc=maxC+(nc-maxC)*0.3;
+    state.camV=nc-state.cam; state.cam=nc; state.flick=(e.clientX-state.lx)/Math.max(1,now-state.lt); state.lx=e.clientX; state.lt=now; } });
+window.addEventListener('pointerup',function(){ if(!state.drag) return; state.drag=false;
+  if(state.moved){ var target=Math.round(state.cam/SL); if(Math.abs(state.flick)>0.5) target=state.idx+(state.flick<0?1:-1); go(target); }
+  setTimeout(function(){ state.moved=false; },0); });
+screen.addEventListener('keydown',function(e){
+  if(state.mode==='profile'){ if(e.key==='Escape'||e.key==='Backspace'){ closeProfile(); e.preventDefault(); } return; }
+  if(e.key==='ArrowRight'){ go(state.idx+1); e.preventDefault(); }
+  else if(e.key==='ArrowLeft'){ go(state.idx-1); e.preventDefault(); }
+  else if(e.key==='Enter'||e.key===' '){ if(e.target===screen){ doFlip(); e.preventDefault(); } }
+  else if(e.key==='o'||e.key==='O'){ openProfile(); }
+});
+document.getElementById('bPrev').addEventListener('click',function(){ go(state.idx-1); });
+document.getElementById('bNext').addEventListener('click',function(){ go(state.idx+1); });
+document.getElementById('bFlip').addEventListener('click',function(){ if(state.mode==='profile') return; doFlip(); });
+document.getElementById('bOpen').addEventListener('click',function(){ state.mode==='profile'?closeProfile():openProfile(); });
+var bTheme=document.getElementById('bTheme');
+function themeLabel(){ var t=document.documentElement.getAttribute('data-theme'); var dark= t==='dark' || (!t && matchMedia('(prefers-color-scheme: dark)').matches); bTheme.textContent=dark?'NIGHT':'DAY'; return dark; }
+bTheme.addEventListener('click',function(){ var dark=themeLabel(); document.documentElement.setAttribute('data-theme',dark?'light':'dark'); themeLabel(); refreshSprites(); speak(dark?'Day world.':'Night world. The badges stay lit.'); });
+themeLabel();
+
+/* profile + iris */
+function openProfile(){
+  if(state.mode==='profile') return; var d=CARDS[state.idx];
+  var html='<button type="button" class="pbtn small back-btn" id="pBack">◀ BACK</button><h3>'+esc(d.name)+'</h3><div class="meta">@'+esc(d.handle)+' · '+esc(d.dept)+'</div><p>'+esc(d.bio)+'</p>';
+  html+= d.projects.length ? '<ol>'+d.projects.map(function(p,i){return '<li><b>'+String(i+1).padStart(2,'0')+' '+esc(p.t)+'</b><br>'+esc(p.d)+' · '+esc(p.l)+'</li>';}).join('')+'</ol>' : '<p>No quests yet.</p>';
+  var swap=function(){ profile.innerHTML=html; profile.hidden=false; state.mode='profile'; document.getElementById('pBack').addEventListener('click',closeProfile); document.getElementById('pBack').focus(); };
+  irisRun(swap); speak('Profile page. This is where the QR leads. BACK or Esc returns.');
+}
+function closeProfile(){ irisRun(function(){ profile.hidden=true; state.mode='level'; screen.focus(); }); speak('Back in Member World.'); }
+function irisRun(mid){
+  if(reduce){ mid(); return; }
+  irisC.hidden=false; resize(); state.iris={t:0,mid:mid,done:false};
+}
+
+/* boot */
+function boot(){
+  if(reduce){ return; }
+  var led=document.getElementById('led'); led.classList.remove('blink'); void led.offsetWidth; led.classList.add('blink');
+  irisC.hidden=false; resize(); var n=Math.ceil(irisC.width/2)*Math.ceil(irisC.height/2); var order=[]; for(var i=0;i<n;i++) order.push(i);
+  for(var j=n-1;j>0;j--){ var r=Math.floor(Math.random()*(j+1)); var t=order[j]; order[j]=order[r]; order[r]=t; }
+  state.boot={t:0,order:order}; state.hero.y=-60; state.hero.vy=0; state.hero.air=true; state.hero.hit=true;
+}
+
+/* coin shower (approval) */
+function shower(){ if(reduce){ speak('CARD APPROVED! It is in the public collection now.'); return; } state.shower=[]; for(var i=0;i<12;i++) state.shower.push({x:state.cam - W/2 + Math.random()*W, y:-10-Math.random()*40, vy:0.6+Math.random()*0.8, f:Math.floor(Math.random()*4)}); speak('CARD APPROVED! It is in the public collection now.'); }
+
+/* ---------------------------------------------------------------- sprites cache per theme */
+var cache={};
+function refreshSprites(){
+  var p=pal(); cache={};
+  ['pipIdle','pipWalk','pipJump','coin0','coin1','coin2','block','used','brick','ground','cloud','bush','tube','star0','star1'].forEach(function(k){
+    var over=null; if(k==='cloud') over={w:css('--cloud')}; if(k==='bush') over={b:css('--bush'),B:css('--hill-dark')}; if(k==='brick') over={r:css('--brick'),m:css('--mortar'),H:css('--block-hi')}; if(k==='ground') over={d:css('--dirt')}; if(k==='tube') over={H:css('--tube-hi')}; if(k==='star0'||k==='star1') over={y:css('--star')};
+    cache[k]=spriteCanvas(SPR[k],p,over); });
+  var pc=document.getElementById('pip'); var px=pc.getContext('2d'); px.clearRect(0,0,12,12); draw(px,SPR.pipIdle,p,0,0);
+  var hc=document.getElementById('hudCoin').getContext('2d'); hc.clearRect(0,0,6,8); draw(hc,SPR.coin0.map(function(r){return r.slice(1,7);}).slice(1,9),p,0,0);
+  var lb=document.getElementById('logoBlock').getContext('2d'); lb.clearRect(0,0,10,10); draw(lb,SPR.block,palFixed(),0,0);
+  buildSheet();
+}
+
+/* ---------------------------------------------------------------- render loop */
+function hillsLayer(ctx, cam, factor, baseY, col, dark, spacing, R){
+  var off=-((cam*factor)%spacing);
+  for (var hx=off-spacing; hx<W+spacing; hx+=spacing){
+    var cx=Math.round(hx+spacing/2);
+    ctx.fillStyle=col;
+    for (var i=-R;i<=R;i++){ var hh=Math.round(Math.sqrt(R*R-i*i)*0.7); ctx.fillRect(cx+i,baseY-hh,1,hh); }
+    ctx.fillStyle=dark; [[-6,-8],[4,-12],[10,-5],[-12,-4]].forEach(function(q){ if(Math.abs(q[0])<R-2) ctx.fillRect(cx+q[0],baseY+q[1],1,2); });
+  }
+}
+function frame(now){
+  var dt=Math.min(2.5,(now-(state.last||now))/16.67); state.last=now; state.t+=dt;
+  var night=bTheme.textContent==='NIGHT';
+  // camera spring
+  if(!state.drag){ var target=state.idx*SL; var acc=(target-state.cam)*0.11 - state.camV*0.34; state.camV+=acc*dt; state.cam+=state.camV*dt; if(Math.abs(target-state.cam)<0.02&&Math.abs(state.camV)<0.02){ state.cam=target; state.camV=0; } }
+  var camAcc=(state.camV-state.prevV)/Math.max(dt,0.01); state.prevV=state.camV;
+  var cx=state.cam, half=W/2;
+  // ---- background
+  bctx.fillStyle=css('--sky'); bctx.fillRect(0,0,W,H);
+  bctx.fillStyle=css('--sky-band'); for (var y=86;y<100;y+=2) for (var x=((y/2)%2);x<W;x+=2) bctx.fillRect(x,y,1,1);
+  bctx.fillRect(0,100,W,40);
+  if(night){ bctx.fillStyle=css('--star'); for(var s=0;s<26;s++){ var sx=((s*37+11)%(W+40)) - ((cx*0.1)%(W+40)); if(sx<0) sx+=W+40; var sy=(s*23)%60+12; if(((state.t/30+s)|0)%7!==0) bctx.fillRect(Math.round(sx),sy,1,1); } }
+  // clouds 0.2x
+  var cl=cache.cloud; for (var k=0;k<4;k++){ var px2=((k*70+20) - cx*0.2)%(W+60); if(px2<-30) px2+=W+60; bctx.drawImage(cl,Math.round(px2-20),18+(k%2)*12); }
+  hillsLayer(bctx,cx,0.5,GROUND,css('--hill'),css('--hill-dark'),110,26);
+  // bushes 0.8x
+  for (var b2=0;b2<6;b2++){ var bx=((b2*53+7)-cx*0.8)%(W+40); if(bx<-20) bx+=W+40; bctx.drawImage(cache.bush,Math.round(bx-10),GROUND-5); }
+  // world objects at 1x
+  function wx(x){ return Math.round(x-cx+half); }
+  // warp tube before the first slot, goal flag after the last
+  bctx.drawImage(cache.tube, wx(-SL*0.85)-7, GROUND-14);
+  var fx2=wx((CARDS.length-1)*SL+SL*0.8); bctx.fillStyle='#252425'; bctx.fillRect(fx2,GROUND-44,1,44); bctx.fillRect(fx2-1,GROUND-46,3,2);
+  bctx.fillStyle='#BC2051'; for (var fr=0;fr<9;fr++) bctx.fillRect(fx2+1,GROUND-43+fr,9-fr,1);
+  bctx.fillStyle='#FFFFFF'; bctx.fillRect(fx2+3,GROUND-40,2,2);
+  // ceiling row of bricks + one item block per slot
+  for (var t=Math.floor((cx-half)/10)-1; t<Math.ceil((cx+half)/10)+1; t++){ bctx.drawImage(cache.brick, Math.round(t*10-cx+half), CEIL); }
+  for (var i=0;i<CARDS.length;i++){ var bump=state.bump[i]>0?-2:0; if(state.bump[i]>0) state.bump[i]-=dt; var flipped=slots[i].querySelector('.card').getAttribute('aria-pressed')==='true';
+    bctx.drawImage(flipped?cache.used:cache.block, wx(i*SL)-5, CEIL+bump); }
+  // ---- cards (DOM)
+  var scrW=play.clientWidth;
+  for (var n=0;n<slots.length;n++){
+    var sw=swing[n];
+    if(!reduce){ var a=-sw.a*0.09 - sw.v*0.14 + (-camAcc)*0.9; sw.v+=a*dt; sw.v*=Math.pow(0.86,dt); sw.a+=sw.v*dt; sw.a=Math.max(-12,Math.min(12,sw.a)); } else { sw.a=0; }
+    var dist=Math.abs(n*SL-cx)/SL; var sc=1-0.16*Math.min(dist,1.4);
+    var xpx=(n*SL-cx)*P + scrW/2 - 28*P;
+    slots[n].style.transform='translate3d('+xpx.toFixed(1)+'px,0,0) rotate('+sw.a.toFixed(2)+'deg) scale('+sc.toFixed(3)+')';
+    slots[n].style.zIndex=String(100-Math.round(dist*10));
+    slots[n].style.opacity=String(1-0.12*Math.min(dist,2));
+    var g=slots[n].querySelectorAll('.glare'); for (var gi=0;gi<g.length;gi++) g[gi].style.setProperty('--gx',(sw.a*3)+'px');
+    slots[n].querySelector('.card').tabIndex = n===state.idx?0:-1;
+  }
+  // ---- foreground: ground, hero, coins
+  fctx.clearRect(0,0,W,H);
+  for (var gt=Math.floor((cx-half)/10)-1; gt<Math.ceil((cx+half)/10)+1; gt++){ fctx.drawImage(cache.ground, Math.round(gt*10-cx+half), GROUND); }
+  var h=state.hero; var hxTarget=state.idx*SL+0; var dx=hxTarget-h.x; var walking=Math.abs(dx)>0.6;
+  if(reduce){ h.x=hxTarget; walking=false; } else { h.x+=Math.max(-2.2,Math.min(2.2,dx*0.18))*dt; }
+  if(walking) h.face=dx>0?1:-1;
+  if(h.air){ h.vy+=0.22*dt; h.y+=h.vy*dt;
+    var top=GROUND-12+h.y; if(!h.hit && top<=117 && h.vy<0){ h.hit=true; h.vy=Math.abs(h.vy)*0.4; toggle(slots[state.idx].querySelector('.card')); addCoin(state.idx); swing[state.idx].v+= (Math.random()<.5?-1:1)*1.5; }
+    if(h.y>=0){ h.y=0; h.vy=0; h.air=false; } }
+  h.t+=dt; var spr = h.air?cache.pipJump : (walking && ((h.t/6)|0)%2 ? cache.pipWalk : cache.pipIdle);
+  var hx=Math.round(h.x-cx+half-6);
+  fctx.save(); if(h.face<0){ fctx.translate(hx*2+12,0); fctx.scale(-1,1); }
+  fctx.drawImage(spr, hx, Math.round(GROUND-12+h.y)); fctx.restore();
+  for (var ci=state.coinsFx.length-1;ci>=0;ci--){ var co=state.coinsFx[ci]; co.t+=dt; co.vy+=0.16*dt; co.y+=co.vy*dt;
+    var cf=[cache.coin0,cache.coin1,cache.coin2,cache.coin1][((co.t/4)|0)%4];
+    fctx.drawImage(cf, wx(co.x)-4, Math.round(co.y-10));
+    if(co.t>34){ state.coinsFx.splice(ci,1); } }
+  if(state.shower){ var alive=false; state.shower.forEach(function(c){ c.y+=c.vy*dt*1.6; c.f+=0.25*dt; if(c.y<GROUND) alive=true; var f=[cache.coin0,cache.coin1,cache.coin2,cache.coin1][(c.f|0)%4]; fctx.drawImage(f, Math.round(c.x-cx+half), Math.round(c.y)); }); if(!alive) state.shower=null; }
+  // featured twinkle
+  var tw=document.querySelectorAll('.twinkle'); var on=((state.t/10)|0)%18<4; for (var ti=0;ti<tw.length;ti++) tw[ti].style.visibility = reduce||!on?'visible':(((state.t/4)|0)%2?'hidden':'visible');
+  // ---- boot dissolve
+  if(state.boot){ var B=state.boot; B.t+=dt; var iw=irisC.width, ih=irisC.height; var cols=Math.ceil(iw/2), total=B.order.length;
+    var shown=Math.min(total, Math.floor(total*Math.max(0,(B.t-14)/42)));
+    ictx.clearRect(0,0,iw,ih); ictx.fillStyle='#151318'; for (var o=shown;o<total;o++){ var cell=B.order[o]; ictx.fillRect((cell%cols)*2,((cell/cols)|0)*2,2,2); }
+    if(shown>=total){ state.boot=null; irisC.hidden=true; } }
+  // ---- iris
+  if(state.iris){ var I=state.iris; I.t+=dt; var iw2=irisC.width, ih2=irisC.height; var maxR=Math.hypot(iw2,ih2)/2+4; var half2=19;
+    var r = I.t<half2 ? maxR*(1-I.t/half2) : maxR*((I.t-half2)/half2);
+    if(I.t>=half2 && !I.done){ I.done=true; I.mid(); }
+    ictx.clearRect(0,0,iw2,ih2); ictx.fillStyle='#151318'; var ccx=Math.round(iw2/2), ccy=Math.round(ih2*0.42);
+    for (var yy=0;yy<ih2;yy++){ var dyy=yy-ccy; var span=r*r-dyy*dyy; if(span<=0){ ictx.fillRect(0,yy,iw2,1); continue; } var hw=Math.floor(Math.sqrt(span)); ictx.fillRect(0,yy,Math.max(0,ccx-hw),1); ictx.fillRect(ccx+hw,yy,iw2,1); }
+    if(I.t>=half2*2){ state.iris=null; irisC.hidden=true; } }
+  requestAnimationFrame(frame);
+}
+
+/* ---------------------------------------------------------------- sprite sheet */
+function buildSheet(){
+  var sheet=document.getElementById('sheet'); if(!sheet) return; sheet.innerHTML='';
+  [['pipIdle','Pip, idle'],['pipWalk','Pip, walk'],['pipJump','Pip, jump'],['coin0','Coin, 4-frame spin'],['block','Emblem block'],['used','Used block'],['brick','Brick'],['ground','Ground tile'],['cloud','Cloud'],['bush','Bush'],['tube','Warp tube'],['star0','Twinkle']].forEach(function(s){
+    var box=el('div','spr'); var c=cache[s[0]]; var cv=document.createElement('canvas'); cv.width=c.width; cv.height=c.height; cv.getContext('2d').drawImage(c,0,0); cv.style.width=(c.width*(c.width>16?3:5))+'px'; cv.style.height=(c.height*(c.width>16?3:5))+'px'; cv.setAttribute('role','img'); cv.setAttribute('aria-label',s[1]);
+    box.appendChild(cv); box.appendChild(el('span',null,s[1])); sheet.appendChild(box); });
+}
+
+/* ---------------------------------------------------------------- anatomy specimen */
+(function(){
+  var sp=document.getElementById('specimen'); var b=buildBadge(CARDS[0]); sp.appendChild(b);
+  b.querySelector('.card').addEventListener('click',function(){ var c=this; c.setAttribute('aria-pressed',c.getAttribute('aria-pressed')==='true'?'false':'true'); });
+  var pins=[[1,126,2],[2,222,372],[3,132,34],[4,-14,56],[5,190,92],[6,196,152],[7,-14,192],[8,-14,234],[9,-14,256],[10,-14,334],[11,214,306],[12,90,270],[13,-34,120]];
+  pins.forEach(function(p){ var e=el('span','pin',String(p[0])); e.style.cssText='left:'+p[1]+'px;top:'+p[2]+'px'; e.setAttribute('aria-hidden','true'); b.appendChild(e); });
+  document.getElementById('gridBtn').addEventListener('click',function(){ var on=sp.classList.toggle('grid-on'); this.setAttribute('aria-pressed',on?'true':'false'); this.textContent=on?'HIDE PIXEL GRID':'SHOW PIXEL GRID'; });
+})();
+
+/* motion play buttons */
+document.querySelectorAll('[data-play]').forEach(function(btn){ btn.addEventListener('click',function(){
+  var k=btn.dataset.play; document.getElementById('device').scrollIntoView({behavior:reduce?'auto':'smooth',block:'center'});
+  setTimeout(function(){
+    if(k==='boot') boot();
+    else if(k==='walk') go(state.idx<CARDS.length-1?state.idx+1:0);
+    else if(k==='swing'){ swing.forEach(function(s){ s.v+=3.5; }); speak('Swing: every badge is a pendulum on its clip.'); }
+    else if(k==='flip'){ if(state.mode==='profile') closeProfile(); doFlip(); }
+    else if(k==='open') openProfile();
+    else if(k==='featured'){ go(1); }
+    else if(k==='approved') shower();
+  }, reduce?0:450);
+}); });
+
+/* online LED */
+var led=document.getElementById('led');
+function net(){ var on=navigator.onLine!==false; led.classList.toggle('off',!on); led.setAttribute('aria-label',on?'Online':'Offline'); }
+window.addEventListener('online',net); window.addEventListener('offline',net); net();
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',function(){ themeLabel(); refreshSprites(); });
+
+refreshSprites();
+requestAnimationFrame(frame);
+boot();
+})();
+</script>
