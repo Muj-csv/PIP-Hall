@@ -270,3 +270,15 @@ test('the member crops the photo: drag, keyboard and zoom pick what shows on the
   await page.getByRole('button', { name: 'Cancel' }).click();
   expect(await saved()).toMatchObject({ colour: 'red' });
 });
+
+test('Save and Submit appear once at any width: beside the badge on desktop, pinned at the bottom on phones', async ({ page }) => {
+  await mockSupabase(page, { user: USER, db: emptyDb('octocat'), githubRepos: REPOS });
+  await page.goto('/edit');
+  const save = page.getByRole('button', { name: 'Save', exact: true });
+  await expect(save).toHaveCount(1);
+  await expect(page.locator('.editor-actions[data-at="side"]')).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(save).toHaveCount(1);
+  await expect(page.locator('.editor-actions[data-at="bottom"]')).toBeVisible();
+  await expect(page.locator('.editor-actions[data-at="side"]')).toBeHidden();
+});

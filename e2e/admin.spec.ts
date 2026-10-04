@@ -89,7 +89,7 @@ test('approve: the draft is shown beside the live card, and approving puts it in
   await page.goto('/');
   await expect(page.locator('.hud span').last()).toHaveText('1/2');
   await page.goto('/member/nova');
-  await expect(page.getByRole('heading', { level: 1, name: 'Nova Reyes' })).toBeVisible();
+  await expect(page.locator('#profile-name, #missing-title')).toHaveText('Nova Reyes');
   await expect(page.locator('.quest-list > li')).toHaveCount(1);
 });
 

@@ -1,13 +1,12 @@
-import { useEffect } from 'react';
-import { Link } from 'react-router';
+import { Link, useParams } from 'react-router';
 import { TopBar } from '../components/shell/TopBar';
 import { Hall } from '../components/stage/Hall';
 import { InstallPrompt } from '../components/install/InstallPrompt';
 
+// `/` and `/member/:username` are the same screen: the hall, with that member's profile open inside
+// the device when the address names one (the Hall sets the page title).
 export default function Home() {
-  useEffect(() => {
-    document.title = 'PIP-Hall · Where every person has a place';
-  }, []);
+  const { username = null } = useParams();
   return (
     <div className="mx-auto max-w-[1080px] px-space-4 pb-space-8">
       <TopBar />
@@ -19,7 +18,7 @@ export default function Home() {
           </h1>
           <p className="m-0 text-text-secondary">Meet the members of the hall: flip a badge to see what they build.</p>
         </div>
-        <Hall />
+        <Hall profile={username} />
       </main>
       <footer className="mt-space-6 grid justify-items-center gap-space-2 text-center text-caption text-text-secondary">
         <InstallPrompt compact />
