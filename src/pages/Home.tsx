@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Link } from 'react-router';
 import { TopBar } from '../components/shell/TopBar';
 import { Hall } from '../components/stage/Hall';
+import { InstallPrompt } from '../components/install/InstallPrompt';
 
 export default function Home() {
   useEffect(() => {
@@ -20,8 +21,9 @@ export default function Home() {
         </div>
         <Hall />
       </main>
-      <footer className="mt-space-6 text-center text-caption text-text-secondary">
-        <Link to="/privacy" className="inline-block py-[11px] underline decoration-2">
+      <footer className="mt-space-6 grid justify-items-center gap-space-2 text-center text-caption text-text-secondary">
+        <InstallPrompt compact />
+        <Link to="/privacy" className="inline-block px-space-2 py-[12px] underline decoration-2">
           Privacy
         </Link>
       </footer>

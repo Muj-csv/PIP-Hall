@@ -198,7 +198,7 @@ function RenameForm({ id, name, current, onDone }: Shared & { id: string; name: 
 
   return (
     <details className="grid gap-space-2">
-      <summary className="cursor-pointer font-display tracking-[0.04em]">Change username</summary>
+      <summary className="flex min-h-11 cursor-pointer items-center font-display tracking-[0.04em]">Change username</summary>
       <form className="grid gap-space-2 pt-space-2" onSubmit={submit} noValidate>
         <TextField
           field="username"

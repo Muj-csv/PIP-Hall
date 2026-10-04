@@ -71,7 +71,7 @@ Status key: ✅ done · 🛠️ in progress · ⏳ planned for v1.0 (6 Oct 2026)
 | Area | Feature | Status |
 |---|---|---|
 | **Data & security** | Postgres schema, Row Level Security, column-locked moderation, admin functions | ✅ |
-| | 73 automated security tests (e.g. a member can't approve their own card) | ✅ |
+| | 76 automated security tests (e.g. a member can't approve their own card) | ✅ |
 | **Design** | Design system: tokens, DAY/NIGHT themes, contrast-checked palette | ✅ |
 | | Playable design prototype: level, badge, handheld, motion | ✅ |
 | **Hall** | Side-scrolling card carousel: drag, swipe, arrow keys, ◀ ▶ controls | ✅ (sample data) |
@@ -83,8 +83,9 @@ Status key: ✅ done · 🛠️ in progress · ⏳ planned for v1.0 (6 Oct 2026)
 | | Submit for review; edits to a live card are re-reviewed while the approved version stays public | ✅ |
 | **Admin** | Moderation queue: approve, reject with note, unpublish, feature, rename | ✅ |
 | **Discovery** | Public profile at `/member/:username` (what the QR opens) | ✅ |
-| | Search and filters | ⏳ |
-| **App** | Installable PWA with an offline shell and iOS install steps | ⏳ |
+| | Explore: search by name, handle, role, skill or project; filter by department, skill, featured; Random player | ✅ |
+| **Account** | Settings: email choices, theme, sign out, delete account | ✅ |
+| **App** | Installable PWA with an offline shell and iOS install steps | ✅ |
 
 ---
 
@@ -230,7 +231,7 @@ npm install
 npm run test:db
 ```
 
-This starts a throwaway Postgres, applies the migrations, and runs 73 security checks. No Supabase account needed.
+This starts a throwaway Postgres, applies the migrations, and runs 76 security checks. No Supabase account needed.
 
 ### 3. Set up Supabase
 
@@ -267,12 +268,12 @@ cp .env.example .env
 | Command | What it does | Available |
 |---|---|---|
 | `npm run test:db` | Apply migrations to a throwaway Postgres and run the security tests | ✅ now |
-| `npm run dev` | Start the Vite dev server on `:5173` | Phase 1 |
-| `npm run typecheck` | TypeScript check | Phase 1 |
-| `npm run lint` | Lint | Phase 1 |
-| `npm test` | Unit tests (Vitest) | Phase 1 |
-| `npm run test:e2e` | End-to-end tests (Playwright) | Phase 3 |
-| `npm run build` | Production build | Phase 1 |
+| `npm run dev` | Start the Vite dev server on `:5173` | ✅ |
+| `npm run typecheck` | TypeScript check | ✅ |
+| `npm run lint` | Lint | ✅ |
+| `npm test` | Unit tests (Vitest) | ✅ |
+| `npm run test:e2e` | End-to-end tests (Playwright) | ✅ |
+| `npm run build` | Production build (includes the service worker) | ✅ |
 
 To preview the design right now, open `docs/design/lab.html` in a browser.
 
@@ -283,7 +284,7 @@ To preview the design right now, open `docs/design/lab.html` in a browser.
 | Layer | Tool | What it proves |
 |---|---|---|
 | Database security | `supabase/tests/security.test.mjs` on embedded Postgres | Members can't approve, feature or edit other people's cards; images must live in the member's own Storage folder; visitors only see approved snapshots; edits after approval go back to review; usernames lock after approval; max 6 projects |
-| Units | Vitest | Carousel index math, avatar and sticker determinism, validators, image resizing |
+| Units | Vitest | Carousel index math, avatar and sticker determinism, validators, image resizing, search and filters |
 | End to end | Playwright | Sign in → build card → submit → approve → appears in the hall; flip, drag, keyboard; QR route |
 | Design | AEGIS checks | Token contrast in both themes, layout at 390/768/1440px, no hard-coded colours |
 
@@ -345,7 +346,7 @@ PIP-Hall's look comes from two references: a pixel-art handheld scene (bezel, di
 - [x] Phase 2: Supabase, Google sign-in, connect GitHub
 - [x] Phase 3: card editor, repo picker, submit for review
 - [ ] Phase 4: public profiles, QR, admin moderation (built) · first deploy (owner step, `docs/DEPLOY.md`)
-- [ ] Phase 5: search and filters, PWA, polish
+- [x] Phase 5: search and filters, PWA, settings, accessibility pass
 - [ ] Phase 6: production check against the Definition of Done (Gate 2)
 
 **After launch**

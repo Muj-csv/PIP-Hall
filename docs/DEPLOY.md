@@ -61,6 +61,14 @@ Do these on the live URL and keep a screenshot of each.
 - [ ] **Not allowed:** signed in as the second account, open `/admin`. You see "Admins only". The database refusing the calls themselves is covered by `npm run test:db` ("member cannot approve", "member cannot reject", …).
 - [ ] **Unknown page:** `/member/nobody-here` shows "No card here".
 
+### Phase 5 checks on the live URL
+
+- [ ] **Android (Chrome):** open the site, tap **Install PIP-Hall** at the bottom of the hall (or Chrome's menu → Install app). It opens full screen from the home screen icon.
+- [ ] **iPhone (Safari):** tap **Install PIP-Hall** for the steps: Share → Add to Home Screen → Add. It opens full screen.
+- [ ] **Offline:** open the hall once, turn on airplane mode, reopen the installed app: the hall and pages you've visited still load.
+- [ ] **Explore:** search for a member by name, @handle, skill and a project title.
+- [ ] **Delete account:** with a test account, Settings → Delete account. Its card disappears from `/` and `/member/<username>` says "No card here".
+
 ## 6. Keep the free project awake
 
 Add repository secrets `SUPABASE_URL` and `SUPABASE_ANON_KEY` (GitHub → Settings → Secrets and variables → Actions). `.github/workflows/keepalive.yml` then reads one public card every Monday.

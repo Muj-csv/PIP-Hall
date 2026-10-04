@@ -146,7 +146,7 @@ Search (FR-13): `cardService.listPublished()` loads all `published_cards` once (
 
 ## 8. PWA and caching
 
-`vite-plugin-pwa` with `generateSW`: precache the app shell and fonts; runtime cache `GET /rest/v1/published_cards*` stale-while-revalidate (1 day), storage images cache-first (30 days, 200 entries). Never cache auth or write requests. Manifest: name "PIP-Hall", short name "PIP-Hall", `display: standalone`, theme colour `color.bezel`, original pixel icons 192/512 + maskable. iOS: `apple-touch-icon`, `apple-mobile-web-app-capable`, an InstallPrompt sheet with Share → Add to Home Screen steps.
+`vite-plugin-pwa` with `generateSW`: precache the app shell and the Latin font files; runtime cache `GET /rest/v1/published_cards*` network-first with a 4 s timeout (1 day, D-042), storage images cache-first (30 days, 200 entries). Never cache auth or write requests. Manifest: name "PIP-Hall", short name "PIP-Hall", `display: standalone`, theme colour `color.bezel`, original pixel icons 192/512 + maskable. iOS: `apple-touch-icon`, `apple-mobile-web-app-capable`, an InstallPrompt sheet with Share → Add to Home Screen steps.
 
 ## 9. Deploy, environments, CI
 

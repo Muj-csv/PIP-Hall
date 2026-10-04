@@ -702,6 +702,13 @@
   background: var(--color-card-cream);
   box-shadow: inset 0 0 0 2px var(--color-card-ink);
 }
+/* The slots are drawn 28px to keep the badge's proportions (D-021); the tap area reaches 33 × 44px,
+   meeting their halfway gap without overlapping. Full-size links are on the member page too. */
+a.item-slot::before {
+  content: '';
+  position: absolute;
+  inset: -8px -2.5px;
+}
 .item-slot canvas {
   width: 20px;
   height: 20px;
@@ -1223,6 +1230,146 @@ textarea.pixel-input {
   background: color-mix(in srgb, var(--color-void) 70%, transparent);
 }
 
+.install-sheet {
+  max-width: calc(100vw - 32px);
+  margin: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.install-sheet::backdrop {
+  background: color-mix(in srgb, var(--color-void) 70%, transparent);
+}
+
+/* ---------------------------------------------------------------- explore (FR-13) */
+.explore-bar {
+  display: grid;
+  gap: 6px;
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.chip {
+  all: unset;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 44px;
+  padding: 4px 12px;
+  cursor: pointer;
+  font-size: var(--text-caption);
+  font-weight: 700;
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  border: 3px solid var(--color-border);
+}
+.chip:hover {
+  background: var(--color-surface-hover);
+}
+.chip:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+.chip[aria-pressed='true'] {
+  background: var(--color-text-primary);
+  color: var(--color-bg);
+}
+.chip-count {
+  font-family: var(--font-mono);
+  font-weight: 400;
+  opacity: 0.85;
+}
+.explore-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(208px, 1fr));
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.compact-card {
+  position: relative;
+  display: grid;
+  gap: 8px;
+  height: 100%;
+  padding: 0 10px 10px;
+  color: var(--color-card-ink);
+  background: var(--color-card-face);
+  box-shadow: inset 0 0 0 3px var(--color-card-ink), 4px 4px 0 0 var(--color-card-ink);
+}
+.compact-card:has(.compact-link:hover) {
+  transform: translateY(-2px);
+}
+.compact-card:has(.compact-link:focus-visible) {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 3px;
+}
+.compact-band {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 0 -10px;
+  padding: 6px 10px;
+  font-family: var(--font-display);
+  font-size: 15px;
+  letter-spacing: 0.05em;
+  background: var(--color-card-band);
+  box-shadow: inset 0 -3px 0 var(--color-card-ink), inset 3px 3px 0 var(--color-card-ink), inset -3px 0 0 var(--color-card-ink);
+}
+.compact-band span:last-child {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+.compact-name {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 400;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+.compact-link {
+  color: inherit;
+  text-decoration: none;
+}
+.compact-link:focus-visible {
+  outline: none;
+}
+/* The whole card is the link's hit area. */
+.compact-link::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+.compact-meta {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.3;
+  color: var(--color-card-plum);
+  overflow-wrap: anywhere;
+}
+.compact-card .powerups li {
+  font-size: 11px;
+}
+.compact-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin: auto 0 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+.compact-featured {
+  font-family: var(--font-display);
+  font-size: 14px;
+  letter-spacing: 0.05em;
+}
+
 /* ---------------------------------------------------------------- member page (FR-11) */
 .member-layout {
   display: grid;
@@ -1397,6 +1544,15 @@ textarea.pixel-input {
   .hw-btns { grid-auto-flow: column; gap: 10px; }
   .hw-btn { min-width: 76px; }
   .hw-btn[data-variant='flip'] { min-height: 52px; }
+}
+/* Narrowest phones (320px, 400% zoom): the button grip moves under the rocker so nothing scrolls sideways. */
+@media (max-width: 359px) {
+  .device {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: 'mid' 'left' 'right';
+  }
+  .grip[data-side='left'],
+  .grip[data-side='right'] { justify-items: center; }
 }
 @media (max-width: 520px) {
   .bezel { padding: 8px 8px 6px; }
