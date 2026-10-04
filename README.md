@@ -10,16 +10,18 @@ A game-inspired digital showcase where organization members become interactive p
 Explore people, projects, skills, achievements, GitHub links and profiles in a playful hall
 that makes discovering the people behind the work feel like browsing a game roster.
 
-![Status](https://img.shields.io/badge/status-in%20development-BC2051?style=flat-square)
+![Status](https://img.shields.io/badge/status-live-BC2051?style=flat-square)
 ![Target](https://img.shields.io/badge/v1.0%20target-6%20Oct%202026-4E475D?style=flat-square)
 ![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=black)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?style=flat-square&logo=typescript&logoColor=white)
 ![Supabase](https://img.shields.io/badge/Supabase-Postgres%20%2B%20Auth-3FCF8E?style=flat-square&logo=supabase&logoColor=white)
 ![PWA](https://img.shields.io/badge/PWA-installable-5A0FC8?style=flat-square&logo=pwa&logoColor=white)
 
-<img src="docs/images/hall-day.png" alt="PIP-Hall design prototype: a pixel handheld console whose screen shows a side-scrolling level. Member ID badges hang on lanyards from a row of blocks, and a small hero character stands on the ground below." width="820">
+**▶ Live: [the-pip-hall.vercel.app](https://the-pip-hall.vercel.app)**
 
-<sub>Design prototype (`docs/design/lab.html`). The production app is being built from it.</sub>
+<img src="docs/images/app-hall-day.png" alt="PIP-Hall: a pixel handheld console whose screen shows a side-scrolling level. Member ID badges hang on lanyards from a row of blocks, and Pip, the host character, stands on the ground below." width="820">
+
+<sub>The hall in DAY mode. The badges shown are labelled sample cards, not real members.</sub>
 
 </div>
 
@@ -128,11 +130,17 @@ stateDiagram-v2
 
 ## Screenshots
 
-> Captured from the design prototype. They'll be replaced with screenshots of the live app at launch.
+From the production build. The badges are labelled sample cards, not real members.
 
-| Night mode | Phone | Badge anatomy |
-|:---:|:---:|:---:|
-| <img src="docs/images/hall-night.png" alt="The hall in night mode, with a dark sky, stars and lit badges" width="320"> | <img src="docs/images/hall-phone.png" alt="Phone layout: the level on top and a single row of controls underneath" width="150"> | <img src="docs/images/badge-anatomy.png" alt="A member badge with numbered markers on each part" width="190"> |
+| Night mode | Phone |
+|:---:|:---:|
+| <img src="docs/images/app-hall-night.png" alt="The hall in night mode: dark sky, stars, and badges hanging from the block row" width="420"> | <img src="docs/images/app-phone.png" alt="Phone layout: the top bar, the tagline and the handheld's screen with one badge" width="180"> |
+
+| Member page (what the QR opens) | Explore |
+|:---:|:---:|
+| <img src="docs/images/app-member.png" alt="A member page with the badge front and Quest Log side by side, an About panel and the full project list" width="420"> | <img src="docs/images/app-explore.png" alt="Explore: a search box, department and skill filter chips and a grid of compact badges" width="420"> |
+
+The original design prototype, `docs/design/lab.html`, and its badge anatomy diagram are in [`docs/images/`](docs/images/).
 
 ---
 
@@ -298,7 +306,7 @@ Step by step, with checks: [`docs/DEPLOY.md`](docs/DEPLOY.md). In short:
 2. Add the four `VITE_*` environment variables (`VITE_DATA_SOURCE=supabase`, `VITE_PUBLIC_ORIGIN` = the production URL).
 3. `vercel.json` rewrites every non-file route to `index.html`, so cold links like `/member/your-name` (what a QR scan opens) don't 404.
 4. Add the production URL to Supabase's redirect URLs.
-5. `.github/workflows/keepalive.yml` reads one public card every Monday so the free Supabase project isn't paused for inactivity. Add the repository secrets `SUPABASE_URL` and `SUPABASE_ANON_KEY` (Settings → Secrets and variables → Actions); without them the job skips with a warning. Check Supabase's current terms before relying on it.
+5. `.github/workflows/keepalive.yml` reads one public card every Monday so the free Supabase project isn't paused for inactivity. Add the repository secrets `SUPABASE_URL` and `SUPABASE_ANON_KEY` (Settings → Secrets and variables → Actions); without them the job fails, so you notice before the project pauses. Check Supabase's current terms before relying on it.
 
 ---
 
@@ -345,9 +353,9 @@ PIP-Hall's look comes from two references: a pixel-art handheld scene (bezel, di
 - [x] Phase 1: hall, cards and carousel on sample data → design review (Gate 1)
 - [x] Phase 2: Supabase, Google sign-in, connect GitHub
 - [x] Phase 3: card editor, repo picker, submit for review
-- [ ] Phase 4: public profiles, QR, admin moderation (built) · first deploy (owner step, `docs/DEPLOY.md`)
+- [x] Phase 4: public profiles, QR, admin moderation, first deploy
 - [x] Phase 5: search and filters, PWA, settings, accessibility pass
-- [ ] Phase 6: production check against the Definition of Done (Gate 2)
+- [ ] Phase 6: production check against the Definition of Done (Gate 2): report in `docs/build/PHASE-6-REPORT.md`, live checks pending
 
 **After launch**
 

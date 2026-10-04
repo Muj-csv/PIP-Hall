@@ -96,6 +96,7 @@ Two clocks. **Sprites** animate on a stepped frame clock (`motion.sprite-fps`, 8
 - allow: #F0ECEB — warm paper page background resembles the 2026 "cream" tell; it is sampled from ref2 and paired with a crimson accent, not sage (ref, 2026-10-04)
 - allow: #97B5AA — sage, but only as the badge frame, sampled from ref2 (ref, 2026-10-04)
 - allow: font-mono — monospace appears only for handles, URLs and repo names, which are real data (ref, 2026-10-04)
+- allow: off-scale spacing inside the badge, handheld and pixel controls (3, 5, 6, 7, 10, 14px) — offsets are hand-placed against the 4px pixel unit and the 3px ink outline, ported from the design lab; menu screens use the spacing scale (ref, 2026-10-05)
 
 ## 10. Components
 

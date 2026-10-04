@@ -26,9 +26,10 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
+          # Fail loudly: a skipped ping that shows green would let the project pause unnoticed.
           if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
-            echo "::warning::SUPABASE_URL / SUPABASE_ANON_KEY secrets are not set; skipping the ping."
-            exit 0
+            echo "::error::Add the SUPABASE_URL and SUPABASE_ANON_KEY repository secrets (see the comment at the top of this file). Without them the project can pause."
+            exit 1
           fi
           code=$(curl -sS -o /dev/null -w '%{http_code}' \
             -H "apikey: $SUPABASE_ANON_KEY" \
