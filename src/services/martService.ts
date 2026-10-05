@@ -41,6 +41,15 @@ export const martService = {
   },
 };
 
+/**
+ * True when the database doesn't have the Mart yet: its functions or tables are missing because
+ * the PIP MART migration (or the PIPs one before it) hasn't been run. Not a connection problem.
+ */
+export function martNotSetUp(e: unknown): boolean {
+  const err = e as { code?: string; message?: string } | null;
+  return err?.code === 'PGRST202' || err?.code === '42P01' || err?.code === '42883' || /Could not find the function|does not exist/i.test(err?.message ?? '');
+}
+
 /** A database refusal in plain words. */
 export function martErrorMessage(e: unknown): string {
   const msg = (e as { message?: string })?.message ?? '';
