@@ -16,6 +16,7 @@ async function fixtureExhibits(): Promise<Exhibit[]> {
       full_name: c.card.full_name,
       avatar_path: c.card.avatar_path,
       member_no: c.member_no,
+      featured: c.is_featured,
       project: p,
     })),
   );

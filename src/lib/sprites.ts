@@ -239,6 +239,25 @@ export function coverSprite(seed: string): SpriteMap {
   return px.map((row) => row.join(''));
 }
 
+/** Which cover keys sit on which depth layer of the Museum diorama (D-083), back to front. */
+const COVER_DEPTHS = { sky: 'sc', hills: 'hH', ground: 'gGd' } as const;
+
+/**
+ * The pixel cover split into depth layers for the Museum's diorama (D-083): sky and clouds at the
+ * back, the hill, the ground, and the emblem in front. Stacked in order they redraw the cover.
+ */
+export function coverLayers(seed: string): { sky: SpriteMap; hills: SpriteMap; ground: SpriteMap; emblem: SpriteMap } {
+  const full = coverSprite(seed);
+  const keep = (keys: string) => full.map((row) => [...row].map((ch) => (keys.includes(ch) ? ch : '.')).join(''));
+  const layered = COVER_DEPTHS.sky + COVER_DEPTHS.hills + COVER_DEPTHS.ground;
+  return {
+    sky: keep(COVER_DEPTHS.sky),
+    hills: keep(COVER_DEPTHS.hills),
+    ground: keep(COVER_DEPTHS.ground),
+    emblem: full.map((row) => [...row].map((ch) => (layered.includes(ch) ? '.' : ch)).join('')),
+  };
+}
+
 // ---------------------------------------------------------------- PIP MART frames (E2, D-074)
 
 /**

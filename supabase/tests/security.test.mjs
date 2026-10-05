@@ -273,6 +273,10 @@ try {
   await as(c, ADMIN, `select approve_profile($1)`, [A]);
   await expectSu(c, 'approval drops the exhibit whose project left the card, keeps the rest', `select project_id from museum_entries where member_id=$1`, [A], (r) => r.rowCount === 1 && r.rows[0].project_id === linked[1]);
   await expectOk(c, '…and the Museum shows only what is on the approved card', 'anon', `select museum_exhibits() as e`, [], (r) => r.rows[0].e.length === 1 && r.rows[0].e[0].project.id === linked[1]);
+  await as(c, ADMIN, `select set_featured($1, true)`, [A]);
+  await expectOk(c, 'a featured maker\'s exhibits say so, for the pinned row', 'anon', `select museum_exhibits() as e`, [], (r) => r.rows[0].e.every((x) => x.featured === true));
+  await as(c, ADMIN, `select set_featured($1, false)`, [A]);
+  await expectOk(c, '…and stop saying so once unfeatured', 'anon', `select museum_exhibits() as e`, [], (r) => r.rows[0].e.every((x) => x.featured === false));
   await expectErr(c, 'a member cannot read the admin Museum summary', A, `select admin_museum_summary()`, [], /NOT_ADMIN/);
   await expectErr(c, 'anon cannot read the admin Museum summary', 'anon', `select admin_museum_summary()`, [], /permission denied/);
   await expectOk(c, 'admin Museum summary counts approved projects and exhibits', ADMIN, `select admin_museum_summary() as s`, [],
