@@ -24,6 +24,10 @@ export const SPR = {
   bush: ['.....bJJb...bJb.', '...bbJJJbb.bJJbb', '..bJbbbbbbbbbbbb', '.bbbbbbNbbbbbbNb', 'bbbbNbbbbbbNbbbb', 'bNbbbbbNNbbbbbNb', 'NNNNNNNNNNNNNNNN'],
   // The warp tube: a gold rim (lit, shaded) on a lit, shaded pipe.
   tube: ['kkkkkkkkkkkkkkkk', 'kRhhRRRRRRRRRRdk', 'kRhRRRRRRRRRRRdk', 'kkkkkkkkkkkkkkkk', '.kTHHTTTTTTTXXk.', '.kTHHTTTTTTTXXk.', '.kTHHTTTTTTTXXk.', '.kTHHTTTTTTTXXk.', '.kTHHTTTTTTTXXk.', '.kTHHTTTTTTTXXk.', '.kTHHTTTTTTTXXk.', '.kTHHTTTTTTTXXk.', '.kTHHTTTTTTTXXk.', '.kTHHTTTTTTTXXk.', '.kTHHTTTTTTTXXk.', '.kTHHTTTTTTTXXk.'],
+  // Mid-distance tree (D-081): a lit, shaded crown on a two-tone trunk.
+  tree: ['....bbbb....', '..bJJbbbbb..', '.bJJJbbbbbb.', 'bJJbbbbbbbNb', 'bJbbbbbbbbNb', 'bbbbbNbbbNNb', 'bbbbbbbbbNNb', '.bbbNbbbNNb.', '..NNbbbNNN..', '....NOON....', '.....OD.....', '.....OD.....', '.....OD.....', '....OODD....'],
+  // A grass tuft in the near layer, passing in front of Pip.
+  tuft: ['.L...L.', '.gL.Lg.', 'LggLggL', 'gGgggGg'],
   // Night sky: a four-point sparkle and its smaller twinkle.
   star0: ['..y..', '.yhy.', 'yhhhy', '.yhy.', '..y..'],
   star1: ['.....', '..y..', '.yhy.', '..y..', '.....'],
@@ -77,6 +81,7 @@ export const WORLD_PALETTE: Palette = {
 export const WORLD_OVERRIDES: Partial<Record<SpriteName, Palette>> = {
   cloud: { w: '--color-world-cloud' },
   bush: { b: '--color-world-bush', B: '--color-world-hill-dark' },
+  tree: { b: '--color-world-bush' },
   brick: { r: '--color-world-brick', m: '--color-world-mortar' },
   ground: { d: '--color-world-dirt' },
   tube: { H: '--color-world-tube-hi' },

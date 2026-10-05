@@ -406,6 +406,7 @@ export function Hall({ profile = null }: HallProps) {
         cam,
         t,
         night: document.documentElement.getAttribute('data-theme') === 'dark',
+        still: l.reduce,
         count: l.count,
         flipped: (i: number) => {
           const c = l.cards[i];
