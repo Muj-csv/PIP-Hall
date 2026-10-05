@@ -99,3 +99,14 @@ test('signing out returns to the hall as a visitor', async ({ page }) => {
   await expect(page.getByRole('link', { name: 'Make your card' })).toBeVisible();
   expect(log.requests.some((r) => r.startsWith('POST /auth/v1/logout'))).toBe(true);
 });
+
+test('a device clock hours ahead does not loop token refreshes and role lookups', async ({ page }) => {
+  // With the clock 15 hours ahead, every token looks expired.
+  await page.clock.setSystemTime(new Date(Date.now() + 15 * 3600 * 1000));
+  const log = await mockSupabase(page, { user: MEMBER });
+  await page.goto('/edit');
+  await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible();
+  await page.waitForTimeout(1500);
+  const roleReads = log.requests.filter((r) => r.startsWith('GET /rest/v1/user_roles')).length;
+  expect(roleReads).toBeLessThanOrEqual(2);
+});

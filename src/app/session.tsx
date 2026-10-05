@@ -1,7 +1,7 @@
 // Session provider (Phase 2): follows Supabase auth state and loads the user's own role row.
 // The role only shapes the UI; every write is still checked by the database (RLS + is_admin()).
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { authService, toAuthUser } from '../services/authService';
 import { SessionContext, type SessionState } from './sessionContext';
@@ -11,13 +11,20 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     authService.isConfigured ? { status: 'loading' } : { status: 'unavailable' },
   );
 
+  // Load the role once per user. If the device clock is wrong, every token refresh calls apply()
+  // again, and fetching the role each time caused an endless refresh loop.
+  const roleFor = useRef<string | null>(null);
+
   const apply = useCallback(async (s: Session | null) => {
     if (!s) {
+      roleFor.current = null;
       setSession({ status: 'signed-out' });
       return;
     }
     const user = toAuthUser(s.user);
     setSession((prev) => ({ status: 'signed-in', user, role: prev.status === 'signed-in' && prev.user.id === user.id ? prev.role : null }));
+    if (roleFor.current === user.id) return;
+    roleFor.current = user.id;
     try {
       const role = await authService.getMyRole(user.id);
       setSession((prev) => (prev.status === 'signed-in' && prev.user.id === user.id ? { ...prev, role } : prev));
