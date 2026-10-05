@@ -11,7 +11,7 @@ export const CEIL_Y = 10;
 /** Pip's head reaching this height (in units) counts as hitting the badge. */
 export const HEAD_HIT_Y = 117;
 
-const WORLD_SPRITES = ['pipIdle', 'pipWalk', 'pipJump', 'coin0', 'coin1', 'coin2', 'block', 'used', 'brick', 'ground', 'cloud', 'bush', 'tube', 'star0', 'star1', 'flower'] as const satisfies readonly SpriteName[];
+const WORLD_SPRITES = ['pipIdle', 'pipWalk', 'pipJump', 'coin0', 'coin1', 'coin2', 'block', 'used', 'brick', 'ground', 'cloud', 'bush', 'tube', 'star0', 'star1', 'flower', 'tree', 'tuft'] as const satisfies readonly SpriteName[];
 
 export interface WorldAssets {
   sprites: Record<(typeof WORLD_SPRITES)[number], HTMLCanvasElement>;
@@ -85,6 +85,8 @@ export interface WorldFrame {
   cam: number;
   t: number;
   night: boolean;
+  /** Reduced motion: nothing moves on its own (the clouds stop drifting). */
+  still?: boolean;
   count: number;
   flipped: (i: number) => boolean;
   bump: (i: number) => number;
@@ -167,8 +169,18 @@ export function drawBackground(ctx: CanvasRenderingContext2D, f: WorldFrame, a: 
     }
   }
   mountains(ctx, f, a);
-  for (let k = 0; k < 4; k++) ctx.drawImage(s.cloud, Math.round(wrap(k * 70 + 20 - cam * 0.2, w, 30)) - 24, 18 + (k % 2) * 12);
+  // Clouds drift on their own as well as with the camera, each at its own pace (D-081).
+  for (let k = 0; k < 4; k++) {
+    const drift = f.still ? 0 : f.t * (0.02 + k * 0.006);
+    ctx.drawImage(s.cloud, Math.round(wrap(k * 70 + 20 - cam * 0.2 - drift, w, 30)) - 24, 18 + (k % 2) * 12);
+  }
   hills(ctx, f, a, 0.5, 110, 26);
+  // A tree line between the hills and the bushes: in pairs and singles, picked by position.
+  for (let k = 0; k < 5; k++) {
+    const tx = Math.round(wrap(k * 61 + 30 - cam * 0.65, w, 24)) - 6;
+    ctx.drawImage(s.tree, tx, GROUND_Y - 14);
+    if (k % 2 === 0) ctx.drawImage(s.tree, tx + 9, GROUND_Y - 12);
+  }
   for (let k = 0; k < 6; k++) ctx.drawImage(s.bush, Math.round(wrap(k * 53 + 7 - cam * 0.8, w, 20)) - 10, GROUND_Y - 7);
 
   // Warp tube before the first slot (leads to Explore), goal flag after the last (brief §3).
@@ -215,6 +227,9 @@ export function drawForeground(ctx: CanvasRenderingContext2D, f: WorldFrame, a: 
   }
   ctx.drawImage(sprite, hx, hy);
   ctx.restore();
+
+  // The near layer: tufts that move faster than the ground and pass in front of Pip (D-081).
+  for (let k = 0; k < 5; k++) ctx.drawImage(s.tuft, Math.round(wrap(k * 47 + 13 - cam * 1.3, w, 10)) - 3, GROUND_Y - 3);
 
   const spin = [s.coin0, s.coin1, s.coin2, s.coin1];
   for (const c of coins) ctx.drawImage(spin[((c.t / 4) | 0) % 4]!, Math.round(c.x - cam + half) - 4, Math.round(c.y - 10));
