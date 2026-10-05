@@ -11,13 +11,16 @@ import './styles/base.css';
 import './lib/install';
 import { ThemeProvider } from './app/theme';
 import { SessionProvider } from './app/session';
+import { AppearanceProvider } from './app/appearance';
 import { router } from './app/router';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ThemeProvider>
       <SessionProvider>
-        <RouterProvider router={router} />
+        <AppearanceProvider>
+          <RouterProvider router={router} />
+        </AppearanceProvider>
       </SessionProvider>
     </ThemeProvider>
   </StrictMode>,

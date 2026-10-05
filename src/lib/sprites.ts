@@ -217,3 +217,19 @@ export function coverSprite(seed: string): SpriteMap {
 
   return px.map((row) => row.join(''));
 }
+
+// ---------------------------------------------------------------- PIP MART frames (E2, D-074)
+
+/**
+ * Corner ornaments for each badge frame, drawn where the plain badge has its flowers. The frame's
+ * colours themselves are CSS (`.badge[data-frame]`), from existing card tokens only.
+ */
+export const FRAME_DOODLES: Readonly<Record<string, { sprite: SpriteMap; palette: Palette }>> = {
+  meadow: { sprite: ['.f.', 'fyf', '.g.'], palette: { f: '--color-card-cream', y: '--color-card-coin', g: '--color-card-grass-light' } },
+  dusk: { sprite: ['y.y', '.w.', 'y.y'], palette: { y: '--color-card-coin-hi', w: '--color-card-cream' } },
+  pearl: { sprite: ['.m.', 'mhm', '.m.'], palette: { m: '--color-card-metal', h: '--color-card-metal-hi' } },
+  gold: { sprite: ['.h.', 'hyd', '.d.'], palette: { h: '--color-card-coin-hi', y: '--color-card-coin', d: '--color-card-coin-shade' } },
+  member: { sprite: ['.H.', 'HMk', '.k.'], palette: { H: '--color-card-metal-hi', M: '--color-card-metal', k: '--color-card-ink' } },
+};
+
+export const FRAME_KEYS = Object.keys(FRAME_DOODLES);

@@ -10,6 +10,8 @@ export function reasonLabel(e: Pick<LedgerEntry, 'reason' | 'ref'>, achievements
       return 'A project went live';
     case 'discover':
       return 'Discovered a member';
+    case 'purchase':
+      return 'Bought in the PIP MART';
     case 'achievement': {
       const key = e.ref.replace(/^achievement:/, '');
       return `Achievement: ${achievements.find((a) => a.key === key)?.name ?? key}`;
