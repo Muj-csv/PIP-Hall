@@ -129,6 +129,93 @@
     margin-left: 0;
   }
 }
+/* PIP MART unboxing (D-080): a stepped flash, the frame's doodle and Pip jumping for joy. */
+.unbox {
+  margin: auto; /* the CSS reset drops the dialog's own centring */
+  max-width: min(360px, calc(100vw - 32px));
+  padding: var(--spacing-space-6) var(--spacing-space-4) var(--spacing-space-4);
+  display: grid;
+  justify-items: center;
+  gap: var(--spacing-space-3);
+  text-align: center;
+  border: 4px solid var(--color-card-ink);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  box-shadow: 6px 6px 0 0 var(--color-card-ink);
+  overflow: hidden;
+}
+.unbox:not([open]) {
+  display: none;
+}
+.unbox::backdrop {
+  background: color-mix(in srgb, var(--color-void) 70%, transparent);
+}
+.unbox-flash {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: var(--color-card-coin-hi);
+  animation: unbox-flash 420ms steps(3, end) both;
+}
+@keyframes unbox-flash {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+.unbox-prize {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  gap: var(--spacing-space-3);
+}
+.unbox-prize canvas {
+  image-rendering: pixelated;
+}
+.unbox-doodle {
+  width: 36px;
+  height: 36px;
+  animation: unbox-pop 360ms steps(3, end) both;
+}
+.unbox-pip {
+  width: 48px;
+  height: 48px;
+  animation: unbox-hop 600ms steps(2, end) 2;
+}
+@keyframes unbox-pop {
+  from { transform: scale(0.4); }
+  to { transform: scale(1); }
+}
+@keyframes unbox-hop {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+/* Page dissolve (D-080): the page appears through a 4-step dither, like a console screen
+   changing, in 280 ms. Never takes clicks; skipped with reduced motion. */
+.page-dissolve {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  pointer-events: none;
+  background: transparent 0 0 / 8px 8px;
+  animation: page-dissolve 280ms steps(1, end) both;
+}
+@keyframes page-dissolve {
+  0% {
+    background-image: linear-gradient(var(--color-bg), var(--color-bg));
+  }
+  25% {
+    background-image: conic-gradient(from 90deg at 4px 4px, transparent 25%, var(--color-bg) 0);
+  }
+  50% {
+    background-image: repeating-conic-gradient(var(--color-bg) 0 25%, transparent 0 50%);
+  }
+  75% {
+    background-image: conic-gradient(from 90deg at 4px 4px, var(--color-bg) 25%, transparent 0);
+  }
+  100% {
+    background-image: none;
+    visibility: hidden;
+  }
+}
 /* Where you are: inverted, pressed in, and a notch under it (status never by colour alone). */
 .nav-btn[aria-current='page'] {
   position: relative;
@@ -731,6 +818,23 @@
   letter-spacing: 0.05em;
   line-height: 1;
 }
+/* Rank gem (D-080): shape tells the rank (round, diamond, star); the word is in the title and for
+   screen readers. */
+.band-rank {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+}
+.band-rank + .band-no {
+  margin-left: 6px;
+}
+.rank-gem {
+  height: 14px;
+  width: auto;
+}
+.band-rank[data-rank='member'] .rank-gem {
+  height: 10px;
+}
 .band-no {
   margin-left: auto;
   font-family: var(--font-mono);
@@ -972,6 +1076,32 @@ a.item-slot:focus-visible,
   font-size: 8.5px;
   letter-spacing: 0.08em;
   color: var(--color-card-plum);
+}
+/* Foil (D-080): framed and Legend badges. Hard-edged colour bands, no blur, under the QR and the
+   links (they sit at z-index 2+), moved by the swing (--gx) and the pointer (--fx). */
+.foil {
+  display: none;
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  mix-blend-mode: multiply;
+  opacity: 0.4;
+  background: linear-gradient(
+      110deg,
+      transparent 0 34%,
+      var(--color-card-coin) 34% 39%,
+      var(--color-card-grass-light) 39% 44%,
+      var(--color-card-band) 44% 49%,
+      var(--color-card-coin-hi) 49% 54%,
+      transparent 54% 100%
+    )
+    0 0 / 260% 100%;
+  background-position: calc(50% + var(--gx, 0px) * 6 + var(--fx, 0px)) 0;
+  transition: background-position 160ms steps(4);
+}
+.badge[data-foil] .foil {
+  display: block;
 }
 .glare {
   position: absolute;
@@ -1855,6 +1985,10 @@ textarea.pixel-input {
   .badge,
   .hw-btn,
   .pixel-btn { transition: none; }
+  .foil { transition: none; }
+  .page-dissolve { display: none; }
+  .unbox-flash, .unbox-doodle, .unbox-pip { animation: none; }
+  .unbox-flash { display: none; }
   .star-badge[data-twinkle='true'],
   .led[data-blink='true'],
   .dialogue-say[data-done='true']::after { animation: none; }

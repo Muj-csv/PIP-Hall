@@ -4,6 +4,7 @@
 
 import { useEffect, useRef } from 'react';
 import { serialFor } from '../../lib/publicUrl';
+import { rankOf } from '../../lib/rank';
 import { useAchievements } from '../../lib/useAchievements';
 import { useAffiliations } from '../../lib/useAffiliations';
 import { publicImageUrl } from '../../services/storageService';
@@ -24,6 +25,7 @@ export function ProfileScreen({ card, onBack, onShowQr, reward = null }: Props) 
   const c = card.card;
   const achievements = useAchievements(card.profile_id);
   const affiliations = useAffiliations(card.profile_id);
+  const rank = rankOf(c.projects.length);
   useEffect(() => back.current?.focus(), []);
 
   const meta = [`@${c.username}`, `No.${String(card.no).padStart(3, '0')}`, c.role, c.org_position, c.department].filter(Boolean).join(' · ');
@@ -42,6 +44,10 @@ export function ProfileScreen({ card, onBack, onShowQr, reward = null }: Props) 
       <header className="grid gap-space-1">
         <h2 id="profile-name">{c.full_name}</h2>
         <p className="meta m-0">{meta}</p>
+        <p className="m-0 font-display tracking-[0.06em]" data-testid="rank">
+          <span aria-hidden="true">{rank.key === 'legend' ? '★ ' : rank.key === 'builder' ? '◆ ' : '● '}</span>
+          {rank.label.toUpperCase()} RANK <span className="font-body text-caption tracking-normal text-text-secondary">· {rank.rule}</span>
+        </p>
         {c.is_featured && (
           <p className="m-0 font-display tracking-[0.06em]">
             <span aria-hidden="true">★ </span>FEATURED

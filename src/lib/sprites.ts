@@ -248,4 +248,20 @@ export const FRAME_DOODLES: Readonly<Record<string, { sprite: SpriteMap; palette
   member: { sprite: ['.H.', 'HMk', '.k.'], palette: { H: '--color-card-metal-hi', M: '--color-card-metal', k: '--color-card-ink' } },
 };
 
+/** Rank gems on the badge band (D-080): a different shape per rank, not just a different colour. */
+export const RANK_GEMS: Readonly<Record<'member' | 'builder' | 'legend', { sprite: SpriteMap; palette: Palette }>> = {
+  member: {
+    sprite: ['.kkk.', 'kMHMk', 'kMMMk', 'kMMMk', '.kkk.'],
+    palette: { k: '--color-card-ink', M: '--color-card-metal', H: '--color-card-metal-hi' },
+  },
+  builder: {
+    sprite: ['...k...', '..kHk..', '.kHgdk.', 'kHgggdk', '.kggdk.', '..kdk..', '...k...'],
+    palette: { k: '--color-card-ink', g: '--color-card-grass', H: '--color-card-grass-light', d: '--color-card-hill-dark' },
+  },
+  legend: {
+    sprite: ['...k...', '..kyk..', 'kkkhkkk', 'kyhhhyk', '.kyyyk.', '.kykyk.', '.kk.kk.'],
+    palette: { k: '--color-card-ink', y: '--color-card-coin', h: '--color-card-coin-hi' },
+  },
+};
+
 export const FRAME_KEYS = Object.keys(FRAME_DOODLES);
