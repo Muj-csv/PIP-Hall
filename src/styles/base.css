@@ -62,6 +62,93 @@
   border: 0;
 }
 
+/* ---------------------------------------------------------------- top bar (brief §3, D-079)
+   Phones: wordmark + world switch, then the places to go. Wider: one row. */
+.topbar {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: var(--spacing-space-3);
+  padding-block: var(--spacing-space-3);
+  border-bottom: 4px solid var(--color-text-primary);
+}
+.topbar-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-space-2);
+  min-height: 44px;
+  text-decoration: none;
+  font-family: var(--font-display);
+  font-size: 20px;
+  letter-spacing: 0.08em;
+}
+.topbar-maker {
+  display: none;
+}
+.topbar-nav {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-space-2);
+}
+.topbar-nav .nav-btn {
+  font-size: 16px;
+  padding: 6px 10px;
+}
+.topbar-nav .nav-btn[data-variant='primary'] {
+  margin-left: auto;
+}
+.topbar-world .pixel-btn {
+  min-width: 52px;
+  padding: 6px 8px;
+  font-size: 13px;
+}
+@media (min-width: 640px) {
+  .topbar-maker {
+    display: inline;
+  }
+  .topbar-brand {
+    font-size: 22px;
+  }
+}
+@media (min-width: 1024px) {
+  .topbar {
+    grid-template-columns: auto 1fr auto;
+    padding-block: var(--spacing-space-4);
+  }
+  .topbar-nav {
+    grid-column: 2;
+    grid-row: 1;
+    justify-content: flex-end;
+  }
+  .topbar-nav .nav-btn {
+    font-size: 18px;
+    padding: 6px 14px;
+  }
+  .topbar-nav .nav-btn[data-variant='primary'] {
+    margin-left: 0;
+  }
+}
+/* Where you are: inverted, pressed in, and a notch under it (status never by colour alone). */
+.nav-btn[aria-current='page'] {
+  position: relative;
+  background: var(--color-text-primary);
+  color: var(--color-bg);
+  border-color: var(--color-text-primary);
+  box-shadow: none;
+  transform: translate(2px, 2px);
+}
+.nav-btn[aria-current='page']::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -10px;
+  width: 8px;
+  height: 4px;
+  transform: translateX(-50%);
+  background: var(--color-text-primary);
+}
+
 /* ---------------------------------------------------------------- page buttons (spec §11) */
 .pixel-btn {
   display: inline-flex;
@@ -560,6 +647,43 @@
   --color-card-frame: var(--color-card-metal);
   --color-card-frame-hi: var(--color-card-metal-hi);
   --color-card-frame-shade: var(--color-card-lanyard-dark);
+}
+/* Each frame carries a trim down both side rails: square studs on the pixel grid (pearls, coins,
+   stars, flowers, rivets). Hard-stop conic gradients, so every stud is a crisp 1p square. */
+.badge[data-frame] .holder::before,
+.badge[data-frame] .holder::after {
+  content: '';
+  position: absolute;
+  top: calc(var(--p) * 5);
+  bottom: calc(var(--p) * 6);
+  width: var(--p);
+  background: conic-gradient(at var(--p) var(--p), transparent 75%, var(--trim) 0) 0 0 / var(--p) var(--trim-gap);
+}
+.badge[data-frame] .holder::before {
+  left: calc(var(--p) * 1.5);
+}
+.badge[data-frame] .holder::after {
+  right: calc(var(--p) * 1.5);
+}
+.badge[data-frame='meadow'] {
+  --trim: var(--color-card-cream);
+  --trim-gap: calc(var(--p) * 4);
+}
+.badge[data-frame='dusk'] {
+  --trim: var(--color-card-coin-hi);
+  --trim-gap: calc(var(--p) * 6);
+}
+.badge[data-frame='pearl'] {
+  --trim: var(--color-card-metal-hi);
+  --trim-gap: calc(var(--p) * 2);
+}
+.badge[data-frame='gold'] {
+  --trim: var(--color-card-coin-shade);
+  --trim-gap: calc(var(--p) * 3);
+}
+.badge[data-frame='member'] {
+  --trim: var(--color-card-ink);
+  --trim-gap: calc(var(--p) * 5);
 }
 /* The dark frames print in cream so the label stays readable. */
 .badge[data-frame='dusk'] .holder-print {

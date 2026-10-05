@@ -5,27 +5,34 @@
 export type SpriteMap = readonly string[];
 
 export const SPR = {
-  pipIdle: ['.....kk.....', '......k.....', '....kkkk....', '...kwwwwk...', '..kwwwwwwk..', '..kwkwwkwk..', '..kwwwwwwk..', '..kwwrrwwk..', '...kwwwwk...', '....kkkk....', '...kvk.kvk..', '...kk...kk..'],
-  pipWalk: ['.....kk.....', '......k.....', '....kkkk....', '...kwwwwk...', '..kwwwwwwk..', '..kwwkwwkk..', '..kwwwwwwk..', '..kwwwrrwk..', '...kwwwwk...', '....kkkk....', '....kvvk....', '....kkkk....'],
-  pipJump: ['.....kk.....', '.....k......', '....kkkk....', '.k.kwwwwk.k.', '.kkwwwwwwkk.', '..kwkwwkwk..', '..kwwwwwwk..', '..kwwrrwwk..', '...kwwwwk...', '....kkkk....', '..kvk..kvk..', '..kk....kk..'],
-  coin0: ['..kkkk..', '.kyyyyk.', 'kyyhhyyk', 'kyhyyyyk', 'kyhyydyk', 'kyhyydyk', 'kyyyydyk', 'kyydddyk', '.kyyyyk.', '..kkkk..'],
-  coin1: ['...kk...', '..kyyk..', '..kyhk..', '..kyhk..', '..kyhk..', '..kyhk..', '..kydk..', '..kydk..', '..kyyk..', '...kk...'],
-  coin2: ['...kk...', '...kk...', '...kk...', '...kk...', '...kk...', '...kk...', '...kk...', '...kk...', '...kk...', '...kk...'],
-  block: ['kkkkkkkkkk', 'khhhhhhhbk', 'khbbbbbbsk', 'khbkkkbbsk', 'khbkbbkbsk', 'khbkkkbbsk', 'khbkbbbbsk', 'khbkbbbbsk', 'kbsssssssk', 'kkkkkkkkkk'],
-  used: ['kkkkkkkkkk', 'kuuuuuuuuk', 'kuuuuuuuuk', 'kuuuuuuuuk', 'kuuuuuuuuk', 'kuuuuuuuuk', 'kuuuuuuuuk', 'kuuuuuuuuk', 'kuuuuuuuuk', 'kkkkkkkkkk'],
-  brick: ['mmmmmmmmmm', 'rrrrHmrrrr', 'rrrrrmrrrr', 'rrrrrmrrrr', 'mmmmmmmmmm', 'rrmrrrrHrr', 'rrmrrrrrrr', 'rrmrrrrrrr', 'rrmrrrrrrr', 'mmmmmmmmmm'],
-  ground: ['gggggggggg', 'gGgggggGgg', 'GGgGGGGGgG', 'dddddddddd', 'ddDddddddd', 'dddddddDdd', 'dddddddddd', 'dDdddddddd', 'ddddddDddd', 'dddddddddd', 'ddddDddddd', 'dddddddddd'],
-  cloud: ['......wwww..........', '....wwwwwwww..ww....', '..wwwwwwwwwwwwwwww..', '.wwwwwwwwwwwwwwwwww.', 'wwwwwwwwwwwwwwwwwwww', 'wwwwwwwwwwwwwwwwwwww', '.cccccccccccccccccc.'],
-  bush: ['....bbbb......', '..bbbbbbbb.bb.', '.bbBbbbbbbbbbb', 'bbbbbbbBbbbbbb', 'bbbbbbbbbbbbbb'],
-  tube: ['kkkkkkkkkkkkkk', 'kRRHRRRRRRRRRk', 'kRRHRRRRRRRRRk', 'kkkkkkkkkkkkkk', '.kTTHTTTTTTTk.', '.kTTHTTTTTTTk.', '.kTTHTTTTTTTk.', '.kTTHTTTTTTTk.', '.kTTHTTTTTTTk.', '.kTTHTTTTTTTk.', '.kTTHTTTTTTTk.', '.kTTHTTTTTTTk.', '.kTTHTTTTTTTk.', '.kTTHTTTTTTTk.'],
-  star0: ['..y..', '..y..', 'yyyyy', '..y..', '..y..'],
-  star1: ['.....', '..y..', '.yyy.', '..y..', '.....'],
-  clip: ['..kkkkkk..', '.kMMMMMMk.', 'kMHkkkkMMk', 'kMk....kMk'],
-  flower: ['.w.', 'wyw', '.w.'],
-  grass: ['g.g', 'ggg', '...'],
+  // Pip, the hall's host: antenna bulb, shining eyes, blushing cheeks, shaded on the right.
+  pipIdle: ['.....kyk....', '......k.....', '...kkkkkk...', '..kwwwwwwk..', '.kwwwwwwwPk.', '.kwkwwwkwPk.', '.kwkkwwkkPk.', '.kErwwwwErk.', '.kwwwkkwwPk.', '..kwwwwwPk..', '...kkkkkk...', '..kvvk.kvvk.'],
+  pipWalk: ['......kyk...', '......k.....', '...kkkkkk...', '..kwwwwwwk..', '.kwwwwwwwPk.', '.kwkwwwkwPk.', '.kwkkwwkkPk.', '.kErwwwwErk.', '.kwwwkkwwPk.', '..kwwwwwPk..', '...kkkkkk...', '...kvvvvk...'],
+  pipJump: ['.....kyk....', '......k.....', '.k.kkkkkk.k.', '.kkwwwwwwkk.', '.kwwwwwwwPk.', '.kwkkwwkkPk.', '.kwwwwwwwPk.', '.kErwwwwErk.', '.kwwwrrwwPk.', '..kwwwwwPk..', '...kkkkkk...', '..kvk..kvk..'],
+  // A spinning coin: face with an embossed slot, quarter turn, edge.
+  coin0: ['..kkkk..', '.khhyyk.', 'khyyyydk', 'khydhydk', 'khydhydk', 'khydhydk', 'khydhydk', 'khyyyydk', '.kyyddk.', '..kkkk..'],
+  coin1: ['...kk...', '..khyk..', '..khyk..', '..khdk..', '..khdk..', '..khdk..', '..khdk..', '..khyk..', '..kydk..', '...kk...'],
+  coin2: ['...kk...', '...hk...', '...hk...', '...hk...', '...hk...', '...hk...', '...hk...', '...hk...', '...hk...', '...kk...'],
+  // The emblem block: riveted, bevelled, the P casting a shadow. Used once flipped.
+  block: ['kkkkkkkkkk', 'khhhhhhhbk', 'khsbbbbsbk', 'khbkkksbsk', 'khbkbbkssk', 'khbkkksbsk', 'khbksbbbsk', 'khbksbbbsk', 'kbsssssssk', 'kkkkkkkkkk'],
+  used: ['kkkkkkkkkk', 'kuuuuuuuuk', 'kukuuuukuk', 'kuuuuuuuuk', 'kuuuuuuuuk', 'kuuuuuuuuk', 'kuuuuuuuuk', 'kukuuuukuk', 'kuuuuuuuuk', 'kkkkkkkkkk'],
+  // Ceiling bricks, each lit on its top and left edge.
+  brick: ['mmmmmmmmmm', 'QQQQQmQQQQ', 'QrrrrmQrrr', 'QrrrrmQrrr', 'mmmmmmmmmm', 'QQmQQQQQQQ', 'rrmQrrrrrr', 'rrmQrrrrrr', 'rrmQrrrrrr', 'mmmmmmmmmm'],
+  // Ground: grass blades poking up, a dark seam, then soil with pebbles.
+  ground: ['.L....L...', 'gLggLgLggL', 'ggLgggggLg', 'GgggGgggGg', 'GGDGGGDGGD', 'dddddddddd', 'dOddDdddOd', 'ddddddDddd', 'dDdOdddddd', 'ddddddOdDd', 'dOddDddddd', 'dddddddddd'],
+  cloud: ['.........wwww...........', '.......wwwwwwww...www...', '.....wwwwwwwwwwwwwwwww..', '..wwwwwwwwwwwwwwwwwwwww.', '.wwwwwwwwwwwwwwwwwwwwwww', 'wwwwwwwwwwwwwwwwwwwwwwww', 'cwwwwwwwwwwwwwwwwwwwwwcc', '.ccccwwwwwwwwwwwwwcccccc', '...ccccccccccccccccccc..'],
+  bush: ['.....bJJb...bJb.', '...bbJJJbb.bJJbb', '..bJbbbbbbbbbbbb', '.bbbbbbNbbbbbbNb', 'bbbbNbbbbbbNbbbb', 'bNbbbbbNNbbbbbNb', 'NNNNNNNNNNNNNNNN'],
+  // The warp tube: a gold rim (lit, shaded) on a lit, shaded pipe.
+  tube: ['kkkkkkkkkkkkkkkk', 'kRhhRRRRRRRRRRdk', 'kRhRRRRRRRRRRRdk', 'kkkkkkkkkkkkkkkk', '.kTHHTTTTTTTXXk.', '.kTHHTTTTTTTXXk.', '.kTHHTTTTTTTXXk.', '.kTHHTTTTTTTXXk.', '.kTHHTTTTTTTXXk.', '.kTHHTTTTTTTXXk.', '.kTHHTTTTTTTXXk.', '.kTHHTTTTTTTXXk.', '.kTHHTTTTTTTXXk.', '.kTHHTTTTTTTXXk.', '.kTHHTTTTTTTXXk.', '.kTHHTTTTTTTXXk.'],
+  // Night sky: a four-point sparkle and its smaller twinkle.
+  star0: ['..y..', '.yhy.', 'yhhhy', '.yhy.', '..y..'],
+  star1: ['.....', '..y..', '.yhy.', '..y..', '.....'],
+  clip: ['..kkkkkk..', '.kHHHMMMk.', 'kMHkkkkMMk', 'kMk....kMk'],
+  flower: ['.w.', 'wyw', '.g.'],
+  grass: ['g.g', 'ggg', '.g.'],
   iconCode: ['.....', '.k.k.', 'k...k', '.k.k.', '.....'],
-  iconCase: ['.kkk.', 'kkkkk', 'k.k.k', 'kkkkk', '.....'],
-  iconGlobe: ['.kkk.', 'kk.kk', 'kkkkk', 'kk.kk', '.kkk.'],
+  iconCase: ['.k.k.', 'kkkkk', 'kk.kk', 'kkkkk', '.....'],
+  iconGlobe: ['.kkk.', 'k.k.k', 'kkkkk', 'k.k.k', '.kkk.'],
 } as const satisfies Record<string, SpriteMap>;
 
 export type SpriteName = keyof typeof SPR;
@@ -55,17 +62,26 @@ export const WORLD_PALETTE: Palette = {
   R: '--color-world-rim',
   T: '--color-world-tube',
   M: '--color-card-metal',
+  // Shading tones from the art pass (D-079).
+  P: '--color-world-pip-shade',
+  E: '--color-world-cheek-hi',
+  L: '--color-world-grass-hi',
+  O: '--color-world-dirt-hi',
+  Q: '--color-world-brick-hi',
+  X: '--color-world-tube-dark',
+  N: '--color-world-bush-dark',
+  J: '--color-world-bush-hi',
 };
 
 /** Per-sprite overrides inside the level (same key, different token). */
 export const WORLD_OVERRIDES: Partial<Record<SpriteName, Palette>> = {
   cloud: { w: '--color-world-cloud' },
   bush: { b: '--color-world-bush', B: '--color-world-hill-dark' },
-  brick: { r: '--color-world-brick', m: '--color-world-mortar', H: '--color-world-block-hi' },
+  brick: { r: '--color-world-brick', m: '--color-world-mortar' },
   ground: { d: '--color-world-dirt' },
   tube: { H: '--color-world-tube-hi' },
-  star0: { y: '--color-world-star' },
-  star1: { y: '--color-world-star' },
+  star0: { y: '--color-world-star', h: '--color-world-coin-hi' },
+  star1: { y: '--color-world-star', h: '--color-world-coin-hi' },
 };
 
 /** The badge. Identical in DAY and NIGHT: the card is a physical object. */

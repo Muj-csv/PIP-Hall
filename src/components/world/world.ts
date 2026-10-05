@@ -11,14 +11,19 @@ export const CEIL_Y = 10;
 /** Pip's head reaching this height (in units) counts as hitting the badge. */
 export const HEAD_HIT_Y = 117;
 
-const WORLD_SPRITES = ['pipIdle', 'pipWalk', 'pipJump', 'coin0', 'coin1', 'coin2', 'block', 'used', 'brick', 'ground', 'cloud', 'bush', 'tube', 'star0', 'star1'] as const satisfies readonly SpriteName[];
+const WORLD_SPRITES = ['pipIdle', 'pipWalk', 'pipJump', 'coin0', 'coin1', 'coin2', 'block', 'used', 'brick', 'ground', 'cloud', 'bush', 'tube', 'star0', 'star1', 'flower'] as const satisfies readonly SpriteName[];
 
 export interface WorldAssets {
   sprites: Record<(typeof WORLD_SPRITES)[number], HTMLCanvasElement>;
   colors: {
     sky: string;
+    skyHigh: string;
     skyBand: string;
+    mountain: string;
+    mountainShade: string;
+    mountainSnow: string;
     hill: string;
+    hillHi: string;
     hillDark: string;
     star: string;
     ink: string;
@@ -37,8 +42,13 @@ export function buildWorldAssets(read: (cssVar: string) => string): WorldAssets 
     sprites,
     colors: {
       sky: read('--color-world-sky'),
+      skyHigh: read('--color-world-sky-high'),
       skyBand: read('--color-world-sky-band'),
+      mountain: read('--color-world-mountain'),
+      mountainShade: read('--color-world-mountain-shade'),
+      mountainSnow: read('--color-world-mountain-snow'),
       hill: read('--color-world-hill'),
+      hillHi: read('--color-world-hill-hi'),
       hillDark: read('--color-world-hill-dark'),
       star: read('--color-world-star'),
       ink: read('--color-card-ink'),
@@ -84,14 +94,45 @@ function hills(ctx: CanvasRenderingContext2D, f: WorldFrame, a: WorldAssets, fac
   const off = -((f.cam * factor) % spacing);
   for (let hx = off - spacing; hx < f.w + spacing; hx += spacing) {
     const cx = Math.round(hx + spacing / 2);
-    ctx.fillStyle = a.colors.hill;
     for (let i = -r; i <= r; i++) {
       const hh = Math.round(Math.sqrt(r * r - i * i) * 0.7);
+      ctx.fillStyle = a.colors.hill;
       ctx.fillRect(cx + i, GROUND_Y - hh, 1, hh);
+      // A lit crest on the left of each hill, a darker flank on the right.
+      ctx.fillStyle = i < 0 ? a.colors.hillHi : a.colors.hillDark;
+      if (i < r * 0.6 && i > -r * 0.9) ctx.fillRect(cx + i, GROUND_Y - hh, 1, i < 0 ? 2 : 1);
     }
     ctx.fillStyle = a.colors.hillDark;
     for (const [dx, dy] of [[-6, -8], [4, -12], [10, -5], [-12, -4]] as const) {
       if (Math.abs(dx) < r - 2) ctx.fillRect(cx + dx, GROUND_Y + dy, 1, 2);
+    }
+  }
+}
+
+/** Far mountains: stepped peaks with snow caps and a shaded side, barely moving (parallax). */
+function mountains(ctx: CanvasRenderingContext2D, f: WorldFrame, a: WorldAssets) {
+  const spacing = 64;
+  const off = -((f.cam * 0.12) % spacing);
+  const base = 104;
+  for (let mx = off - spacing; mx < f.w + spacing; mx += spacing) {
+    const peaks = [
+      { dx: 18, h: 34 },
+      { dx: 44, h: 24 },
+    ];
+    for (const p of peaks) {
+      const cx = Math.round(mx + p.dx);
+      for (let y = 0; y < p.h; y++) {
+        const half = Math.round(y * 1.15) + 1;
+        const yy = base - p.h + y;
+        ctx.fillStyle = a.colors.mountain;
+        ctx.fillRect(cx - half, yy, half, 1);
+        ctx.fillStyle = a.colors.mountainShade;
+        ctx.fillRect(cx, yy, half, 1);
+        if (y < Math.round(p.h * 0.22)) {
+          ctx.fillStyle = a.colors.mountainSnow;
+          ctx.fillRect(cx - half, yy, half + (y % 2 ? 0 : 1), 1);
+        }
+      }
     }
   }
 }
@@ -110,6 +151,10 @@ export function drawBackground(ctx: CanvasRenderingContext2D, f: WorldFrame, a: 
 
   ctx.fillStyle = a.colors.sky;
   ctx.fillRect(0, 0, w, LEVEL_H);
+  // Deeper sky overhead, dithered into the main sky.
+  ctx.fillStyle = a.colors.skyHigh;
+  ctx.fillRect(0, 0, w, 30);
+  for (let y = 30; y < 44; y++) for (let x = (y % 2) * ((y - 30) % 4 < 2 ? 1 : 0); x < w; x += 2 + Math.floor((y - 30) / 5)) ctx.fillRect(x, y, 1, 1);
   ctx.fillStyle = a.colors.skyBand;
   for (let y = 86; y < 100; y += 2) for (let x = (y / 2) % 2; x < w; x += 2) ctx.fillRect(x, y, 1, 1);
   ctx.fillRect(0, 100, w, 40);
@@ -121,17 +166,19 @@ export function drawBackground(ctx: CanvasRenderingContext2D, f: WorldFrame, a: 
       if ((((f.t / 30) + i) | 0) % 7 !== 0) ctx.fillRect(Math.round(sx), (i * 23) % 60 + 12, 1, 1);
     }
   }
-  for (let k = 0; k < 4; k++) ctx.drawImage(s.cloud, Math.round(wrap(k * 70 + 20 - cam * 0.2, w, 30)) - 20, 18 + (k % 2) * 12);
+  mountains(ctx, f, a);
+  for (let k = 0; k < 4; k++) ctx.drawImage(s.cloud, Math.round(wrap(k * 70 + 20 - cam * 0.2, w, 30)) - 24, 18 + (k % 2) * 12);
   hills(ctx, f, a, 0.5, 110, 26);
-  for (let k = 0; k < 6; k++) ctx.drawImage(s.bush, Math.round(wrap(k * 53 + 7 - cam * 0.8, w, 20)) - 10, GROUND_Y - 5);
+  for (let k = 0; k < 6; k++) ctx.drawImage(s.bush, Math.round(wrap(k * 53 + 7 - cam * 0.8, w, 20)) - 10, GROUND_Y - 7);
 
   // Warp tube before the first slot (leads to Explore), goal flag after the last (brief §3).
-  ctx.drawImage(s.tube, wx(-SLOT_SPACING * 0.85) - 7, GROUND_Y - 14);
+  ctx.drawImage(s.tube, wx(-SLOT_SPACING * 0.85) - 8, GROUND_Y - 16);
   if (f.count > 0) {
     const fx = wx((f.count - 1) * SLOT_SPACING + SLOT_SPACING * 0.8);
     ctx.fillStyle = a.colors.ink;
     ctx.fillRect(fx, GROUND_Y - 44, 1, 44);
-    ctx.fillRect(fx - 1, GROUND_Y - 46, 3, 2);
+    ctx.drawImage(s.coin1, fx - 4, GROUND_Y - 53); // a gold finial
+    ctx.fillRect(fx - 2, GROUND_Y - 2, 5, 2); // base
     ctx.fillStyle = a.colors.flag;
     for (let r = 0; r < 9; r++) ctx.fillRect(fx + 1, GROUND_Y - 43 + r, 9 - r, 1);
     ctx.fillStyle = a.colors.flagEye;
@@ -152,7 +199,11 @@ export function drawForeground(ctx: CanvasRenderingContext2D, f: WorldFrame, a: 
   const half = w / 2;
   const s = a.sprites;
   ctx.clearRect(0, 0, w, LEVEL_H);
-  for (let t = Math.floor((cam - half) / 10) - 1; t < Math.ceil((cam + half) / 10) + 1; t++) ctx.drawImage(s.ground, Math.round(t * 10 - cam + half), GROUND_Y);
+  for (let t = Math.floor((cam - half) / 10) - 1; t < Math.ceil((cam + half) / 10) + 1; t++) {
+    ctx.drawImage(s.ground, Math.round(t * 10 - cam + half), GROUND_Y);
+    // A flower on some tiles, picked by position so it stays put as the camera moves.
+    if (((t * 7919) >>> 0) % 5 === 0) ctx.drawImage(s.flower, Math.round(t * 10 - cam + half) + 3, GROUND_Y - 2);
+  }
 
   const sprite = hero.air ? s.pipJump : hero.walking && ((hero.t / 6) | 0) % 2 ? s.pipWalk : s.pipIdle;
   const hx = Math.round(hero.x - cam + half - 6);
