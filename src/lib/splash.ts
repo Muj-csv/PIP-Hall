@@ -3,6 +3,7 @@
 // as a console powering on; reloads only cover the real loading time.
 
 const SEEN_KEY = 'piphall-splash';
+const BOOTED_KEY = 'piphall-booted'; // the hall's own power-on already played this session
 const FIRST_VISIT_MS = 1400;
 const FONT_WAIT_MS = 2500;
 const EXIT_MS = 450;
@@ -15,7 +16,7 @@ export function splashHoldMs(firstVisit: boolean, reducedMotion: boolean): numbe
 
 function firstVisitThisSession(): boolean {
   try {
-    if (sessionStorage.getItem(SEEN_KEY)) return false;
+    if (sessionStorage.getItem(SEEN_KEY) || sessionStorage.getItem(BOOTED_KEY)) return false;
     sessionStorage.setItem(SEEN_KEY, '1');
   } catch {
     // storage blocked: treat every visit as a reload (shortest splash)
