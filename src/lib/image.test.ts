@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { AVATAR_MAX_PX, COVER_MAX_PX, ImageProblem, MAX_INPUT_BYTES, checkImageFile, fitWithin } from './image';
+import { AVATAR_MAX_PX, COVER_MAX_PX, ImageProblem, MAX_INPUT_BYTES, checkImageFile, fitWithin, isHeic } from './image';
 
 describe('fitWithin', () => {
   it('scales a large landscape photo down to 512 on the long side (avatar)', () => {
@@ -23,15 +23,28 @@ describe('fitWithin', () => {
 });
 
 describe('checkImageFile', () => {
-  it('accepts common photo types up to 8 MB', () => {
+  it('accepts common photo types up to 20 MB', () => {
+    expect(MAX_INPUT_BYTES).toBe(20 * 1024 * 1024);
     expect(() => checkImageFile({ size: MAX_INPUT_BYTES, type: 'image/jpeg' })).not.toThrow();
     expect(() => checkImageFile({ size: 1000, type: 'image/png' })).not.toThrow();
   });
-  it('rejects files over 8 MB before decoding them', () => {
-    expect(() => checkImageFile({ size: MAX_INPUT_BYTES + 1, type: 'image/jpeg' })).toThrow(/8 MB/);
+  it('lets phone photos through to the decoder: HEIC, and files with no type', () => {
+    expect(() => checkImageFile({ size: 1000, type: 'image/heic' })).not.toThrow();
+    expect(() => checkImageFile({ size: 1000, type: '' })).not.toThrow();
+  });
+  it('rejects files over 20 MB before decoding them', () => {
+    expect(() => checkImageFile({ size: MAX_INPUT_BYTES + 1, type: 'image/jpeg' })).toThrow(/20 MB/);
   });
   it('rejects things that are not images', () => {
     expect(() => checkImageFile({ size: 10, type: 'image/svg+xml' })).toThrow(ImageProblem);
     expect(() => checkImageFile({ size: 10, type: 'application/pdf' })).toThrow(ImageProblem);
+  });
+});
+
+describe('isHeic', () => {
+  it('spots HEIC by type or file name', () => {
+    expect(isHeic({ name: 'a.jpg', type: 'image/heic' })).toBe(true);
+    expect(isHeic({ name: 'IMG_0001.HEIC', type: '' })).toBe(true);
+    expect(isHeic({ name: 'a.jpg', type: 'image/jpeg' })).toBe(false);
   });
 });

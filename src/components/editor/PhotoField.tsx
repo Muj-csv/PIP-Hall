@@ -40,7 +40,7 @@ export function PhotoField({ hasPhoto, onPicked, onRemove }: Props) {
         <input
           id={id}
           type="file"
-          accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
+          accept="image/*" // plain image/* makes phones offer the gallery and the camera
           className="sr-only"
           aria-labelledby={`${id}-label`}
           aria-describedby={error ? `${id}-err` : `${id}-hint`}
@@ -63,7 +63,7 @@ export function PhotoField({ hasPhoto, onPicked, onRemove }: Props) {
         </p>
       ) : (
         <p id={`${id}-hint`} className="field-hint">
-          JPG, PNG or WebP up to 8 MB. It’s shrunk on your device before upload.
+          From your gallery or camera, up to 20 MB. It’s shrunk on your device before upload.
         </p>
       )}
     </div>
