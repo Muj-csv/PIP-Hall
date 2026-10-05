@@ -13,6 +13,7 @@ import { ThemeProvider } from './app/theme';
 import { SessionProvider } from './app/session';
 import { AppearanceProvider } from './app/appearance';
 import { router } from './app/router';
+import { hideSplash } from './lib/splash';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -25,3 +26,5 @@ createRoot(document.getElementById('root')!).render(
     </ThemeProvider>
   </StrictMode>,
 );
+
+hideSplash();
