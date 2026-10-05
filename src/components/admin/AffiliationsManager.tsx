@@ -4,6 +4,8 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { affiliationKey, affiliationService, museumErrorMessage, museumService } from '../../services/museumService';
 import type { Affiliation, MuseumSummaryRow } from '../../types/museum';
+import { pipsEnabled } from '../../lib/features';
+import { martService } from '../../services/martService';
 import { DialogueBox } from '../dialogue/DialogueBox';
 import { TextField, Toggle } from '../editor/fields';
 
@@ -85,7 +87,9 @@ export function AffiliationsManager({ onDone }: { onDone: (message: string) => v
             {list.map((a) => (
               <li key={a.key} className="flex flex-wrap items-center gap-space-3">
                 <b>◆ {a.name}</b>
-                <span className="text-caption text-text-secondary">{a.grants_museum ? 'Museum access' : 'Label only'}</span>
+                <span className="text-caption text-text-secondary">
+                  {[a.grants_museum ? 'Museum access' : null, a.frame_key === 'member' ? 'member frame' : null].filter(Boolean).join(' · ') || 'Label only'}
+                </span>
                 <button
                   type="button"
                   className="pixel-btn"
@@ -94,6 +98,21 @@ export function AffiliationsManager({ onDone }: { onDone: (message: string) => v
                 >
                   {a.grants_museum ? 'Remove Museum access' : 'Give Museum access'}
                 </button>
+                {pipsEnabled && (
+                  <button
+                    type="button"
+                    className="pixel-btn"
+                    disabled={busy}
+                    onClick={() =>
+                      void run(
+                        () => martService.setAffiliationFrame(a.key, a.frame_key !== 'member'),
+                        a.frame_key === 'member' ? `${a.name} no longer gives a member frame.` : `${a.name} members can now wear a member frame.`,
+                      )
+                    }
+                  >
+                    {a.frame_key === 'member' ? 'Remove member frame' : 'Give member frame'}
+                  </button>
+                )}
                 {confirm === a.key ? (
                   <>
                     <button type="button" className="pixel-btn" data-variant="primary" disabled={busy} onClick={() => void run(() => affiliationService.remove(a.key), `Deleted ${a.name}.`).then(() => setConfirm(null))}>

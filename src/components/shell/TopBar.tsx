@@ -1,5 +1,6 @@
 import { Link, useLocation } from 'react-router';
 import { useSession } from '../../app/sessionContext';
+import { pipsEnabled } from '../../lib/features';
 import { CARD_PALETTE, SPR } from '../../lib/sprites';
 import { SpriteCanvas } from '../pixel/SpriteCanvas';
 import { ThemeToggle } from './ThemeToggle';
@@ -26,6 +27,11 @@ export function TopBar() {
         <Link to="/museum" className="pixel-btn">
           Museum
         </Link>
+        {pipsEnabled && signedIn && (
+          <Link to="/mart" className="pixel-btn">
+            PIP MART
+          </Link>
+        )}
         {signedIn && session.role === 'admin' && (
           <Link to="/admin" className="pixel-btn">
             Admin

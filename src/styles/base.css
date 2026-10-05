@@ -534,6 +534,46 @@
   line-height: calc(var(--p) * 3);
   color: var(--color-card-frame-shade);
 }
+/* PIP MART frames (E2, D-074): a frame swaps the holder's three colours for other card tokens.
+   Stickers in the frame tone follow along. The badge is a physical object: same in DAY and NIGHT. */
+.badge[data-frame='meadow'] {
+  --color-card-frame: var(--color-card-hill);
+  --color-card-frame-hi: var(--color-card-grass);
+  --color-card-frame-shade: var(--color-card-hill-dark);
+}
+.badge[data-frame='dusk'] {
+  --color-card-frame: var(--color-card-plum);
+  --color-card-frame-hi: var(--color-card-band);
+  --color-card-frame-shade: var(--color-card-ink);
+}
+.badge[data-frame='pearl'] {
+  --color-card-frame: var(--color-card-cream);
+  --color-card-frame-hi: var(--color-card-metal-hi);
+  --color-card-frame-shade: var(--color-card-metal);
+}
+.badge[data-frame='gold'] {
+  --color-card-frame: var(--color-card-block);
+  --color-card-frame-hi: var(--color-card-block-hi);
+  --color-card-frame-shade: var(--color-card-block-shade);
+}
+.badge[data-frame='member'] {
+  --color-card-frame: var(--color-card-metal);
+  --color-card-frame-hi: var(--color-card-metal-hi);
+  --color-card-frame-shade: var(--color-card-lanyard-dark);
+}
+/* The dark frames print in cream so the label stays readable. */
+.badge[data-frame='dusk'] .holder-print {
+  color: var(--color-card-cream);
+}
+/* A perk frame's label (e.g. ACM MEMBER) is the print: tighter tracking so longer names fit. */
+.holder-print[data-label='perk'] {
+  letter-spacing: 0.12em;
+  color: var(--color-card-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: clip;
+  padding: 0 calc(var(--p) * 3);
+}
 .doodle {
   position: absolute;
   width: calc(var(--p) * 3);
@@ -1351,6 +1391,35 @@ textarea.pixel-input {
   font-family: var(--font-display);
   letter-spacing: 0.04em;
   border-bottom-style: solid;
+}
+
+/* ---------------------------------------------------------------- PIP MART (E2, D-074) */
+.mart-layout {
+  display: grid;
+  gap: 24px;
+}
+@media (min-width: 768px) {
+  .mart-layout {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+    align-items: start;
+  }
+}
+.mart-list {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.mart-row {
+  display: grid;
+  gap: 8px;
+  padding: 12px 0;
+  border-bottom: 2px dashed var(--color-border);
+}
+.mart-status {
+  font-family: var(--font-display);
+  letter-spacing: 0.04em;
 }
 
 /* ---------------------------------------------------------------- museum (D-069) */
