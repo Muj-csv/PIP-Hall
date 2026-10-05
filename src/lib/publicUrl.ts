@@ -19,3 +19,12 @@ export function memberUrl(username: string): string {
 export function serialFor(no: number, username: string): string {
   return `PIP·${String(no).padStart(3, '0')}·${username.slice(0, 3).toUpperCase()}`;
 }
+
+/** A Museum exhibit's own page (D-073), shareable like a member page. */
+export function exhibitPath(projectId: string): string {
+  return `/museum/${encodeURIComponent(projectId)}`;
+}
+
+export function exhibitUrl(projectId: string): string {
+  return publicOrigin() + exhibitPath(projectId);
+}

@@ -15,6 +15,7 @@ const Edit = lazy(() => import('../pages/Edit'));
 const Admin = lazy(() => import('../pages/Admin'));
 const Privacy = lazy(() => import('../pages/Privacy'));
 const Museum = lazy(() => import('../pages/Museum'));
+const Exhibit = lazy(() => import('../pages/Exhibit'));
 const Mart = lazy(() => import('../pages/Mart'));
 const Settings = lazy(() => import('../pages/Settings'));
 /** /explore became the hall's search (D-072): old links and shared searches keep working. */
@@ -39,6 +40,7 @@ export const router = createBrowserRouter([
       { path: '/auth/callback', element: <AuthCallback /> },
       { path: '/explore', element: <ExploreRedirect /> },
       { path: '/museum', element: lazyPage(<Museum />) },
+      { path: '/museum/:id', element: lazyPage(<Exhibit />) },
       { path: '/privacy', element: lazyPage(<Privacy />) },
       { path: '/edit', element: <RequireAuth>{lazyPage(<Edit />)}</RequireAuth> },
       { path: '/create', element: <Navigate to="/edit" replace /> },
