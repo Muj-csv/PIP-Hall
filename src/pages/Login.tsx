@@ -53,7 +53,9 @@ export default function Login() {
         <button type="button" className="pixel-btn justify-self-start" data-variant="primary" onClick={start} disabled={state.busy || session.status === 'loading'} aria-busy={state.busy}>
           {state.busy ? 'Opening Google…' : 'Continue with Google'}
         </button>
-        <p className="m-0 text-caption text-text-secondary">PIP-Hall asks Google only for your name, email and profile picture.</p>
+        <p className="m-0 text-caption text-text-secondary">
+          PIP-Hall asks Google only for your name, email and profile picture. <Link to="/privacy" className="underline decoration-2">How we use them</Link>
+        </p>
       </Panel>
     </MenuPage>
   );
