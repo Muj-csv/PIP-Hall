@@ -111,3 +111,12 @@ test('admins choose which affiliations give a member frame', async ({ page }) =>
   expect(db.affiliations[0]!.frame_key).toBe('member');
   await expect(page.getByText('member frame', { exact: true })).toBeVisible();
 });
+
+test('a database without the PIP MART update says so, instead of blaming the connection', async ({ page }) => {
+  await mockSupabase(page, { user: ME, db: hall() });
+  await page.route('**/rest/v1/rpc/my_mart', (r) =>
+    r.fulfill({ status: 404, contentType: 'application/json', body: JSON.stringify({ code: 'PGRST202', message: 'Could not find the function public.my_mart without parameters in the schema cache', details: null, hint: null }) }),
+  );
+  await page.goto('/mart');
+  await expect(page.locator('.dialogue .sr-only')).toContainText('isn’t set up in this hall’s database yet');
+});

@@ -13,10 +13,10 @@ import { MenuPage } from '../components/shell/MenuPage';
 import { pipsEnabled } from '../lib/features';
 import { formatPips } from '../lib/pips';
 import { useCards } from '../lib/useCards';
-import { martErrorMessage, martService } from '../services/martService';
+import { martErrorMessage, martNotSetUp, martService } from '../services/martService';
 import type { Appearance, MartItem, MyMart, Perk } from '../types/mart';
 
-type Load = { status: 'loading' } | { status: 'error' } | { status: 'ready'; mart: MyMart };
+type Load = { status: 'loading' } | { status: 'error'; notSetUp: boolean } | { status: 'ready'; mart: MyMart };
 
 const same = (a: Appearance | null, b: Appearance | null) => (a?.frame ?? null) === (b?.frame ?? null) && (a?.label ?? null) === (b?.label ?? null);
 
@@ -40,7 +40,7 @@ export default function Mart() {
     martService
       .mine()
       .then((mart) => on && setLoad({ status: 'ready', mart }))
-      .catch(() => on && setLoad({ status: 'error' }));
+      .catch((e: unknown) => on && setLoad({ status: 'error', notSetUp: martNotSetUp(e) }));
     return () => {
       on = false;
     };
@@ -91,7 +91,14 @@ export default function Mart() {
       {/* Loading until the Mart answers; then, for members in the hall, until their badge preview is ready too. */}
       {(load.status === 'loading' || (mart?.eligible && cards.status === 'loading')) && <DialogueBox text="Opening the shutters…" emote="pending" />}
       {load.status === 'error' && (
-        <DialogueBox text="Can’t reach the PIP MART right now. Check your connection and try again." emote="attention">
+        <DialogueBox
+          text={
+            load.notSetUp
+              ? 'The PIP MART isn’t set up in this hall’s database yet. An admin needs to run the PIP MART update (see the deploy guide).'
+              : 'Can’t reach the PIP MART right now. Check your connection and try again.'
+          }
+          emote="attention"
+        >
           <button
             type="button"
             className="hw-btn"
