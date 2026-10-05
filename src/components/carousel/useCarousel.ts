@@ -4,6 +4,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { DRAG_THRESHOLD_PX, clampIndex, releaseTarget, rubberBand, slotX, stepCamera } from '../../lib/carousel';
+import { GRAB_HOLD_MS } from '../../lib/grab';
 
 /** CSS px per pixel unit. */
 export const UNIT_PX = 4;
@@ -12,20 +13,26 @@ interface Options {
   count: number;
   reduce: boolean;
   onIndexChange?: (index: number, count: number) => void;
+  /** Whether a press may grab the badge (D-082): only on the current badge, never with reduced motion. */
+  canGrab?: (target: EventTarget | null) => boolean;
+  onGrab?: () => void;
 }
 
-export function useCarousel({ count, reduce, onIndexChange }: Options) {
+export function useCarousel({ count, reduce, onIndexChange, canGrab, onGrab }: Options) {
   const [index, setIndex] = useState(0);
   /** Slot nearest the camera while dragging, so neighbours render before the drag ends. */
   const [near, setNear] = useState(0);
   const indexRef = useRef(0);
   const cam = useRef({ x: 0, v: 0, prevV: 0 });
-  const drag = useRef({ active: false, startX: 0, startCam: 0, lastX: 0, lastT: 0, flick: 0 });
+  const drag = useRef({ active: false, startX: 0, startY: 0, startCam: 0, lastX: 0, lastT: 0, flick: 0 });
+  /** A held badge (D-082): while active, sideways movement swings it instead of moving the camera. */
+  const grab = useRef({ active: false, dx: 0 });
+  const holdTimer = useRef<number | undefined>(undefined);
   /** True from the moment a press becomes a drag until just after release: taps check it. */
   const moved = useRef(false);
-  const opts = useRef({ count, reduce, onIndexChange });
+  const opts = useRef({ count, reduce, onIndexChange, canGrab, onGrab });
   useEffect(() => {
-    opts.current = { count, reduce, onIndexChange };
+    opts.current = { count, reduce, onIndexChange, canGrab, onGrab };
   });
 
   const go = useCallback((i: number) => {
@@ -71,6 +78,13 @@ export function useCarousel({ count, reduce, onIndexChange }: Options) {
     const d = drag.current;
     if (!d.active) return;
     const dx = e.clientX - d.startX;
+    if (grab.current.active) {
+      grab.current.dx = dx;
+      return;
+    }
+    if (!moved.current && (Math.abs(dx) > DRAG_THRESHOLD_PX || Math.abs(e.clientY - d.startY) > DRAG_THRESHOLD_PX)) {
+      window.clearTimeout(holdTimer.current); // moving before the hold ends: a normal drag, not a grab
+    }
     if (!moved.current && Math.abs(dx) > DRAG_THRESHOLD_PX) moved.current = true;
     if (!moved.current) return;
     const now = performance.now();
@@ -88,8 +102,10 @@ export function useCarousel({ count, reduce, onIndexChange }: Options) {
     const d = drag.current;
     if (!d.active) return;
     d.active = false;
+    window.clearTimeout(holdTimer.current);
     window.removeEventListener('pointermove', onPointerMove);
-    if (moved.current) go(releaseTarget(cam.current.x, indexRef.current, d.flick, opts.current.count));
+    if (grab.current.active) grab.current = { active: false, dx: 0 }; // let go: the swing flings on
+    else if (moved.current) go(releaseTarget(cam.current.x, indexRef.current, d.flick, opts.current.count));
     // The click that follows a drag must not flip the card; clear the flag after it fires.
     window.setTimeout(() => {
       moved.current = false;
@@ -100,8 +116,18 @@ export function useCarousel({ count, reduce, onIndexChange }: Options) {
     (e: React.PointerEvent) => {
       if (e.button > 0 || opts.current.count === 0) return;
       const now = performance.now();
-      drag.current = { active: true, startX: e.clientX, startCam: cam.current.x, lastX: e.clientX, lastT: now, flick: 0 };
+      drag.current = { active: true, startX: e.clientX, startY: e.clientY, startCam: cam.current.x, lastX: e.clientX, lastT: now, flick: 0 };
       moved.current = false;
+      window.clearTimeout(holdTimer.current);
+      const o = opts.current;
+      if (!o.reduce && o.canGrab?.(e.target)) {
+        holdTimer.current = window.setTimeout(() => {
+          if (!drag.current.active || moved.current) return;
+          grab.current = { active: true, dx: 0 };
+          moved.current = true; // the click that ends a grab must not flip the badge
+          opts.current.onGrab?.();
+        }, GRAB_HOLD_MS);
+      }
       window.addEventListener('pointermove', onPointerMove);
       window.addEventListener('pointerup', onPointerUp, { once: true });
       window.addEventListener('pointercancel', onPointerUp, { once: true });
@@ -111,6 +137,7 @@ export function useCarousel({ count, reduce, onIndexChange }: Options) {
 
   useEffect(
     () => () => {
+      window.clearTimeout(holdTimer.current);
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerup', onPointerUp);
       window.removeEventListener('pointercancel', onPointerUp);
@@ -118,5 +145,5 @@ export function useCarousel({ count, reduce, onIndexChange }: Options) {
     [onPointerMove, onPointerUp],
   );
 
-  return { index, near, indexRef, cam, moved, go, step, onPointerDown };
+  return { index, near, indexRef, cam, moved, grab, go, step, onPointerDown };
 }

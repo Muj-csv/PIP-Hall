@@ -8,6 +8,7 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router';
 import { memberPath } from '../../lib/publicUrl';
 import { slotLook, slotX } from '../../lib/carousel';
 import { cssVarReader } from '../../lib/sprites';
+import { stepHeld } from '../../lib/grab';
 import { stepSwing, type SwingState } from '../../lib/swing';
 import { useCards } from '../../lib/useCards';
 import { useReducedMotion } from '../../lib/useReducedMotion';
@@ -44,7 +45,7 @@ import { MissingScreen, ProfileScreen } from './ProfileScreen';
 
 const BADGE_HALF_W = 28; // units
 const BOOT_KEY = 'piphall-booted';
-const HINT = 'Drag to browse. Tap a card to flip it.';
+const HINT = 'Drag to browse. Tap a card to flip it. Hold one to swing it.';
 const HALL_TITLE = 'PIP-Hall · Where every person has a place';
 
 type Line = { text: string; emote?: EmoteKind };
@@ -111,8 +112,14 @@ export function Hall({ profile = null }: HallProps) {
     },
     [cards],
   );
-  const car = useCarousel({ count, reduce, onIndexChange });
-  const { go, step, cam: camRef, indexRef, moved } = car;
+  // Grab and fling (D-082): only the current badge, and never from its links or QR button.
+  const canGrab = useCallback((target: EventTarget | null) => {
+    const el = target instanceof Element ? target : null;
+    return Boolean(el?.closest('.slot:not([aria-hidden])') && !el.closest('a, .qr-button'));
+  }, []);
+  const onGrab = useCallback(() => setLine({ text: 'Wheee! Swing it, then let go.' }), []);
+  const car = useCarousel({ count, reduce, onIndexChange, canGrab, onGrab });
+  const { go, step, cam: camRef, indexRef, moved, grab } = car;
 
   // ---- refs the animation loop reads
   const screenRef = useRef<HTMLDivElement>(null);
@@ -357,7 +364,8 @@ export function Hall({ profile = null }: HallProps) {
       // swing + place mounted badges
       for (const [n, el] of slots.current) {
         const s = swings.current.get(n) ?? { angle: 0, vel: 0 };
-        swings.current.set(n, l.reduce ? { angle: 0, vel: 0 } : stepSwing(s, camAcc, dt));
+        const held = grab.current.active && n === idx;
+        swings.current.set(n, l.reduce ? { angle: 0, vel: 0 } : held ? stepHeld(s, grab.current.dx, dt) : stepSwing(s, camAcc, dt));
         placeSlot(n, el);
       }
       for (const [n, b] of bumps.current) {
@@ -446,7 +454,7 @@ export function Hall({ profile = null }: HallProps) {
     };
     raf = requestAnimationFrame(frame);
     return () => cancelAnimationFrame(raf);
-  }, [step, camRef, indexRef, placeSlot, toggleFlip]);
+  }, [step, camRef, indexRef, grab, placeSlot, toggleFlip]);
 
   // ---- keyboard: ←/→ move, Enter/Space flip, O opens, Esc goes back (README, ADR-001)
   const onKeyDown = (e: React.KeyboardEvent) => {
@@ -525,6 +533,10 @@ export function Hall({ profile = null }: HallProps) {
       aria-label="PIP-Hall players. Left and right arrow keys move, Enter flips, O opens the profile."
       onKeyDown={onKeyDown}
       onPointerDown={mode === 'level' ? car.onPointerDown : undefined}
+      // A long press would open the phone's context menu; while a badge is held, it swings instead.
+      onContextMenu={(e) => {
+        if (grab.current.active) e.preventDefault();
+      }}
     >
       <div ref={playRef} className="play">
         <canvas ref={bgRef} data-layer="bg" aria-hidden="true" />
