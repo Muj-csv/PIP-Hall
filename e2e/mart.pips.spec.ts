@@ -89,8 +89,14 @@ test('an affiliation that gives a member frame lets its members wear it free, pr
 test('a member without a card in the hall is told the Mart opens after approval', async ({ page }) => {
   const db = emptyDb();
   await mockSupabase(page, { user: ME, db });
+  // The hall's cards arrive after the Mart's answer (the order CI hit): one message, not two.
+  await page.route('**/rest/v1/published_cards*', async (r) => {
+    await new Promise((done) => setTimeout(done, 1500));
+    await r.fallback();
+  });
   await page.goto('/mart');
   await expect(page.locator('.dialogue .sr-only')).toContainText('opens once your card is in the hall');
+  await expect(page.locator('.dialogue')).toHaveCount(1); // never alongside the loading line
   await expect(page.locator('.dialogue').getByRole('link', { name: 'MY CARD', exact: true })).toBeVisible();
 });
 

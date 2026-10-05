@@ -88,7 +88,8 @@ export default function Mart() {
 
   return (
     <MenuPage title="PIP MART" wide>
-      {(load.status === 'loading' || cards.status === 'loading') && <DialogueBox text="Opening the shutters…" emote="pending" />}
+      {/* Loading until the Mart answers; then, for members in the hall, until their badge preview is ready too. */}
+      {(load.status === 'loading' || (mart?.eligible && cards.status === 'loading')) && <DialogueBox text="Opening the shutters…" emote="pending" />}
       {load.status === 'error' && (
         <DialogueBox text="Can’t reach the PIP MART right now. Check your connection and try again." emote="attention">
           <button
