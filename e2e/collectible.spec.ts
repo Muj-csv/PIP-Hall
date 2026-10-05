@@ -33,3 +33,23 @@ test('reduced motion skips the dissolve', async ({ page }) => {
   await page.goto('/museum');
   await expect(page.locator('.page-dissolve')).toHaveCSS('display', 'none');
 });
+
+test('the front shows up to three top skills', async ({ page }) => {
+  await page.goto('/member/sample-player-4'); // 8 skills
+  const skills = page.locator('.profile-screen .badge').first().getByRole('list', { name: 'Top skills' });
+  await expect(skills.locator('li')).toHaveCount(3);
+});
+
+test('frame rails move in each frame’s own way, and stand still with reduced motion', async ({ page }) => {
+  await page.goto('/member/sample-player-4');
+  const badge = page.locator('.profile-screen .badge').first();
+  const rail = () => badge.locator('.holder').first().evaluate((el) => getComputedStyle(el, '::before').animationName);
+  for (const [frame, motion] of [['gold', 'trim-flow'], ['dusk', 'trim-twinkle'], ['pearl', 'pearl-gleam'], ['member', 'trim-pulse']]) {
+    await badge.evaluate((el, f) => el.setAttribute('data-frame', f), frame);
+    await expect.poll(rail).toBe(motion);
+  }
+  await expect.poll(() => badge.locator('.foil').first().evaluate((el) => getComputedStyle(el).animationName)).toBe('foil-sweep');
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await expect.poll(rail).toBe('none');
+  await expect.poll(() => badge.locator('.foil').first().evaluate((el) => getComputedStyle(el).animationName)).toBe('none');
+});

@@ -740,7 +740,13 @@
   --color-card-frame-shade: var(--color-card-lanyard-dark);
 }
 /* Each frame carries a trim down both side rails: square studs on the pixel grid (pearls, coins,
-   stars, flowers, rivets). Hard-stop conic gradients, so every stud is a crisp 1p square. */
+   stars, flowers, rivets). Hard-stop conic gradients, so every stud is a crisp 1p square.
+   The trim moves (D-084), one pixel per step, in each frame's own way. */
+@property --sweep {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 0;
+}
 .badge[data-frame] .holder::before,
 .badge[data-frame] .holder::after {
   content: '';
@@ -749,32 +755,67 @@
   bottom: calc(var(--p) * 6);
   width: var(--p);
   background: conic-gradient(at var(--p) var(--p), transparent 75%, var(--trim) 0) 0 0 / var(--p) var(--trim-gap);
+  animation: var(--trim-motion, none);
 }
 .badge[data-frame] .holder::before {
   left: calc(var(--p) * 1.5);
 }
 .badge[data-frame] .holder::after {
   right: calc(var(--p) * 1.5);
+  animation-direction: var(--trim-return, normal);
 }
+@keyframes trim-flow {
+  to { background-position: 0 var(--trim-gap); }
+}
+@keyframes trim-twinkle {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+@keyframes trim-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+/* Meadow: flowers drift down both rails. */
 .badge[data-frame='meadow'] {
   --trim: var(--color-card-cream);
   --trim-gap: calc(var(--p) * 4);
+  --trim-motion: trim-flow 1.6s steps(4) infinite;
 }
+/* Dusk: stars twinkle, the two rails out of step. */
 .badge[data-frame='dusk'] {
   --trim: var(--color-card-coin-hi);
   --trim-gap: calc(var(--p) * 6);
+  --trim-motion: trim-twinkle 1.8s steps(2) infinite;
+  --trim-return: reverse;
 }
+/* Pearl: pearls stand still while a gleam slides down them. */
 .badge[data-frame='pearl'] {
   --trim: var(--color-card-metal-hi);
   --trim-gap: calc(var(--p) * 2);
 }
+.badge[data-frame='pearl'] .holder::before,
+.badge[data-frame='pearl'] .holder::after {
+  background:
+    linear-gradient(var(--color-card-cream), var(--color-card-cream)) 0 -20% / var(--p) calc(var(--p) * 3) no-repeat,
+    conic-gradient(at var(--p) var(--p), transparent 75%, var(--trim) 0) 0 0 / var(--p) var(--trim-gap);
+  animation: pearl-gleam 3s steps(24) infinite;
+}
+@keyframes pearl-gleam {
+  0% { background-position: 0 -20%, 0 0; }
+  60%, 100% { background-position: 0 120%, 0 0; }
+}
+/* Gold: coins run around the badge, down the left rail and up the right. */
 .badge[data-frame='gold'] {
   --trim: var(--color-card-coin-shade);
   --trim-gap: calc(var(--p) * 3);
+  --trim-motion: trim-flow 0.9s steps(3) infinite;
+  --trim-return: reverse;
 }
+/* Member: rivets that pulse slowly, like a status light. */
 .badge[data-frame='member'] {
   --trim: var(--color-card-ink);
   --trim-gap: calc(var(--p) * 5);
+  --trim-motion: trim-pulse 2.4s steps(2) infinite;
 }
 /* The dark frames print in cream so the label stays readable. */
 .badge[data-frame='dusk'] .holder-print {
@@ -1004,6 +1045,30 @@
   background-size: 12px 8px;
   background-repeat: repeat-x;
 }
+/* Top skills on the front (D-084): small stamped chips in the card's quiet middle. */
+.badge-skills {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end; /* stickers overhang the left edge; the right side stays clear */
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.badge-skills li {
+  max-width: 100%;
+  overflow: hidden;
+  padding: 2px 6px;
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--color-card-ink);
+  background: var(--color-card-cream);
+  box-shadow: inset 0 0 0 2px var(--color-card-ink);
+}
 .badge-foot {
   margin-top: auto;
   display: flex;
@@ -1081,31 +1146,72 @@ a.item-slot:focus-visible,
   letter-spacing: 0.08em;
   color: var(--color-card-plum);
 }
-/* Foil (D-080): framed and Legend badges. Hard-edged colour bands, no blur, under the QR and the
-   links (they sit at z-index 2+), moved by the swing (--gx) and the pointer (--fx). */
+/* Foil (D-080, D-084): framed and Legend badges. Two hard-edged holo bands at different depths,
+   under the QR and the links (they sit at z-index 2+), moved by the swing (--gx), the pointer (--fx)
+   and a slow idle sweep (--sweep) so it shimmers on phones too; pixel sparkles twinkle on top. */
 .foil {
   display: none;
   position: absolute;
   inset: 0;
   z-index: 1;
   pointer-events: none;
+  --at: calc(var(--gx, 0px) * 6 + var(--fx, 0px) + var(--sweep) * 90px);
+}
+.foil::before,
+.foil::after {
+  content: '';
+  position: absolute;
+  inset: 0;
   mix-blend-mode: multiply;
-  opacity: 0.4;
+}
+.foil::before {
+  opacity: 0.32;
   background: linear-gradient(
       110deg,
       transparent 0 34%,
-      var(--color-card-coin) 34% 39%,
-      var(--color-card-grass-light) 39% 44%,
-      var(--color-card-band) 44% 49%,
-      var(--color-card-coin-hi) 49% 54%,
+      var(--color-card-coin) 34% 38%,
+      var(--color-card-grass-light) 38% 42%,
+      var(--color-card-sky) 42% 46%,
+      var(--color-card-band) 46% 50%,
+      var(--color-card-coin-hi) 50% 54%,
       transparent 54% 100%
     )
     0 0 / 260% 100%;
-  background-position: calc(50% + var(--gx, 0px) * 6 + var(--fx, 0px)) 0;
-  transition: background-position 160ms steps(4);
+  background-position: calc(50% + var(--at)) 0;
+}
+/* A thinner second band, moving faster: it reads as depth in the foil. */
+.foil::after {
+  opacity: 0.24;
+  background: linear-gradient(110deg, transparent 0 46%, var(--color-card-band) 46% 48%, var(--color-card-coin-hi) 48% 50%, transparent 50%) 0 0 / 300% 100%;
+  background-position: calc(30% + var(--at) * 1.6) 0;
 }
 .badge[data-foil] .foil {
   display: block;
+  animation: foil-sweep 7s steps(28) infinite;
+}
+@keyframes foil-sweep {
+  0%, 100% { --sweep: -1; }
+  45% { --sweep: 1; }
+  55% { --sweep: 1; }
+}
+/* Sparkles: four-point pixel stars that blink in turn. */
+.sparkle {
+  position: absolute;
+  width: calc(var(--p) * 3);
+  height: calc(var(--p) * 3);
+  background: var(--color-card-cream);
+  clip-path: polygon(33.3% 0, 66.6% 0, 66.6% 33.3%, 100% 33.3%, 100% 66.6%, 66.6% 66.6%, 66.6% 100%, 33.3% 100%, 33.3% 66.6%, 0 66.6%, 0 33.3%, 33.3% 33.3%);
+  opacity: 0;
+  animation: sparkle 2.8s steps(1) infinite;
+}
+.sparkle:nth-child(1) { top: 16%; left: 14%; }
+.sparkle:nth-child(2) { top: 30%; right: 12%; animation-delay: 0.7s; }
+.sparkle:nth-child(3) { top: 58%; left: 72%; animation-delay: 1.4s; }
+.sparkle:nth-child(4) { top: 44%; left: 8%; animation-delay: 2.1s; }
+@keyframes sparkle {
+  0% { opacity: 0.95; transform: scale(1); }
+  8% { opacity: 0.6; transform: scale(0.67); }
+  16%, 100% { opacity: 0; }
 }
 .glare {
   position: absolute;
@@ -2118,7 +2224,9 @@ textarea.pixel-input {
   .badge,
   .hw-btn,
   .pixel-btn { transition: none; }
-  .foil { transition: none; }
+  .foil, .badge[data-foil] .foil, .sparkle { animation: none; transition: none; }
+  .sparkle { display: none; }
+  .badge[data-frame] .holder::before, .badge[data-frame] .holder::after { animation: none; }
   .page-dissolve { display: none; }
   .unbox-flash, .unbox-doodle, .unbox-pip { animation: none; }
   .unbox-flash { display: none; }

@@ -190,7 +190,12 @@ function Holder({ children }: { children: React.ReactNode }) {
       )}
       <div className="insert">
         {children}
-        <div className="foil" aria-hidden="true" />
+        <div className="foil" aria-hidden="true">
+          <i className="sparkle" />
+          <i className="sparkle" />
+          <i className="sparkle" />
+          <i className="sparkle" />
+        </div>
         <div className="glare" aria-hidden="true">
           <i />
           <i />
@@ -329,6 +334,14 @@ function CardFront({
             </div>
           </div>
           <div className="coinline" aria-hidden="true" />
+          {c.skills.length > 0 && (
+            // The front's quiet middle shows the first few skills (D-084); the back lists them all.
+            <ul className="badge-skills" aria-label="Top skills">
+              {c.skills.slice(0, 3).map((s) => (
+                <li key={s}>{s}</li>
+              ))}
+            </ul>
+          )}
           <div className="badge-foot">
             <div className="item-slots">
               {links.map((l) =>
