@@ -145,8 +145,11 @@ try {
   await expectErr(c, 'anon cannot write public cards', 'anon', `insert into published_cards (profile_id, username, card) values ($1,'x','{}')`, [B], /permission denied/);
 
   console.log('account deletion');
+  await expectErr(c, 'anon cannot call delete_my_account', 'anon', `select delete_my_account()`, [], /permission denied/);
   await expectOk(c, 'member deletes own account', B, `select delete_my_account()`, []);
   await expectOk(c, 'their draft is gone', ADMIN, `select * from profiles where id=$1`, [B], (r) => r.rowCount === 0);
+  await expectOk(c, 'their public card is gone too', 'anon', `select * from published_cards where profile_id=$1`, [B], (r) => r.rowCount === 0);
+  await expectOk(c, 'other members are untouched', 'anon', `select * from published_cards where profile_id=$1`, [A], (r) => r.rowCount === 1);
 } finally {
   await c.end();
   await db.stop();
