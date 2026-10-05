@@ -588,6 +588,10 @@
   width: calc(var(--p) * 56);
   transform-origin: 50% 0;
   will-change: transform;
+  /* Holding a badge grabs it (D-082): no text selection or phone callout menu on the long press. */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 .strap {
   display: block;
