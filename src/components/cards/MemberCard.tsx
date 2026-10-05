@@ -14,8 +14,10 @@ import {
   CARD_PALETTE,
   DOODLE_PALETTE,
   FRAME_DOODLES,
+  RANK_GEMS,
   SPR,
 } from "../../lib/sprites";
+import { rankOf, type Rank } from "../../lib/rank";
 import { placeStickers } from "../../lib/stickers";
 import { memberUrl, serialFor } from "../../lib/publicUrl";
 import type { PublicCard } from "../../types/card";
@@ -61,9 +63,25 @@ export function MemberCard({
   const tab = focusable ? 0 : -1;
   const worn = useAppearance().of(card.profile_id);
   const look = appearance === undefined ? worn : appearance;
+  const rank = rankOf(card.card.projects.length);
+  // Foil (D-080): framed and Legend badges catch a banded shine that follows the pointer here,
+  // and the swing in the hall (--gx). Written straight to the element, so nothing re-renders.
+  const foil = Boolean(look?.frame) || rank.key === "legend";
+  const tilt = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!foil || e.pointerType !== "mouse") return;
+    const r = e.currentTarget.getBoundingClientRect();
+    e.currentTarget.style.setProperty("--fx", `${Math.round(((e.clientX - r.left) / r.width - 0.5) * 120)}px`);
+  };
   return (
     <FrameContext.Provider value={look}>
-      <div className="badge" data-flipped={flipped} data-frame={look?.frame}>
+      <div
+        className="badge"
+        data-flipped={flipped}
+        data-frame={look?.frame}
+        data-rank={rank.key}
+        data-foil={foil || undefined}
+        onPointerMove={foil ? tilt : undefined}
+      >
         <div className="badge-face" data-side="front" inert={flipped}>
           {onActivate && (
             <button
@@ -172,6 +190,7 @@ function Holder({ children }: { children: React.ReactNode }) {
       )}
       <div className="insert">
         {children}
+        <div className="foil" aria-hidden="true" />
         <div className="glare" aria-hidden="true">
           <i />
           <i />
@@ -181,7 +200,7 @@ function Holder({ children }: { children: React.ReactNode }) {
   );
 }
 
-function Band({ title, right }: { title: string; right: string }) {
+function Band({ title, right, rank }: { title: string; right: string; rank?: Rank }) {
   return (
     <div className="band">
       <SpriteCanvas
@@ -190,6 +209,16 @@ function Band({ title, right }: { title: string; right: string }) {
         className="band-emblem"
       />
       <span className="band-title">{title}</span>
+      {rank && (
+        <span className="band-rank" data-rank={rank.key} title={`${rank.label}: ${rank.rule}`}>
+          <SpriteCanvas
+            sprite={RANK_GEMS[rank.key].sprite}
+            palette={RANK_GEMS[rank.key].palette}
+            className="rank-gem"
+          />
+          <span className="sr-only">{rank.label} rank</span>
+        </span>
+      )}
       <span className="band-no">{right}</span>
     </div>
   );
@@ -256,6 +285,7 @@ function CardFront({
         <Band
           title="PIP-HALL"
           right={`No.${String(card.no).padStart(3, "0")}`}
+          rank={rankOf(c.projects.length)}
         />
         <div className="badge-inner">
           <div className="photo-window">

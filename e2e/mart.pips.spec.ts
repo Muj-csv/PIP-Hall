@@ -48,6 +48,12 @@ test('try a frame on, buy one, wear it: the hall shows it to everyone', async ({
   expect(db.inventory ?? []).toHaveLength(0);
   await row(page, 'Meadow Frame').getByRole('button', { name: 'Buy for 200' }).click();
   await row(page, 'Meadow Frame').getByRole('button', { name: 'Yes, spend 200 PIPs' }).click();
+  // The frame arrives in an unboxing dialog; Later keeps the current look.
+  const unbox = page.getByRole('dialog', { name: 'NEW FRAME!' });
+  await expect(unbox).toContainText('The Meadow Frame is yours to keep.');
+  await expect(unbox.getByRole('button', { name: 'Wear it now' })).toBeFocused();
+  await unbox.getByRole('button', { name: 'Later' }).click();
+  await expect(unbox).toHaveCount(0);
   await expect(page.locator('.notice')).toHaveText('Meadow Frame is yours! Wear it whenever you like.');
   await expect(balance(page)).toHaveText(/300 PIPs/);
   await expect(row(page, 'Meadow Frame')).toContainText('Owned');
@@ -65,6 +71,20 @@ test('try a frame on, buy one, wear it: the hall shows it to everyone', async ({
   await visitor.goto('http://localhost:5174/');
   await expect(visitor.locator('.slot:not([aria-hidden]) .badge')).toHaveAttribute('data-frame', 'meadow');
   await ctx.close();
+});
+
+test('wear it now from the unboxing puts the new frame straight on the badge', async ({ page }) => {
+  const db = hall(500);
+  await boot(page);
+  await mockSupabase(page, { user: ME, db });
+  await page.goto('/mart');
+  await row(page, 'Meadow Frame').getByRole('button', { name: 'Buy for 200' }).click();
+  await row(page, 'Meadow Frame').getByRole('button', { name: 'Yes, spend 200 PIPs' }).click();
+  await page.getByRole('dialog', { name: 'NEW FRAME!' }).getByRole('button', { name: 'Wear it now' }).click();
+  await expect(page.locator('.notice')).toHaveText('Wearing the Meadow Frame.');
+  await expect(row(page, 'Meadow Frame')).toContainText('✓ Wearing');
+  await expect(preview(page)).toHaveAttribute('data-frame', 'meadow');
+  await expect(preview(page)).toHaveAttribute('data-foil', 'true');
 });
 
 test('an affiliation that gives a member frame lets its members wear it free, printed with its name', async ({ page }) => {

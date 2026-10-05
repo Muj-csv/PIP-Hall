@@ -9,6 +9,7 @@ import { BadgeStage } from '../components/cards/BadgeStage';
 import { MemberCard } from '../components/cards/MemberCard';
 import { QrFullscreen } from '../components/cards/QrFullscreen';
 import { DialogueBox } from '../components/dialogue/DialogueBox';
+import { Unbox } from '../components/mart/Unbox';
 import { MenuPage } from '../components/shell/MenuPage';
 import { pipsEnabled } from '../lib/features';
 import { formatPips } from '../lib/pips';
@@ -33,6 +34,7 @@ export default function Mart() {
   const [notice, setNotice] = useState<{ text: string; bad?: boolean } | null>(null);
   const [flipped, setFlipped] = useState(false);
   const [qr, setQr] = useState(false);
+  const [unboxed, setUnboxed] = useState<MartItem | null>(null);
 
   useEffect(() => {
     if (!pipsEnabled || !userId) return;
@@ -48,12 +50,13 @@ export default function Mart() {
 
   const reload = useCallback(() => setAttempt((a) => a + 1), []);
 
-  const run = async (move: () => Promise<unknown>, done: string) => {
+  const run = async (move: () => Promise<unknown>, done: string, then?: () => void) => {
     setBusy(true);
     setNotice(null);
     try {
       await move();
       setNotice({ text: done });
+      then?.();
       setConfirm(null);
       reload();
       appearance.refresh();
@@ -177,7 +180,7 @@ export default function Mart() {
                         onTry={() => setTrying({ frame: item.key, label: null })}
                         onAsk={() => setConfirm(item.key)}
                         onCancel={() => setConfirm(null)}
-                        onBuy={() => void run(() => martService.buy(item.key), `${item.name} is yours! Wear it whenever you like.`)}
+                        onBuy={() => void run(() => martService.buy(item.key), `${item.name} is yours! Wear it whenever you like.`, () => setUnboxed(item))}
                         onWear={() => void run(() => martService.equip(item.key), `Wearing the ${item.name}.`)}
                       />
                     </li>
@@ -214,6 +217,20 @@ export default function Mart() {
         </>
       )}
       {qr && mine && <QrFullscreen card={mine} onClose={() => setQr(false)} />}
+      {unboxed && (
+        <Unbox
+          item={unboxed}
+          busy={busy}
+          onClose={() => setUnboxed(null)}
+          onWear={() => {
+            // Close first, so a failure shows on the page rather than behind the dialog.
+            const item = unboxed;
+            setUnboxed(null);
+            setTrying(undefined);
+            void run(() => martService.equip(item.key), `Wearing the ${item.name}.`);
+          }}
+        />
+      )}
     </MenuPage>
   );
 }
