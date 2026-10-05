@@ -1736,3 +1736,93 @@ textarea.pixel-input {
   .dialogue-say[data-done='true']::after { animation: none; }
 }
 }
+
+/* ---------------------------------------------------------------- power-on screen (D-077) */
+#splash {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  background: var(--color-void);
+  color: var(--color-card-cream);
+  transition: opacity 400ms steps(4), visibility 0s linear 400ms;
+}
+#splash[data-state='done'] {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+.splash-inner {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  padding: 24px;
+  text-align: center;
+}
+.splash-block {
+  width: 80px;
+  height: 80px;
+  image-rendering: pixelated;
+  shape-rendering: crispEdges;
+  animation: splash-bob 900ms steps(2) infinite;
+}
+.splash-block .sk { fill: var(--color-card-ink); }
+.splash-block .sh { fill: var(--color-card-block-hi); }
+.splash-block .sb { fill: var(--color-card-block); }
+.splash-block .ss { fill: var(--color-card-block-shade); }
+.splash-brand {
+  margin: 8px 0 0;
+  font-family: var(--font-display);
+  font-size: 40px;
+  line-height: 1;
+  letter-spacing: 0.3em;
+  padding-left: 0.3em; /* balance the tracking */
+}
+.splash-game {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 18px;
+  letter-spacing: 0.2em;
+  color: var(--color-card-coin);
+}
+.splash-bar {
+  display: flex;
+  gap: 4px;
+  margin-top: 12px;
+  padding: 4px;
+  box-shadow: 0 0 0 3px var(--color-card-cream);
+}
+.splash-bar i {
+  width: 14px;
+  height: 14px;
+  background: var(--color-card-coin);
+  opacity: 0.18;
+  animation: splash-fill 1600ms steps(1) infinite;
+}
+.splash-bar i:nth-child(2) { animation-delay: 200ms; }
+.splash-bar i:nth-child(3) { animation-delay: 400ms; }
+.splash-bar i:nth-child(4) { animation-delay: 600ms; }
+.splash-bar i:nth-child(5) { animation-delay: 800ms; }
+.splash-bar i:nth-child(6) { animation-delay: 1000ms; }
+.splash-bar i:nth-child(7) { animation-delay: 1200ms; }
+.splash-bar i:nth-child(8) { animation-delay: 1400ms; }
+.splash-text {
+  margin: 4px 0 0;
+  font-family: var(--font-display);
+  font-size: 14px;
+  letter-spacing: 0.08em;
+}
+@keyframes splash-bob {
+  50% { transform: translateY(-6px); }
+}
+@keyframes splash-fill {
+  0%, 100% { opacity: 0.18; }
+  10%, 60% { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #splash { transition: none; }
+  .splash-block,
+  .splash-bar i { animation: none; }
+  .splash-bar i { opacity: 1; }
+}
