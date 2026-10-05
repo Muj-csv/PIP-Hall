@@ -54,8 +54,9 @@ test('full path: pick 3 repos, add a manual project, add a photo, submit → pen
   await manual.getByRole('button', { name: 'Add project' }).click();
   await expect(page.getByRole('list', { name: 'Projects on your card' }).getByRole('listitem')).toHaveCount(4);
 
-  // Photo: resized in the browser, previewed on the badge before upload.
+  // Photo: cropped and resized in the browser, previewed on the badge before upload.
   await page.locator('input[type=file]').setInputFiles({ name: 'me.png', mimeType: 'image/png', buffer: TINY_PNG });
+  await page.getByRole('button', { name: 'Use this photo' }).click();
   await expect(page.locator('.preview-stage img.photo')).toHaveAttribute('src', /^blob:/);
 
   // The live badge follows the form.
@@ -171,9 +172,101 @@ test('phone photos: the picker offers gallery and camera, and files with no type
 
   // Some Android galleries hand over files with an empty type.
   await input.setInputFiles({ name: 'IMG_2041.jpg', mimeType: '', buffer: TINY_PNG });
+  await page.getByRole('button', { name: 'Use this photo' }).click();
   await expect(page.locator('.preview-stage img.photo')).toHaveAttribute('src', /^blob:/);
 
   // A HEIC this browser can't open gets a clear way out.
   await input.setInputFiles({ name: 'IMG_2042.HEIC', mimeType: 'image/heic', buffer: Buffer.from('not really an image') });
   await expect(page.getByRole('alert')).toContainText('can’t open HEIC photos');
+});
+
+test('Safari can’t save WebP: the photo is saved as JPEG instead', async ({ page }) => {
+  // Like Safari: asked for WebP, the canvas hands back PNG.
+  await page.addInitScript(() => {
+    const toBlob = HTMLCanvasElement.prototype.toBlob;
+    HTMLCanvasElement.prototype.toBlob = function (cb, type, quality) {
+      return toBlob.call(this, cb, type === 'image/webp' ? 'image/png' : type, quality);
+    };
+  });
+  const db = emptyDb('octocat');
+  await mockSupabase(page, { user: USER, db, githubRepos: REPOS });
+  const upload = page.waitForRequest((r) => r.url().includes('/storage/v1/object/avatars/') && r.method() === 'POST');
+  await page.goto('/edit');
+  await page.locator('input[type=file]').setInputFiles({ name: 'me.png', mimeType: 'image/png', buffer: TINY_PNG });
+  await page.getByRole('button', { name: 'Use this photo' }).click();
+  await expect(page.locator('.preview-stage img.photo')).toHaveAttribute('src', /^blob:/);
+  await expect(page.getByRole('alert')).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Save and submit for review' }).first().click();
+  await expect(page.locator('.status-tag')).toHaveText('PENDING REVIEW');
+  const req = await upload;
+  expect(req.url()).toMatch(/\.jpg$/);
+  expect(req.postDataBuffer()?.toString('latin1')).toContain('image/jpeg');
+  expect(db.profiles[0]!.avatar_path).toMatch(/\.jpg$/);
+});
+
+test('the member crops the photo: drag, keyboard and zoom pick what shows on the badge', async ({ page }) => {
+  await mockSupabase(page, { user: USER, db: emptyDb('octocat'), githubRepos: REPOS });
+  await page.goto('/edit');
+
+  // A 400 × 300 photo: left half red, right half blue.
+  const photo = await page.evaluate(async () => {
+    const c = document.createElement('canvas');
+    c.width = 400;
+    c.height = 300;
+    const ctx = c.getContext('2d')!;
+    ctx.fillStyle = 'rgb(255,0,0)';
+    ctx.fillRect(0, 0, 200, 300);
+    ctx.fillStyle = 'rgb(0,0,255)';
+    ctx.fillRect(200, 0, 200, 300);
+    return c.toDataURL('image/png').split(',')[1]!;
+  });
+  const pick = async () => {
+    await page.locator('input[type=file]').setInputFiles({ name: 'split.png', mimeType: 'image/png', buffer: Buffer.from(photo, 'base64') });
+    await expect(page.getByRole('application', { name: /Photo crop/ })).toBeFocused();
+    await page.getByLabel('Zoom', { exact: true }).fill('2');
+  };
+  const preview = page.locator('.preview-stage img.photo');
+  const use = async () => {
+    const before = (await preview.count()) ? await preview.getAttribute('src') : null;
+    await page.getByRole('button', { name: 'Use this photo' }).click();
+    if (before) await expect(preview).not.toHaveAttribute('src', before);
+  };
+  // Size of the saved photo and the colour in its middle.
+  const saved = () =>
+    page.evaluate(async () => {
+      const img = document.querySelector<HTMLImageElement>('.preview-stage img.photo')!;
+      await img.decode();
+      const c = document.createElement('canvas');
+      c.width = img.naturalWidth;
+      c.height = img.naturalHeight;
+      const ctx = c.getContext('2d')!;
+      ctx.drawImage(img, 0, 0);
+      const [r, , b] = ctx.getImageData(c.width / 2, c.height / 2, 1, 1).data;
+      return { width: c.width, height: c.height, colour: r! > b! ? 'red' : 'blue' };
+    });
+
+  // Drag the photo left: the box moves right, onto the blue half.
+  await pick();
+  const box = (await page.locator('.crop-frame').boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 10, box.y + box.height / 2, { steps: 5 });
+  await page.mouse.up();
+  await use();
+  // Zoom 2 on a 400px-wide photo: a 200px-wide crop in the badge's 178:82 shape.
+  expect(await saved()).toEqual({ width: 200, height: 92, colour: 'blue' });
+
+  // Keyboard: back to the crop area (Shift+Tab from the slider), arrow left to the red half.
+  await pick();
+  await page.keyboard.press('Shift+Tab');
+  await expect(page.getByRole('application', { name: /Photo crop/ })).toBeFocused();
+  for (let i = 0; i < 25; i++) await page.keyboard.press('ArrowLeft');
+  await use();
+  expect(await saved()).toMatchObject({ colour: 'red' });
+
+  // Cancel keeps the photo that was there.
+  await page.locator('input[type=file]').setInputFiles({ name: 'split.png', mimeType: 'image/png', buffer: Buffer.from(photo, 'base64') });
+  await page.getByRole('button', { name: 'Cancel' }).click();
+  expect(await saved()).toMatchObject({ colour: 'red' });
 });

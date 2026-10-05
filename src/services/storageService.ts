@@ -13,12 +13,17 @@ export function publicImageUrl(bucket: ImageBucket, path: string | null): string
   return `${base.replace(/\/+$/, '')}/storage/v1/object/public/${bucket}/${encoded}`;
 }
 
-/** Uploads a WebP image into the owner's folder and returns its path for the database row. */
+// The database only accepts these endings (migration 20261004000200_image_paths.sql).
+const EXTENSIONS: Record<string, string> = { 'image/webp': 'webp', 'image/jpeg': 'jpg', 'image/png': 'png' };
+
+/** Uploads a WebP or JPEG image into the owner's folder and returns its path for the database row. */
 export async function uploadImage(bucket: ImageBucket, ownerId: string, image: Blob): Promise<string> {
-  const path = `${ownerId}/${crypto.randomUUID()}.webp`;
+  const ext = EXTENSIONS[image.type];
+  if (!ext) throw new Error(`Unsupported image type: ${image.type || 'unknown'}`);
+  const path = `${ownerId}/${crypto.randomUUID()}.${ext}`;
   const { error } = await requireSupabase()
     .storage.from(bucket)
-    .upload(path, image, { contentType: 'image/webp', cacheControl: '31536000', upsert: false });
+    .upload(path, image, { contentType: image.type, cacheControl: '31536000', upsert: false });
   if (error) throw error;
   return path;
 }
