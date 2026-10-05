@@ -6,7 +6,7 @@ test('the Museum shows exhibits, shuffles them, and links to their makers', asyn
   await expect(page).toHaveTitle('Museum · PIP-Hall');
   const items = page.getByRole('list', { name: 'Exhibits' }).locator(':scope > li');
   await expect(items).toHaveCount(13);
-  await expect(page.getByRole('status')).toHaveText('13 exhibits');
+  await expect(page.getByRole('status').filter({ hasText: 'exhibits' })).toHaveText('13 exhibits');
   const before = await items.allTextContents();
   let changed = false;
   for (let i = 0; i < 5 && !changed; i++) {

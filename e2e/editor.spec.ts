@@ -301,3 +301,36 @@ test('reordering saved GitHub projects on an approved card saves (only updatable
   expect(db.projects.find((r) => r.id === 'p1')?.sort_order).toBe(0);
   expect(log.requests.filter((r) => r.startsWith('PATCH /rest/v1/projects'))).toHaveLength(2);
 });
+
+test('a new member is guided step by step: welcome, progress, and GO jumps to the field', async ({ page }) => {
+  await mockSupabase(page, { user: { ...USER, github: undefined }, db: emptyDb(null), githubRepos: [] });
+  await page.goto('/edit');
+  const guide = page.getByRole('region', { name: 'Make your card' });
+  const bar = guide.getByRole('progressbar', { name: 'Card setup' });
+  await expect(guide).toContainText('Welcome to PIP-Hall!');
+  // Username and name come pre-filled from the Google account.
+  await expect(bar).toHaveAttribute('aria-valuenow', '2');
+  await expect(guide.locator('li[aria-current="step"]')).toContainText('Say what you do');
+
+  await guide.getByRole('button', { name: 'Go to say what you do' }).click();
+  await expect(page.getByLabel('Role')).toBeFocused();
+  await page.getByLabel('Role').fill('Frontend dev');
+  await guide.getByRole('button', { name: 'Go to say what you do' }).click();
+  await expect(page.getByLabel('Bio')).toBeFocused(); // role done: now the bio
+  await page.getByLabel('Bio').fill('Builds pixel things.');
+  await expect(bar).toHaveAttribute('aria-valuenow', '3');
+  await expect(guide.locator('li[aria-current="step"]')).toContainText('Add a project');
+
+  // The guide can be folded away, and says so.
+  await guide.getByRole('button', { name: 'Hide guide' }).click();
+  await expect(guide.locator('#guide-steps')).toHaveCount(0);
+  await expect(guide.getByRole('button', { name: 'Show guide' })).toHaveAttribute('aria-expanded', 'false');
+});
+
+test('the sign-in page explains the three steps before you start', async ({ page }) => {
+  await mockSupabase(page, {});
+  await page.goto('/login');
+  const how = page.getByRole('region', { name: 'How it works' });
+  await expect(how.locator('li')).toHaveCount(3);
+  await expect(how).toContainText('Send it for review');
+});

@@ -25,6 +25,8 @@ import { ProjectList } from './ProjectList';
 import { RepoPicker } from './RepoPicker';
 import { SkillsInput } from './SkillsInput';
 import { StatusBanner } from './StatusBanner';
+import { SetupGuide } from './SetupGuide';
+import { setupSteps } from '../../lib/setupGuide';
 import { statusView } from '../../lib/editorModel';
 
 interface Props {
@@ -60,6 +62,18 @@ export function CardEditor({ user, initial, onSignOut }: Props) {
   useEffect(() => () => (photoUrl ? URL.revokeObjectURL(photoUrl) : undefined), [photoUrl]);
 
   const card = useMemo(() => previewCard(form, mine, user), [form, mine, user]);
+  const guide = setupSteps({
+    username: form.username,
+    fullName: form.full_name,
+    role: form.role,
+    bio: form.bio,
+    hasPhoto: newPhoto !== null || form.avatar_path !== null,
+    githubHandle: handle ?? null,
+    projects: form.projects.length,
+    skills: form.skills.length,
+    status: mine.profile?.status ?? null,
+    hasLiveCard: mine.hasLiveCard,
+  });
   const view = statusView(mine.profile?.status ?? null, { hasLiveCard: mine.hasLiveCard, reviewNote: mine.profile?.review_note ?? null, dirty });
 
   const save = useCallback(async (): Promise<MyCard | null> => {
@@ -213,6 +227,7 @@ export function CardEditor({ user, initial, onSignOut }: Props) {
       </aside>
 
       <div ref={formRef} className="grid gap-space-4">
+        <SetupGuide steps={guide} firstTime={mine.profile === null} />
         <Panel label="Who you are">
           <h2 className="panel-title">Who you are</h2>
           {locked ? (
