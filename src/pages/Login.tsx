@@ -64,6 +64,29 @@ export default function Login() {
           PIP-Hall asks Google only for your name, email and profile picture. <Link to="/privacy" className="underline decoration-2">How we use them</Link>
         </p>
       </Panel>
+      <Panel label="How it works">
+        <h2 className="panel-title">How it works</h2>
+        <ol className="how-steps">
+          <li>
+            <span className="guide-mark" aria-hidden="true">1</span>
+            <span>
+              <b>Sign in with Google.</b> That creates your account. Nothing is public yet.
+            </span>
+          </li>
+          <li>
+            <span className="guide-mark" aria-hidden="true">2</span>
+            <span>
+              <b>Make your badge.</b> A step-by-step guide on <i>My card</i> walks you through your name, photo, GitHub and projects.
+            </span>
+          </li>
+          <li>
+            <span className="guide-mark" aria-hidden="true">3</span>
+            <span>
+              <b>Send it for review.</b> An admin checks it, then it hangs in the hall with your own QR code.
+            </span>
+          </li>
+        </ol>
+      </Panel>
     </MenuPage>
   );
 }

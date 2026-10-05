@@ -57,7 +57,7 @@ test('a member can connect GitHub; it asks Supabase to link the identity and goe
   await page.goto('/edit');
   await expect(page.getByRole('heading', { name: 'My card', level: 1 })).toBeVisible();
   await expect(page.getByRole('region', { name: 'Account' })).toContainText('member@example.org');
-  await page.getByRole('button', { name: 'Connect GitHub' }).click();
+  await page.getByRole('button', { name: 'Connect GitHub', exact: true }).click();
   await expect(page).toHaveURL(/github\.com\/login\/oauth\/authorize/);
   const link = log.requests.find((r) => r.startsWith('GET /auth/v1/user/identities/authorize'));
   const params = new URL(`https://x${link!.slice(4)}`).searchParams;
