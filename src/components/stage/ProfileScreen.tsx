@@ -7,7 +7,7 @@ import { Link, useSearchParams } from 'react-router';
 import { useAppearance } from '../../app/appearanceContext';
 import { collaborationsOf } from '../../lib/collab';
 import { proofOf } from '../../lib/proof';
-import { badgePngUrl, memberPath, serialFor } from '../../lib/publicUrl';
+import { memberPath, serialFor } from '../../lib/publicUrl';
 import { rankOf } from '../../lib/rank';
 import { GEM_SPRITES, GEM_TONE_PALETTES } from '../../lib/sprites';
 import { SpriteCanvas } from '../pixel/SpriteCanvas';
@@ -16,6 +16,7 @@ import { useAffiliations } from '../../lib/useAffiliations';
 import { publicImageUrl } from '../../services/storageService';
 import type { PublicCard, PublicProject } from '../../types/card';
 import { FlipBadge } from '../cards/BadgeStage';
+import { SaveBadgeButton } from '../cards/SaveBadgeButton';
 import { DialogueBox } from '../dialogue/DialogueBox';
 
 interface Props {
@@ -47,7 +48,6 @@ export function ProfileScreen({ card, onBack, onShowQr, reward = null, hall = []
     next.delete('via');
     setParams(next, { replace: true });
   }, [params, setParams]);
-  const png = badgePngUrl(c.username);
 
   const meta = [`@${c.username}`, `No.${String(card.no).padStart(3, '0')}`, c.role, c.org_position, c.department].filter(Boolean).join(' · ');
   const links = [
@@ -106,11 +106,7 @@ export function ProfileScreen({ card, onBack, onShowQr, reward = null, hall = []
           <button type="button" className="pixel-btn justify-self-center" data-variant="primary" onClick={onShowQr}>
             SCAN ME · show QR
           </button>
-          {png && (
-            <a className="pixel-btn justify-self-center" href={png} download={`pip-hall-${c.username}.png`}>
-              Save badge (PNG)
-            </a>
-          )}
+          <SaveBadgeButton card={card} />
           <p className="m-0 text-center font-mono text-caption">{serialFor(card.no, c.username)}</p>
         </section>
 

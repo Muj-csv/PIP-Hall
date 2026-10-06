@@ -36,6 +36,8 @@ export default defineConfig({
       workbox: {
         // The app shell plus the Latin font files; other scripts' fonts load on demand.
         globPatterns: ['**/*.{js,css,html,svg,png}', 'assets/*-latin-[0-9]*-normal-*.woff2'],
+        // The badge drawer (satori, D-104) loads only when someone saves a badge: not in the install.
+        globIgnores: ['**/assets/standalone-*.js', '**/assets/badgeExportService-*.js'],
         navigateFallback: '/index.html',
         // Server routes (D-095) must reach the network, never the app shell.
         navigateFallbackDenylist: [/^\/api\//],

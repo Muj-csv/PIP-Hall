@@ -37,12 +37,7 @@ const esc = (s: string): string =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
 /** Trims to n characters on a word boundary, with an ellipsis. */
-export function clip(s: string, n: number): string {
-  const t = s.replace(/\s+/g, ' ').trim();
-  if (t.length <= n) return t;
-  const cut = t.slice(0, n - 1);
-  return `${cut.slice(0, Math.max(cut.lastIndexOf(' '), n * 0.6)).trimEnd()}…`;
-}
+export { clip } from '../../src/lib/clip.js';
 
 export function previewHtml(m: Meta): string {
   const t = esc(m.title);
