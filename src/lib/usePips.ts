@@ -12,6 +12,8 @@ export interface Pips {
   summary: PipSummary | null;
   achievements: Achievement[];
   discover: (cardProfileId: string) => Promise<DiscoverResult | null>;
+  /** A new balance the database reported (e.g. after a Mission paid). */
+  setBalance: (balance: number) => void;
 }
 
 export function usePips(): Pips {
@@ -58,5 +60,7 @@ export function usePips(): Pips {
     }
   }, []);
 
-  return { summary, achievements, discover };
+  const setBalance = useCallback((balance: number) => setSummary((prev) => (prev ? { ...prev, balance } : prev)), []);
+
+  return { summary, achievements, discover, setBalance };
 }

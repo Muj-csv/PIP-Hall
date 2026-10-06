@@ -77,7 +77,7 @@ Each phase ships on its own, behind a feature switch where it changes the hall, 
   - A badge QR scan stamps the person and says so.
   - Evidence: `docs/build/evidence/passport/`.
 
-### V2-3 · Missions and the event layer (P0)
+### V2-3 · Missions and the event layer (P0) — done (D-099)
 
 **Loop:** open the hall → today's Missions → go find → complete → stamp (+PIPs for members) → tomorrow's Missions.
 
@@ -85,6 +85,10 @@ Each phase ships on its own, behind a feature switch where it changes the hall, 
 - **Missions:** three a day and one a week, picked deterministically from the date and **real** hall data (e.g. "Find someone who knows Python" only if someone does). Kinds: find by skill, find a collaboration, visit exhibits, visit members from different departments, a mystery hint from Pip.
 - Guests complete them on the device (stamps). Members complete them server-side: `complete_mission()` checks the condition against `discoveries`/visits and the published cards, then grants PIPs through `grant_pips()` with ref `mission:<date>:<key>` (once, capped).
 - Budget: ≤ 8 KB gzipped JS; one RPC per completion.
+- As built:
+  - The app picks the Missions; the database never trusts the pick, it checks the condition, the caps (3 a day, 1 a week) and a minimum size per kind before paying. Weekly Missions: meet 8 people, visit 5 exhibits, or meet people from 3 departments, offered only when the hall can do it.
+  - Missions sit in a panel under the search, with TODAY and THIS WEEK. Members see "Claim" when a Mission is done; guests see it stamped.
+  - Evidence: `docs/build/evidence/missions/`.
 
 ### V2-4 · Feedback: notifications and "Recent in the hall" (P1)
 
@@ -130,6 +134,5 @@ Booth mode (strong for events; revisit before the next fair) · rule-based "Ask 
 
 ## Open questions for later phases
 
-- V2-3: daily Mission reset time (Asia/Manila midnight, like PIP caps?) and PIPs per Mission (suggest 10, weekly 40, daily cap unchanged).
 - V2-6: who writes curator notes (admins only?).
 - V2-7: first event and its dates.

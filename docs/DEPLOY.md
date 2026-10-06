@@ -97,6 +97,11 @@ Both are safe to run again (they only add columns and replace functions).
 1. Supabase **SQL editor:** run `supabase/migrations/20261006000300_project_collaborators.sql`. Safe to run again.
 2. Check: a member opens **My card → Collaborators**, tags another member of the hall on a project; that member sees the request in their own **Collaborators** panel and accepts. After the owner's next approval, the project's public card lists them.
 
+## Missions and events (V2-3, D-099)
+
+1. Supabase **SQL editor:** run `supabase/migrations/20261006000600_missions_events.sql` (after the Passport one). Safe to run again.
+2. Check: the hall shows **Missions** under the search. As an approved member (PIPs on), finish one (e.g. open three new profiles) and press **Claim**: +10 PIPs on the HUD. In the SQL editor, `select event_type, created_at from hall_events order by id desc limit 5;` lists what happened.
+
 ## Passport (V2-2, D-098)
 
 1. Supabase **SQL editor:** run `supabase/migrations/20261006000500_passport.sql` (after the console one). Safe to run again.
