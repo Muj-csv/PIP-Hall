@@ -494,7 +494,7 @@ try {
   await expectSu(c, '…and is not mistaken for an approval', `select count(*)::int as n from hall_events where event_type='CARD_APPROVED' and actor_id=$1`, [Ms[2]], (r) => r.rows[0].n === 1);
   await as(c, ADMIN, `select set_featured($1, false)`, [Ms[2]]);
   await expectErr(c, 'anon cannot read events', 'anon', `select * from hall_events`, [], /permission denied/);
-  await expectOk(c, 'a member reads only their own events', B, `select distinct actor_id from hall_events`, [], (r) => r.rows.every((x) => x.actor_id === B));
+  await expectOk(c, 'a member reads only the events about them', B, `select actor_id, recipient_id from hall_events`, [], (r) => r.rows.every((x) => x.actor_id === B || x.recipient_id === B));
   await expectOk(c, '…and the private events about their projects', A, `select count(*)::int as n from hall_events where event_type='COLLAB_ACCEPTED'`, [], (r) => r.rows[0].n >= 1);
   await expectErr(c, 'members cannot write events', A, `insert into hall_events (actor_id, event_type) values ($1, 'CARD_APPROVED')`, [A], /permission denied/);
   await expectErr(c, 'members cannot call the event logger', A, `select log_event($1, 'CARD_APPROVED', null, null, '{}', 'public')`, [A], /permission denied/);
@@ -526,6 +526,87 @@ try {
   await expectErr(c, 'imported stamps never complete a mission (B only has imported stamps)', B, `select complete_mission('daily','people',null,3)`, [], /NOT_DONE/);
   await c.query(readFileSync(join(here, '..', 'migrations', '20261006000600_missions_events.sql'), 'utf8'));
   await expectOk(c, 'the missions migration is safe to run twice', M, `select my_missions() as m`, [], (r) => r.rows[0].m.done.length === 4);
+  // Later migrations redefine some of its functions, so they are applied again after it, in order.
+  await c.query(readFileSync(join(here, '..', 'migrations', '20261006000700_notifications.sql'), 'utf8'));
+
+  console.log('notifications and recent in the hall (D-100)');
+  const bell = async (uid) => (await as(c, uid, `select my_notifications() as n`)).rows[0].n;
+  await expectSu(c, 'a tag is a private request addressed to the tagged member', `select actor_id, visibility from hall_events where event_type='COLLAB_REQUESTED' and recipient_id=$1 and target_id=$2`, [B, P1], (r) => r.rowCount === 1 && r.rows[0].actor_id === A && r.rows[0].visibility === 'private');
+  await expectSu(c, 'an event without a named recipient is addressed to its actor', `select count(*)::int as n from hall_events where event_type='CARD_APPROVED' and recipient_id is distinct from actor_id`, [], (r) => r.rows[0].n === 0);
+  await expectOk(c, 'the tagged member reads the request and who sent it', B, `select actor_id from hall_events where event_type='COLLAB_REQUESTED'`, [], (r) => r.rowCount === 1 && r.rows[0].actor_id === A);
+  await expectOk(c, '…and it is in their bell, with the project and the owner', B, `select my_notifications() as n`, [], (r) => r.rows[0].n.items.some((x) => x.type === 'COLLAB_REQUESTED' && x.target_id === P1 && x.by_username === nameA && x.title));
+  await expectOk(c, 'the owner hears that a tag was accepted', A, `select my_notifications() as n`, [], (r) => r.rows[0].n.items.some((x) => x.type === 'COLLAB_ACCEPTED' && x.by_username === nameB));
+  await expectOk(c, 'a withdrawn request leaves the bell', Ms[1], `select my_notifications() as n`, [], (r) => !r.rows[0].n.items.some((x) => x.type === 'COLLAB_REQUESTED'));
+  await expectOk(c, '…and so does a request on a deleted project', Ms[3], `select my_notifications() as n`, [], (r) => !r.rows[0].n.items.some((x) => x.target_id === P2) && r.rows[0].n.items.some((x) => x.target_id === P1));
+  await expectOk(c, 'a member hears about their approval and achievements', Ms[1], `select my_notifications() as n`, [], (r) => r.rows[0].n.items.some((x) => x.type === 'CARD_APPROVED') && r.rows[0].n.items.every((x) => x.by_username === null || x.by_username === undefined || x.type.startsWith('COLLAB')));
+  await expectOk(c, 'Missions, own projects and own exhibits are not news', Ms[1], `select my_notifications() as n`, [], (r) => !r.rows[0].n.items.some((x) => ['MISSION_COMPLETED', 'PROJECT_PUBLISHED', 'EXHIBIT_ADDED'].includes(x.type)));
+  const bellA = new Set((await bell(A)).items.map((x) => x.id));
+  await expectOk(c, 'no member sees another member’s notifications', B, `select my_notifications() as n`, [], (r) => r.rows[0].n.items.every((x) => !bellA.has(x.id)));
+  await expectOk(c, 'the bell is capped', A, `select my_notifications(1000) as n`, [], (r) => r.rows[0].n.items.length <= 50);
+  await expectErr(c, 'visitors have no bell', 'anon', `select my_notifications()`, [], /permission denied/);
+
+  // A collaborator accepts and the owner's next approval credits them in public.
+  await as(c, Ms[4], `select respond_collaboration($1, true)`, [P1]);
+  await reapprove();
+  const nameM4 = await nameOf(Ms[4]);
+  await expectSu(c, 'an approval that credits a collaborator is a public event addressed to them', `select visibility, metadata->>'with' as w from hall_events where event_type='COLLAB_PUBLISHED' and actor_id=$1 and recipient_id=$2`, [A, Ms[4]], (r) => r.rowCount === 1 && r.rows[0].visibility === 'public' && r.rows[0].w === nameM4);
+  await reapprove();
+  await expectSu(c, '…once, not at every approval', `select count(*)::int as n from hall_events where event_type='COLLAB_PUBLISHED' and recipient_id=$1`, [Ms[4]], (r) => r.rows[0].n === 1);
+  await expectOk(c, 'the collaborator hears their name is on the project', Ms[4], `select my_notifications() as n`, [], (r) => r.rows[0].n.items.some((x) => x.type === 'COLLAB_PUBLISHED' && x.target_id === P1 && x.by_username === nameA));
+
+  // "Needs changes" goes only to the member, with the admin's note.
+  await as(c, C, `update profiles set full_name='Cee' where id=$1`, [C]);
+  await as(c, C, `select submit_for_review()`);
+  await as(c, ADMIN, `select reject_profile($1, 'Add a photo, please')`, [C]);
+  await expectSu(c, 'a rejection is a private event', `select visibility from hall_events where event_type='CARD_REJECTED' and actor_id=$1`, [C], (r) => r.rowCount === 1 && r.rows[0].visibility === 'private');
+  await expectOk(c, 'a member whose card needs changes hears why', C, `select my_notifications() as n`, [], (r) => r.rows[0].n.items[0]?.type === 'CARD_REJECTED' && r.rows[0].n.items[0].note === 'Add a photo, please');
+  await expectOk(c, 'other members cannot read it', A, `select count(*)::int as n from hall_events where event_type='CARD_REJECTED'`, [], (r) => r.rows[0].n === 0);
+
+  // The read marker.
+  await expectOk(c, 'a new member has seen nothing yet', C, `select my_notifications() as n`, [], (r) => r.rows[0].n.seen_at === null);
+  await expectOk(c, 'marking the bell as seen', C, `select mark_notifications_seen() as t`, [], (r) => r.rows[0].t !== null);
+  await expectOk(c, '…is remembered', C, `select my_notifications() as n`, [], (r) => r.rows[0].n.seen_at !== null);
+  await expectOk(c, '…and can be moved on', C, `select mark_notifications_seen() as t`, [], (r) => r.rows[0].t !== null);
+  await expectErr(c, 'visitors cannot mark anything', 'anon', `select mark_notifications_seen()`, [], /permission denied/);
+  await expectErr(c, 'members cannot write the marker directly', C, `insert into notification_reads (member_id) values ($1)`, [C], /permission denied/);
+  await expectErr(c, '…nor read others’', A, `select * from notification_reads`, [], /permission denied/);
+
+  // Recent in the hall: public, true, and no counts.
+  const feed = async (n = 20) => (await as(c, 'anon', `select recent_hall_events($1) as f`, [n])).rows[0].f;
+  const PUBLIC_TYPES = ['CARD_APPROVED', 'PROJECT_PUBLISHED', 'EXHIBIT_ADDED', 'COLLAB_PUBLISHED', 'ACHIEVEMENT_UNLOCKED', 'MEMBER_FEATURED'];
+  const recent = await feed();
+  await expectOk(c, 'visitors read Recent in the hall', 'anon', `select recent_hall_events() as f`, [], (r) => Array.isArray(r.rows[0].f) && r.rows[0].f.length > 0 && r.rows[0].f.length <= 8);
+  await expectOk(c, '…capped at 20', 'anon', `select recent_hall_events(1000) as f`, [], (r) => r.rows[0].f.length <= 20);
+  await expectSu(c, 'only public kinds of event appear', `select 1`, [], () => recent.every((x) => PUBLIC_TYPES.includes(x.type)));
+  await expectSu(c, '…with names and titles, never counts or ids of people', `select 1`, [], () => recent.every((x) => Object.keys(x).sort().join() === 'at,full_name,id,project_id,title,type,username,with_name,with_username'));
+  const unpub = (await c.query(`select username from profiles where id=$1`, [Ms[0]])).rows[0].username;
+  await expectSu(c, 'members who left the hall drop out of it', `select 1`, [], () => recent.every((x) => x.username !== unpub && x.with_username !== unpub));
+  await expectSu(c, 'a member joins the hall once (re-approvals are not joins)', `select 1`, [], () => {
+    const joins = recent.filter((x) => x.type === 'CARD_APPROVED').map((x) => x.username);
+    return new Set(joins).size === joins.length && !joins.includes(nameA);
+  });
+  await expectSu(c, 'the new credit is there, with both names', `select 1`, [], () => recent.some((x) => x.type === 'COLLAB_PUBLISHED' && x.username === nameA && x.with_username === nameM4 && x.project_id === P1));
+  await expectSu(c, 'a credit that was withdrawn is not', `select 1`, [], () => !recent.some((x) => x.type === 'COLLAB_PUBLISHED' && x.with_username === nameB));
+  const nameM2 = await nameOf(Ms[2]);
+  await expectSu(c, 'a member no longer featured is not shown as featured', `select 1`, [], () => !recent.some((x) => x.type === 'MEMBER_FEATURED' && x.username === nameM2));
+  // C fixes their card and joins with one project, then adds a second one later.
+  await as(c, C, `insert into projects (profile_id, title) values ($1, 'First Light')`, [C]);
+  await as(c, C, `select submit_for_review()`);
+  await as(c, ADMIN, `select approve_profile($1)`, [C]);
+  await as(c, C, `insert into projects (profile_id, title) values ($1, 'Second Wind')`, [C]);
+  await as(c, C, `select submit_for_review()`);
+  await as(c, ADMIN, `select approve_profile($1)`, [C]);
+  const nameC = await nameOf(C);
+  await expectOk(c, 'a first approval is one line: the member joined', 'anon', `select recent_hall_events(20) as f`, [], (r) => r.rows[0].f.filter((x) => x.username === nameC && x.type === 'CARD_APPROVED').length === 1 && !r.rows[0].f.some((x) => x.title === 'First Light'));
+  await expectOk(c, '…and a project added later gets its own line', 'anon', `select recent_hall_events(20) as f`, [], (r) => r.rows[0].f.some((x) => x.username === nameC && x.type === 'PROJECT_PUBLISHED' && x.title === 'Second Wind'));
+  const second = (await c.query(`select id from projects where profile_id=$1 and title='Second Wind'`, [C])).rows[0].id;
+  await as(c, C, `delete from projects where id=$1`, [second]);
+  await as(c, C, `select submit_for_review()`);
+  await as(c, ADMIN, `select approve_profile($1)`, [C]);
+  await expectOk(c, 'a project taken off the card leaves the strip', 'anon', `select recent_hall_events(20) as f`, [], (r) => !r.rows[0].f.some((x) => x.title === 'Second Wind'));
+  await expectErr(c, 'visitors still cannot read the raw events', 'anon', `select * from hall_events`, [], /permission denied/);
+  await c.query(readFileSync(join(here, '..', 'migrations', '20261006000700_notifications.sql'), 'utf8'));
+  await expectOk(c, 'the notifications migration is safe to run twice', Ms[4], `select my_notifications() as n`, [], (r) => r.rows[0].n.items.some((x) => x.type === 'COLLAB_PUBLISHED'));
 
   console.log('account deletion');
   await expectErr(c, 'anon cannot call delete_my_account', 'anon', `select delete_my_account()`, [], /permission denied/);
