@@ -362,7 +362,16 @@ export async function handleDb(route: Route, db: MockDb, user: DbUser): Promise<
   }
   if (url.pathname === '/rest/v1/rpc/my_museum') {
     const approved = (((db.published.find((r) => r.profile_id === userId)?.card as Row | undefined)?.projects as Row[] | undefined) ?? []).filter((p) => p.id).map((p) => ({ id: p.id, title: p.title }));
-    return (await json(200, { access: hasMuseum(userId), live: liveIds(userId), projects: approved, entries: (db.museumEntries ?? []).filter((e) => e.member_id === userId).map((e) => e.project_id) })), true;
+    return (await json(200, { access: hasMuseum(userId), live: liveIds(userId), projects: approved, entries: (db.museumEntries ?? []).filter((e) => e.member_id === userId).map((e) => e.project_id),
+      consoles: Object.fromEntries((db.museumEntries ?? []).filter((e) => e.member_id === userId && e.console).map((e) => [e.project_id, e.console])) })), true;
+  }
+  if (url.pathname === '/rest/v1/rpc/set_museum_console') {
+    const { p_project, p_console } = body() as { p_project: string; p_console: string | null };
+    if (p_console !== null && !['pocket', 'wide', 'tv', 'arcade', 'flip'].includes(p_console)) return (await err(400, 'P0001', 'BAD_CONSOLE')), true;
+    const entry = (db.museumEntries ?? []).find((e) => e.project_id === p_project && e.member_id === userId);
+    if (!entry) return (await err(400, 'P0001', 'NOT_IN_MUSEUM')), true;
+    entry.console = p_console;
+    return (await json(200, p_console)), true;
   }
   if (url.pathname === '/rest/v1/rpc/set_museum') {
     const { p_project, p_on } = body() as { p_project: string; p_on: boolean };
@@ -395,7 +404,7 @@ export async function handleDb(route: Route, db: MockDb, user: DbUser): Promise<
       const card = c?.card as Row | undefined;
       const project = ((card?.projects as Row[] | undefined) ?? []).find((p) => p.id === e.project_id);
       if (!c || !project || !hasMuseum(String(e.member_id))) return [];
-      return [{ project_id: e.project_id, username: c.username, full_name: card!.full_name, avatar_path: card!.avatar_path ?? null, member_no: c.member_no, featured: Boolean(c.is_featured), project }];
+      return [{ project_id: e.project_id, username: c.username, full_name: card!.full_name, avatar_path: card!.avatar_path ?? null, member_no: c.member_no, featured: Boolean(c.is_featured), console: e.console ?? null, project }];
     });
     return (await json(200, out)), true;
   }

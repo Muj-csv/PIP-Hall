@@ -4,8 +4,11 @@
 
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
+import { consoleFor } from '../../lib/museum';
+import { CONSOLE_KINDS, CONSOLE_NAMES, consoleArt, type ConsoleKind } from '../../lib/sprites';
 import { museumErrorMessage, museumService } from '../../services/museumService';
 import type { MyMuseum } from '../../types/museum';
+import { SpriteCanvas } from '../pixel/SpriteCanvas';
 import { Panel } from '../shell/MenuPage';
 
 export function MuseumPanel() {
@@ -43,6 +46,26 @@ export function MuseumPanel() {
     }
   };
 
+  const pickConsole = async (p: { id: string; title: string }, kind: ConsoleKind | null) => {
+    const before = state.consoles ?? {};
+    const set = (c: Record<string, ConsoleKind>) => setState((s) => (s ? { ...s, consoles: c } : s));
+    const next = { ...before };
+    if (kind) next[p.id] = kind;
+    else delete next[p.id];
+    set(next); // show it at once; undo if the database refuses
+    setBusy(p.id);
+    setNotice(null);
+    try {
+      await museumService.setConsole(p.id, kind);
+      setNotice({ text: `${p.title} now hangs in ${kind ? `a PIXENDO ${CONSOLE_NAMES[kind]}` : 'a console picked for it'}.` });
+    } catch (e) {
+      set(before);
+      setNotice({ text: museumErrorMessage(e), bad: true });
+    } finally {
+      setBusy(null);
+    }
+  };
+
   return (
     <Panel label="Museum">
       <h2 className="panel-title">Museum</h2>
@@ -59,13 +82,22 @@ export function MuseumPanel() {
       ) : (
         <ul className="grid gap-space-2 m-0 p-0 list-none">
           {live.map((p) => (
-            <li key={p.id}>
+            <li key={p.id} className="grid gap-space-2">
               <label className="toggle">
                 <input type="checkbox" checked={state.entries.includes(p.id)} disabled={busy === p.id} onChange={(e) => void toggle(p, e.target.checked)} />
                 <span>
                   Show <b>{p.title}</b> in the Museum
                 </span>
               </label>
+              {state.entries.includes(p.id) && (
+                <ConsolePicker
+                  projectId={p.id}
+                  title={p.title}
+                  chosen={state.consoles?.[p.id] ?? null}
+                  disabled={busy === p.id}
+                  onPick={(k) => void pickConsole(p, k)}
+                />
+              )}
             </li>
           ))}
         </ul>
@@ -77,5 +109,43 @@ export function MuseumPanel() {
         </p>
       )}
     </Panel>
+  );
+}
+
+/** Pick the console an exhibit hangs in (D-091), with a live preview of it. */
+function ConsolePicker({
+  projectId,
+  title,
+  chosen,
+  disabled,
+  onPick,
+}: {
+  projectId: string;
+  title: string;
+  chosen: ConsoleKind | null;
+  disabled: boolean;
+  onPick: (kind: ConsoleKind | null) => void;
+}) {
+  const auto = consoleFor(projectId);
+  const shown = chosen ?? auto;
+  const art = consoleArt(shown);
+  const id = `console-${projectId}`;
+  return (
+    <div className="console-picker">
+      <SpriteCanvas sprite={art.sprite} palette={art.palette} className="console-preview" label={`Preview: PIXENDO ${CONSOLE_NAMES[shown]}`} />
+      <div className="field min-w-0 flex-1">
+        <label htmlFor={id} className="field-label">
+          Console for {title}
+        </label>
+        <select id={id} className="pixel-input" value={chosen ?? ''} disabled={disabled} onChange={(e) => onPick((e.target.value || null) as ConsoleKind | null)}>
+          <option value="">Automatic ({CONSOLE_NAMES[auto]})</option>
+          {CONSOLE_KINDS.map((k) => (
+            <option key={k} value={k}>
+              {CONSOLE_NAMES[k]}
+            </option>
+          ))}
+        </select>
+      </div>
+    </div>
   );
 }

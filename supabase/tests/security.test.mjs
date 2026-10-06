@@ -277,6 +277,25 @@ try {
   await expectOk(c, 'a featured maker\'s exhibits say so, for the pinned row', 'anon', `select museum_exhibits() as e`, [], (r) => r.rows[0].e.every((x) => x.featured === true));
   await as(c, ADMIN, `select set_featured($1, false)`, [A]);
   await expectOk(c, '…and stop saying so once unfeatured', 'anon', `select museum_exhibits() as e`, [], (r) => r.rows[0].e.every((x) => x.featured === false));
+  // Console frames (20261006000400, D-091).
+  await expectOk(c, 'an exhibit has no console until its maker picks one', 'anon', `select museum_exhibits() as e`, [], (r) => r.rows[0].e[0].console === null);
+  await expectErr(c, 'anon cannot pick a console', 'anon', `select set_museum_console($1,'tv')`, [linked[1]], /permission denied/);
+  await expectErr(c, "a member cannot pick the console of someone else's exhibit", B, `select set_museum_console($1,'tv')`, [linked[1]], /NOT_IN_MUSEUM/);
+  await expectErr(c, 'only the five consoles can be picked', A, `select set_museum_console($1,'gamecube')`, [linked[1]], /BAD_CONSOLE/);
+  await expectErr(c, 'a project not in the Museum has no console', A, `select set_museum_console($1,'tv')`, [linked[0]], /NOT_IN_MUSEUM/);
+  await expectErr(c, 'members cannot write the console column directly', A, `update museum_entries set console='tv' where project_id=$1`, [linked[1]], /permission denied/);
+  const statusBefore = (await c.query(`select status from profiles where id=$1`, [A])).rows[0].status;
+  await expectOk(c, 'the maker picks a console', A, `select set_museum_console($1,'arcade') as v`, [linked[1]], (r) => r.rows[0].v === 'arcade');
+  await expectOk(c, '…visitors see it on the exhibit', 'anon', `select museum_exhibits() as e`, [], (r) => r.rows[0].e[0].console === 'arcade');
+  await expectOk(c, '…and the maker sees it in my_museum', A, `select my_museum() as m`, [], (r) => r.rows[0].m.consoles[linked[1]] === 'arcade');
+  await expectOk(c, 'picking a console never sends the card to review', A, `select status from profiles where id=$1`, [A], (r) => r.rows[0].status === statusBefore);
+  try { await c.query(`update museum_entries set console='handheld-x' where project_id=$1`, [linked[1]]); bad('the table itself rejects an unknown console', 'expected an error'); }
+  catch (e) { /museum_entries_console_check/.test(e.message) ? ok('the table itself rejects an unknown console') : bad('the table itself rejects an unknown console', e); }
+  await expectOk(c, 'the maker can go back to automatic', A, `select set_museum_console($1, null) as v`, [linked[1]], (r) => r.rows[0].v === null);
+  await expectOk(c, '…and my_museum forgets it', A, `select my_museum() as m`, [], (r) => !(linked[1] in r.rows[0].m.consoles));
+  await as(c, A, `select set_museum_console($1,'flip')`, [linked[1]]);
+  await c.query(readFileSync(join(here, '..', 'migrations', '20261006000400_museum_consoles.sql'), 'utf8'));
+  await expectOk(c, 'the console migration is safe to run twice and keeps picks', 'anon', `select museum_exhibits() as e`, [], (r) => r.rows[0].e[0].console === 'flip');
   await expectErr(c, 'a member cannot read the admin Museum summary', A, `select admin_museum_summary()`, [], /NOT_ADMIN/);
   await expectErr(c, 'anon cannot read the admin Museum summary', 'anon', `select admin_museum_summary()`, [], /permission denied/);
   await expectOk(c, 'admin Museum summary counts approved projects and exhibits', ADMIN, `select admin_museum_summary() as s`, [],

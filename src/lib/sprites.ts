@@ -322,3 +322,244 @@ export const GEM_TONE_PALETTES: Readonly<Record<string, Palette>> = {
   red: { k: '--color-card-ink', m: '--color-card-lanyard', h: '--color-card-cream' },
   silver: { k: '--color-card-ink', m: '--color-card-metal', h: '--color-card-metal-hi' },
 };
+
+// ---------------------------------------------------------------- Museum consoles (D-091)
+// Five original PIXENDO consoles that hold an exhibit's screen. They are drawn here from simple
+// shapes (rounded bodies, discs, slits) so every outline and bevel follows one rule; none copies a
+// real console's silhouette, logo or button layout. The screen rect is where the exhibit is laid on
+// top as HTML; the power LED is a separate HTML light so it can switch on when the console boots.
+
+export type ConsoleKind = 'pocket' | 'wide' | 'tv' | 'arcade' | 'flip';
+export const CONSOLE_KINDS: readonly ConsoleKind[] = ['pocket', 'wide', 'tv', 'arcade', 'flip'];
+export const CONSOLE_NAMES: Readonly<Record<ConsoleKind, string>> = {
+  pocket: 'Pocket',
+  wide: 'Wide',
+  tv: 'Home TV',
+  arcade: 'Arcade',
+  flip: 'Flip',
+};
+
+export interface Rect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+export interface ConsoleArt {
+  sprite: SpriteMap;
+  /** Where the exhibit shows, in sprite units (16:10). */
+  screen: Rect;
+  /** The power LED, in sprite units. */
+  led: Rect;
+  palette: Palette;
+}
+
+/** Shared keys: k ink, z/Z bezel, n grille (and the dark screen), o LED (off), r/b/c buttons,
+ *  m/M metal, q marquee. a/A/S are the shell and its lit and shaded edges, per console. */
+function consolePalette(kind: ConsoleKind): Palette {
+  return {
+    k: '--color-console-ink',
+    z: '--color-console-bezel',
+    Z: '--color-console-bezel-hi',
+    n: '--color-console-grille',
+    o: '--color-console-led-off',
+    r: '--color-console-red',
+    b: '--color-console-blue',
+    c: '--color-console-cream',
+    m: '--color-console-metal',
+    M: '--color-console-metal-hi',
+    q: '--color-console-marquee',
+    ...CONSOLE_SHELLS[kind],
+  };
+}
+// Written out in full: Tailwind keeps a theme variable only when its whole name appears in source.
+const CONSOLE_SHELLS: Readonly<Record<ConsoleKind, Palette>> = {
+  pocket: { a: '--color-console-pocket', A: '--color-console-pocket-hi', S: '--color-console-pocket-shade' },
+  wide: { a: '--color-console-wide', A: '--color-console-wide-hi', S: '--color-console-wide-shade' },
+  tv: { a: '--color-console-tv', A: '--color-console-tv-hi', S: '--color-console-tv-shade' },
+  arcade: { a: '--color-console-arcade', A: '--color-console-arcade-hi', S: '--color-console-arcade-shade' },
+  flip: { a: '--color-console-flip', A: '--color-console-flip-hi', S: '--color-console-flip-shade' },
+};
+
+type Inside = (x: number, y: number) => boolean;
+type Grid = string[][];
+
+const rr =
+  (x0: number, y0: number, w: number, h: number, r: number): Inside =>
+  (x, y) => {
+    if (x < x0 || y < y0 || x >= x0 + w || y >= y0 + h) return false;
+    const cx = x < x0 + r ? x0 + r : x >= x0 + w - r ? x0 + w - r - 1 : x;
+    const cy = y < y0 + r ? y0 + r : y >= y0 + h - r ? y0 + h - r - 1 : y;
+    return (x - cx) ** 2 + (y - cy) ** 2 <= r * r + r * 0.8;
+  };
+const disc =
+  (cx: number, cy: number, r: number): Inside =>
+  (x, y) =>
+    (x - cx) ** 2 + (y - cy) ** 2 <= r * r + r * 0.6;
+const any =
+  (...parts: Inside[]): Inside =>
+  (x, y) =>
+    parts.some((p) => p(x, y));
+
+/** Paints a solid with a 1px ink outline, a lit top-left edge and a shaded bottom-right edge. */
+function solid(g: Grid, inside: Inside, fill: string, hi = fill, shade = fill, outline = 'k') {
+  for (let y = 0; y < g.length; y++)
+    for (let x = 0; x < g[0]!.length; x++) {
+      if (!inside(x, y)) continue;
+      const edge = !inside(x - 1, y) || !inside(x + 1, y) || !inside(x, y - 1) || !inside(x, y + 1);
+      g[y]![x] = edge ? outline : !inside(x, y - 2) || !inside(x - 2, y) ? hi : !inside(x, y + 2) || !inside(x + 2, y) ? shade : fill;
+    }
+}
+function fill(g: Grid, r: Rect, ch: string) {
+  for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) if (g[y]?.[x] !== undefined) g[y]![x] = ch;
+}
+function line(g: Grid, x0: number, y0: number, x1: number, y1: number, ch: string) {
+  const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
+  for (let i = 0; i <= n; i++) {
+    const x = Math.round(x0 + ((x1 - x0) * i) / n);
+    const y = Math.round(y0 + ((y1 - y0) * i) / n);
+    if (g[y]?.[x] !== undefined) g[y]![x] = ch;
+  }
+}
+/** A screen: dark glass inside a bezel ring. */
+function screenIn(g: Grid, bezel: Inside, screen: Rect) {
+  solid(g, bezel, 'z', 'Z', 'z');
+  fill(g, { x: screen.x - 1, y: screen.y - 1, w: screen.w + 2, h: screen.h + 2 }, 'k');
+  fill(g, screen, 'n');
+}
+/** A round button: ink ring, coloured cap, one lit pixel. */
+function button(g: Grid, cx: number, cy: number, r: number, ch: string) {
+  solid(g, disc(cx, cy, r), ch);
+  if (r >= 2) g[cy - 1]![cx - 1] = 'c';
+}
+function blank(w: number, h: number): Grid {
+  return Array.from({ length: h }, () => Array.from({ length: w }, () => '.'));
+}
+const done = (g: Grid): SpriteMap => g.map((row) => row.join(''));
+
+function drawPocket(): Omit<ConsoleArt, 'palette'> {
+  const g = blank(54, 88);
+  const screen = { x: 7, y: 9, w: 40, h: 25 };
+  solid(g, rr(0, 0, 54, 88, 6), 'a', 'A', 'S');
+  fill(g, { x: 6, y: 3, w: 42, h: 1 }, 'S'); // a ridge along the top
+  screenIn(g, rr(4, 6, 46, 34, 3), screen);
+  // A round thumb dial on the left, a 2×2 block of buttons on the right.
+  solid(g, disc(15, 55, 8), 'z', 'Z', 'z');
+  solid(g, disc(15, 55, 6), 'm', 'M', 'S');
+  fill(g, { x: 15, y: 50, w: 1, h: 3 }, 'k');
+  button(g, 36, 50, 3, 'r');
+  button(g, 44, 50, 3, 'b');
+  button(g, 36, 58, 3, 'b');
+  button(g, 44, 58, 3, 'r');
+  solid(g, rr(20, 70, 14, 4, 1), 'z', 'Z', 'z'); // menu bar
+  for (let y = 74; y <= 82; y += 3) for (let x = 38; x <= 47; x += 3) g[y]![x] = 'n'; // speaker dots
+  return { sprite: done(g), screen, led: { x: 8, y: 36, w: 2, h: 2 } };
+}
+
+function drawWide(): Omit<ConsoleArt, 'palette'> {
+  const g = blank(100, 56);
+  const screen = { x: 22, y: 9, w: 56, h: 35 };
+  solid(g, any(rr(6, 0, 18, 8, 2), rr(76, 0, 18, 8, 2)), 'S', 'a', 'S'); // shoulder buttons
+  solid(g, any(rr(18, 3, 64, 51, 4), rr(0, 7, 30, 46, 10), rr(70, 7, 30, 46, 10)), 'a', 'A', 'S');
+  screenIn(g, rr(19, 6, 62, 42, 3), screen);
+  // Left grip: a stick and a small menu key. Right grip: three buttons in a triangle, speaker dots.
+  solid(g, disc(10, 24, 6), 'z', 'Z', 'z');
+  solid(g, disc(10, 24, 4), 'm', 'M', 'S');
+  solid(g, rr(5, 36, 10, 4, 1), 'c');
+  button(g, 90, 17, 3, 'r');
+  button(g, 86, 26, 3, 'b');
+  button(g, 94, 26, 3, 'c');
+  for (let y = 37; y <= 45; y += 3) for (let x = 85; x <= 94; x += 3) g[y]![x] = 'n';
+  return { sprite: done(g), screen, led: { x: 74, y: 50, w: 2, h: 2 } };
+}
+
+function drawTv(): Omit<ConsoleArt, 'palette'> {
+  const g = blank(80, 86);
+  const screen = { x: 11, y: 20, w: 48, h: 30 };
+  // Rabbit-ear antenna.
+  line(g, 40, 13, 27, 1, 'k');
+  line(g, 41, 13, 54, 2, 'k');
+  solid(g, disc(27, 1, 1), 'r');
+  solid(g, disc(54, 2, 1), 'r');
+  solid(g, rr(34, 9, 12, 6, 2), 'm', 'M', 'S');
+  solid(g, rr(2, 13, 76, 58, 4), 'a', 'A', 'S');
+  screenIn(g, rr(7, 16, 56, 38, 5), screen);
+  // Side panel: two dials over speaker slits. A strip of trim under the screen.
+  for (const cy of [23, 33]) {
+    solid(g, disc(70, cy, 4), 'm', 'M', 'S');
+    fill(g, { x: 70, y: cy - 3, w: 1, h: 3 }, 'k');
+  }
+  for (let y = 42; y <= 52; y += 2) fill(g, { x: 66, y, w: 9, h: 1 }, 'n');
+  fill(g, { x: 18, y: 59, w: 36, h: 2 }, 'S');
+  fill(g, { x: 8, y: 71, w: 6, h: 3 }, 'k');
+  fill(g, { x: 66, y: 71, w: 6, h: 3 }, 'k');
+  // The console in front of the TV: a cartridge slot, two keys and its LED.
+  solid(g, rr(12, 73, 56, 13, 2), 'z', 'Z', 'z');
+  fill(g, { x: 22, y: 76, w: 36, h: 2 }, 'n');
+  solid(g, rr(18, 80, 8, 4, 1), 'c');
+  solid(g, rr(28, 80, 8, 4, 1), 'c');
+  return { sprite: done(g), screen, led: { x: 60, y: 81, w: 2, h: 2 } };
+}
+
+function drawArcade(): Omit<ConsoleArt, 'palette'> {
+  const g = blank(60, 106);
+  const screen = { x: 10, y: 22, w: 40, h: 25 };
+  solid(g, any(rr(4, 0, 52, 106, 2), rr(0, 52, 60, 13, 2), rr(2, 97, 56, 9, 1)), 'a', 'A', 'S');
+  // Lit marquee with a row of stars.
+  solid(g, rr(7, 3, 46, 11, 1), 'q', 'c', 'q');
+  for (const x of [14, 22, 30, 38, 46]) {
+    g[8]![x] = 'r';
+    g[7]![x] = 'r';
+    g[8]![x - 1] = 'r';
+    g[8]![x + 1] = 'r';
+    g[9]![x] = 'r';
+  }
+  screenIn(g, rr(6, 18, 48, 33, 3), screen);
+  // Control deck: a ball-top stick and a row of four buttons.
+  solid(g, rr(1, 53, 58, 11, 2), 'z', 'Z', 'z');
+  fill(g, { x: 12, y: 54, w: 2, h: 6 }, 'm');
+  solid(g, disc(12, 54, 3), 'r');
+  for (const [i, ch] of (['b', 'r', 'c', 'b'] as const).entries()) button(g, 27 + i * 8, 58, 2, ch);
+  // Coin door: two lit slots and a kick plate.
+  solid(g, rr(18, 70, 24, 20, 1), 'S', 'a', 'S');
+  fill(g, { x: 23, y: 74, w: 2, h: 6 }, 'q');
+  fill(g, { x: 35, y: 74, w: 2, h: 6 }, 'q');
+  fill(g, { x: 6, y: 99, w: 48, h: 2 }, 'S');
+  return { sprite: done(g), screen, led: { x: 29, y: 84, w: 2, h: 2 } };
+}
+
+function drawFlip(): Omit<ConsoleArt, 'palette'> {
+  const g = blank(64, 98);
+  const screen = { x: 12, y: 9, w: 40, h: 25 };
+  solid(g, rr(2, 0, 60, 47, 5), 'a', 'A', 'S');
+  screenIn(g, rr(7, 5, 50, 34, 3), screen);
+  solid(g, rr(6, 45, 52, 6, 2), 'm', 'M', 'S'); // hinge
+  solid(g, rr(0, 50, 64, 48, 5), 'a', 'A', 'S');
+  // Base: a thumb dial, a 3×4 keypad, a red key and speaker slits.
+  solid(g, disc(15, 65, 8), 'z', 'Z', 'z');
+  solid(g, disc(15, 65, 6), 'm', 'M', 'S');
+  fill(g, { x: 15, y: 60, w: 1, h: 3 }, 'k');
+  for (let j = 0; j < 4; j++) for (let i = 0; i < 3; i++) solid(g, rr(33 + i * 9, 56 + j * 7, 7, 5, 1), 'c');
+  solid(g, rr(8, 84, 10, 5, 1), 'r');
+  for (let y = 85; y <= 91; y += 2) fill(g, { x: 33, y, w: 25, h: 1 }, 'n');
+  return { sprite: done(g), screen, led: { x: 50, y: 42, w: 2, h: 2 } };
+}
+
+const DRAW: Readonly<Record<ConsoleKind, () => Omit<ConsoleArt, 'palette'>>> = {
+  pocket: drawPocket,
+  wide: drawWide,
+  tv: drawTv,
+  arcade: drawArcade,
+  flip: drawFlip,
+};
+const consoleCache = new Map<ConsoleKind, ConsoleArt>();
+
+/** The art for one console, drawn once and kept. */
+export function consoleArt(kind: ConsoleKind): ConsoleArt {
+  let art = consoleCache.get(kind);
+  if (!art) {
+    art = { ...DRAW[kind](), palette: consolePalette(kind) };
+    consoleCache.set(kind, art);
+  }
+  return art;
+}

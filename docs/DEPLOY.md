@@ -97,6 +97,11 @@ Both are safe to run again (they only add columns and replace functions).
 1. Supabase **SQL editor:** run `supabase/migrations/20261006000300_project_collaborators.sql`. Safe to run again.
 2. Check: a member opens **My card → Collaborators**, tags another member of the hall on a project; that member sees the request in their own **Collaborators** panel and accepts. After the owner's next approval, the project's public card lists them.
 
+## Museum consoles (D-091)
+
+1. Supabase **SQL editor:** run `supabase/migrations/20261006000400_museum_consoles.sql` (after the collaborators one). Safe to run again.
+2. Check: the Museum shows each exhibit inside a PIXENDO console. A member with Museum access opens **My card → Museum**, picks a console for an exhibit, and the Museum shows it at once (no review).
+
 ## MUSEUM and affiliations
 
 1. Supabase **SQL editor:** run `supabase/migrations/20261005000100_museum.sql` (after `…_pips_core.sql`). It also adds project ids to the cards already in the hall, so their projects can go in the Museum. Then run `…_museum_relink.sql` and `…_museum_follows_card.sql`, in that order. Together they give every project on an approved card an id (matching renamed projects by GitHub link, project link or title), and make the Museum follow the approved card: editing the draft never changes the Museum; the next approval does. Both are safe to run on a database that already has cards; `npm run test:db` proves it with an upgrade test.

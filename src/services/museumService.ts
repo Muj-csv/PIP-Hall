@@ -1,6 +1,7 @@
 // MUSEUM (D-069) and affiliations (D-067, D-068). Two sources behind one interface, like cardService:
 // the fixture shows every sample project so the gallery can be built and tested without a backend.
 
+import type { ConsoleKind } from '../lib/sprites';
 import type { PublishedCardRow } from '../types/card';
 import type { Affiliation, Exhibit, MuseumSummaryRow, MyMuseum } from '../types/museum';
 import { requireSupabase } from './supabase';
@@ -41,6 +42,12 @@ export const museumService = {
     const { data, error } = await requireSupabase().rpc('admin_museum_summary');
     if (error) throw error;
     return (data ?? []) as MuseumSummaryRow[];
+  },
+
+  /** Picks the console one of my exhibits hangs in; null goes back to automatic. Never resets review. */
+  async setConsole(projectId: string, kind: ConsoleKind | null): Promise<void> {
+    const { error } = await requireSupabase().rpc('set_museum_console', { p_project: projectId, p_console: kind });
+    if (error) throw error;
   },
 
   /** Puts one of my live projects in the Museum or takes it out. Never resets review. */
@@ -101,6 +108,8 @@ export function museumErrorMessage(e: unknown): string {
   if (/NO_MUSEUM_ACCESS/.test(msg)) return 'Your account doesn’t have Museum access. An admin can add it.';
   if (/NOT_LIVE/.test(msg)) return 'Only projects on your approved card can go in the Museum.';
   if (/NOT_YOURS/.test(msg)) return 'That project isn’t on your card.';
+  if (/NOT_IN_MUSEUM/.test(msg)) return 'Put the project in the Museum first, then pick its console.';
+  if (/BAD_CONSOLE/.test(msg)) return 'That console isn’t one of the five. Pick another.';
   if (/NOT_ADMIN/.test(msg)) return 'Only hall admins can do that.';
   if (/check constraint/.test(msg)) return 'Names need 1–40 characters, and at least two letters or numbers.';
   if (/Failed to fetch|NetworkError|network/i.test(msg)) return 'Can’t reach the hall right now. Try again.';
