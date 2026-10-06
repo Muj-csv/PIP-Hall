@@ -49,12 +49,17 @@ Status: **planned** (2026-10-06). Decisions agreed with the user are marked ✔.
   - Collaborators on a profile get their own **Collaborations** panel under the Quest Log; the owner's Quest Log entry says "With A and B".
   - `museum_exhibits()` needed no change: it already returns the project from the approved snapshot, and the snapshot carries `collaborators` since phase 1.
 
-### Phase 3: console frames
+### Phase 3: console frames — done (D-091)
 
 - Five console frames in `sprites.ts` (casing, buttons, speaker grille, power LED), styled with theme tokens. DAY and NIGHT use the same art, because they're physical objects.
 - The screen keeps the diorama: 3D tilt toward the pointer, layered parallax, spotlight, glint. A short **boot flicker** plays when it scrolls into view. Reduced motion means still and flat.
 - Migration: `museum_entries.console` (checked against the list) plus `set_museum_console(project, console)`, owner only. Changing it doesn't need review (cosmetic, like D-060).
 - The editor's Museum panel gets a console picker with a live preview.
+- As built:
+  - The five consoles are Pocket, Wide, Home TV, Arcade and Flip. Each has its own shell colour (`color.console.*` tokens); the screen is always 16:10 so covers never stretch.
+  - Every console sits in a square bay at its own shape, on the bay's floor, so a row of mixed consoles stays level.
+  - The power LED is a separate light that switches on when the console boots.
+  - The exhibit page says which console it's on ("On show on a PIXENDO Arcade").
 
 ### Phase 4: app previews
 

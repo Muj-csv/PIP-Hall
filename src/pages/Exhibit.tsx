@@ -10,6 +10,8 @@ import { ExhibitArt } from '../components/museum/ExhibitArt';
 import { MenuPage } from '../components/shell/MenuPage';
 import { creditLine, makersOf } from '../lib/collab';
 import { exhibitPath, exhibitUrl, memberPath } from '../lib/publicUrl';
+import { consoleFor } from '../lib/museum';
+import { CONSOLE_NAMES } from '../lib/sprites';
 import { useCards } from '../lib/useCards';
 import type { PublicCard } from '../types/card';
 import { museumService } from '../services/museumService';
@@ -47,6 +49,7 @@ export default function Exhibit() {
   // The owner, then the collaborators who accepted, as approved (D-090).
   const makers = exhibit && cards.status === 'ready' ? makersOf(exhibit.username, exhibit.project, cards.cards) : [];
   const withNames = (exhibit?.project.collaborators ?? []).map((c) => c.full_name);
+  const kind = exhibit ? consoleFor(exhibit.project_id, exhibit.console) : null;
 
   const share = async () => {
     if (!exhibit) return;
@@ -95,7 +98,7 @@ export default function Exhibit() {
 
       {exhibit && (
         <article className="exhibit-page" aria-labelledby="exhibit-maker">
-          <ExhibitArt project={exhibit.project} featured={exhibit.featured} eager />
+          <ExhibitArt project={exhibit.project} console={kind!} featured={exhibit.featured} eager />
           <div className="exhibit-plaque">
             {exhibit.project.description && <p className="m-0">{exhibit.project.description}</p>}
             <Facts exhibit={exhibit} />
@@ -107,6 +110,7 @@ export default function Exhibit() {
               {withNames.length > 0 && <> with {creditLine(withNames)}</>}{' '}
               <span className="text-text-secondary">· No.{String(exhibit.member_no).padStart(3, '0')}</span>
             </p>
+            {kind && <p className="m-0 text-caption text-text-secondary">On show on a PIXENDO {CONSOLE_NAMES[kind]}</p>}
             <div className="flex flex-wrap gap-space-2">
               {exhibit.project.project_url && (
                 <a href={exhibit.project.project_url} target="_blank" rel="noopener noreferrer" className="pixel-btn" data-variant="primary">

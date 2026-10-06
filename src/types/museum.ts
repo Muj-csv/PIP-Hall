@@ -1,5 +1,6 @@
 // MUSEUM and affiliations (docs/plan/MUSEUM.md).
 
+import type { ConsoleKind } from '../lib/sprites';
 import type { PublicProject } from './card';
 
 /** An admin-entered label, e.g. an organization or "CS Student" (D-067). */
@@ -19,6 +20,8 @@ export interface Exhibit {
   member_no: number;
   /** The maker is featured by an admin: their exhibits are pinned on top (D-083). */
   featured?: boolean;
+  /** The console the maker picked; null or missing means picked from the project id (D-091). */
+  console?: ConsoleKind | null;
   project: PublicProject;
 }
 
@@ -30,6 +33,8 @@ export interface MyMuseum {
   projects: { id: string; title: string }[];
   /** Project ids the member put in the Museum. */
   entries: string[];
+  /** Consoles the member picked, by project id; the rest are automatic (D-091). */
+  consoles?: Record<string, ConsoleKind>;
 }
 
 /** Admin → Affiliations: one member with Museum access. */

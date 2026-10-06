@@ -1916,31 +1916,68 @@ textarea.pixel-input {
   height: 100%;
   align-content: start;
 }
-/* A gilded pixel frame around the art; the frame look is the same in DAY and NIGHT.
-   Diorama (D-083): the view holds the perspective and takes the pointer (so the hit area never
-   tilts away), the frame tilts, and the cover's layers shift by depth inside it. */
+/* Each exhibit hangs in an original PIXENDO console (D-091); consoles are physical objects, so they
+   look the same in DAY and NIGHT. Diorama (D-083): the view holds the perspective and takes the
+   pointer (so the hit area never tilts away), the console tilts, and the cover's layers shift by
+   depth on its screen. The bay is square and the console fits inside it at its own shape (--cw by
+   --ch sprite units), sitting on the bay's floor, so rows of mixed consoles stay level. */
 .exhibit-view {
   perspective: 900px;
   --tx: 0;
   --ty: 0;
 }
+.console-bay {
+  container-type: size;
+  display: grid;
+  place-items: end center;
+  aspect-ratio: 1;
+  width: 100%;
+}
 .exhibit-frame {
   position: relative;
-  padding: 12px;
-  background: var(--color-card-gold);
-  box-shadow:
-    inset 0 0 0 3px var(--color-card-ink),
-    inset 6px 6px 0 0 var(--color-card-block-hi),
-    inset -6px -6px 0 0 var(--color-card-block-shade),
-    4px 4px 0 0 var(--color-card-ink);
+  width: min(100cqw, 100cqh * var(--cw) / var(--ch));
+  aspect-ratio: var(--cw) / var(--ch);
+  filter: drop-shadow(4px 4px 0 var(--color-card-ink));
   transform: rotateX(calc(var(--ty) * -7deg)) rotateY(calc(var(--tx) * 9deg));
   transform-style: preserve-3d;
   transition: transform 160ms steps(4);
 }
+.console-body {
+  display: block;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+}
 .exhibit-stage {
-  position: relative;
+  position: absolute;
   overflow: hidden;
-  box-shadow: 0 0 0 3px var(--color-card-ink);
+}
+/* The power LED: dark until the console boots. */
+.console-led {
+  position: absolute;
+  background: var(--color-console-led-off);
+}
+.exhibit-frame[data-on] .console-led {
+  background: var(--color-console-led);
+}
+/* Faint scanlines over the screen, like glass. */
+.console-scan {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(0deg, color-mix(in srgb, var(--color-console-grille) 14%, transparent) 0 1px, transparent 1px 3px);
+}
+/* Boot: the screen flickers on in a few hard steps the first time the console is seen. */
+.exhibit-frame[data-on] .exhibit-stage > :not(.console-scan) {
+  animation: console-boot 720ms steps(1) both;
+}
+@keyframes console-boot {
+  0% { opacity: 0; }
+  18% { opacity: 0.7; }
+  30% { opacity: 0.1; }
+  48% { opacity: 1; }
+  60% { opacity: 0.45; }
+  72%, 100% { opacity: 1; }
 }
 .exhibit-art {
   display: block;
@@ -1990,11 +2027,11 @@ textarea.pixel-input {
   clip-path: polygon(42% 0, 58% 0, 84% 100%, 16% 100%);
   transform: translateX(calc(var(--tx) * -6px));
 }
-/* Featured frames: a bright band runs around the gold now and then. */
-.exhibit-frame[data-featured]::before {
+/* Featured exhibits: a bright band sweeps across the screen now and then. */
+.exhibit-frame[data-featured] .exhibit-stage::after {
   content: '';
   position: absolute;
-  inset: 3px;
+  inset: 0;
   pointer-events: none;
   background: linear-gradient(110deg, transparent 0 44%, var(--color-card-coin-hi) 44% 50%, transparent 50%) 0 0 / 300% 100%;
   mix-blend-mode: screen;
@@ -2024,7 +2061,8 @@ textarea.pixel-input {
     animation: none;
   }
   .diorama-layer,
-  .exhibit-frame[data-featured]::before {
+  .exhibit-frame[data-featured] .exhibit-stage::after,
+  .exhibit-frame[data-on] .exhibit-stage > * {
     animation: none;
   }
 }
@@ -2611,3 +2649,17 @@ textarea.pixel-input {
   padding: 0;
   list-style: none;
 }
+/* Editor → Museum: the console picker and its live preview (D-091). */
+.console-picker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 12px;
+  padding-left: 32px;
+}
+.console-preview {
+  width: auto;
+  height: 96px;
+  image-rendering: pixelated;
+}
+

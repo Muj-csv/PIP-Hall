@@ -1,7 +1,7 @@
 // Every sprite is a clean rectangle and every pixel has a colour from the theme (D-079).
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { coverLayers, coverSprite, GEM_SPRITES, GEM_TONE_PALETTES, CARD_PALETTE, CLIP_PALETTE, DOODLE_PALETTE, FRAME_DOODLES, RANK_GEMS, SPR, WORLD_OVERRIDES, WORLD_PALETTE, type Palette, type SpriteMap } from './sprites';
+import { CONSOLE_KINDS, consoleArt, coverLayers, coverSprite, GEM_SPRITES, GEM_TONE_PALETTES, CARD_PALETTE, CLIP_PALETTE, DOODLE_PALETTE, FRAME_DOODLES, RANK_GEMS, SPR, WORLD_OVERRIDES, WORLD_PALETTE, type Palette, type SpriteMap } from './sprites';
 
 const theme = readFileSync(new URL('../styles/theme.css', import.meta.url), 'utf8');
 const CARD_SPRITES = new Set(['clip', 'flower', 'grass', 'iconCode', 'iconCase', 'iconGlobe', 'block']);
@@ -57,5 +57,33 @@ describe('sprites', () => {
         }),
       );
     }
+  });
+
+  it('consoles (D-091) are rectangles in theme colours, with a 16:10 screen and an LED on the body', () => {
+    expect([...CONSOLE_KINDS].sort()).toEqual(['arcade', 'flip', 'pocket', 'tv', 'wide']); // the database's list
+    for (const kind of CONSOLE_KINDS) {
+      const { sprite, screen, led, palette } = consoleArt(kind);
+      check(`console:${kind}`, sprite, palette);
+      for (const v of Object.values(palette)) expect(theme, `${kind}: ${v} is in the theme`).toContain(`${v}:`);
+      const h = sprite.length;
+      const w = sprite[0]!.length;
+      expect(screen.w / screen.h, `${kind} screen is 16:10`).toBe(1.6);
+      for (const r of [screen, led]) {
+        expect(r.x).toBeGreaterThan(0);
+        expect(r.y).toBeGreaterThan(0);
+        expect(r.x + r.w).toBeLessThan(w);
+        expect(r.y + r.h).toBeLessThan(h);
+      }
+      // The screen is dark glass framed in ink, so nothing shows at its edge if the cover is late.
+      for (let y = screen.y; y < screen.y + screen.h; y++) expect(sprite[y]!.slice(screen.x, screen.x + screen.w)).toBe('n'.repeat(screen.w));
+      expect(sprite[screen.y - 1]!.slice(screen.x, screen.x + screen.w)).toBe('k'.repeat(screen.w));
+      // The LED sits on something drawn, never in the air.
+      expect(sprite[led.y]![led.x]).not.toBe('.');
+    }
+  });
+
+  it('every console has its own shell colours', () => {
+    const shells = CONSOLE_KINDS.map((k) => consoleArt(k).palette.a);
+    expect(new Set(shells).size).toBe(CONSOLE_KINDS.length);
   });
 });

@@ -8,7 +8,7 @@ import { DialogueBox } from '../components/dialogue/DialogueBox';
 import { MenuPage } from '../components/shell/MenuPage';
 import { exhibitPath, memberPath } from '../lib/publicUrl';
 import { creditLine } from '../lib/collab';
-import { arrangeMuseum } from '../lib/museum';
+import { arrangeMuseum, consoleFor } from '../lib/museum';
 import { museumService } from '../services/museumService';
 import { ExhibitArt } from '../components/museum/ExhibitArt';
 import type { Exhibit } from '../types/museum';
@@ -99,7 +99,7 @@ function ExhibitFrame({ exhibit: e }: { exhibit: Exhibit }) {
   return (
     <article className="exhibit" aria-labelledby={`ex-${e.project_id}`}>
       <Link to={exhibitPath(e.project_id)} className="exhibit-art-link" tabIndex={-1} aria-hidden="true">
-        <ExhibitArt project={p} featured={e.featured} />
+        <ExhibitArt project={p} console={consoleFor(e.project_id, e.console)} featured={e.featured} />
       </Link>
       <div className="exhibit-plaque">
         <h2 id={`ex-${e.project_id}`} className="m-0 font-display text-h3 font-normal">
