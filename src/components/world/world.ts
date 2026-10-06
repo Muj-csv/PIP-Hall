@@ -11,7 +11,7 @@ export const CEIL_Y = 10;
 /** Pip's head reaching this height (in units) counts as hitting the badge. */
 export const HEAD_HIT_Y = 117;
 
-const WORLD_SPRITES = ['pipIdle', 'pipWalk', 'pipJump', 'coin0', 'coin1', 'coin2', 'block', 'used', 'brick', 'ground', 'cloud', 'bush', 'tube', 'star0', 'star1', 'flower', 'tree', 'tuft'] as const satisfies readonly SpriteName[];
+const WORLD_SPRITES = ['pipIdle', 'pipWalk', 'pipJump', 'coin0', 'coin1', 'coin2', 'block', 'used', 'brick', 'ground', 'cloud', 'bush', 'tube', 'star0', 'star1', 'flower', 'tree', 'tuft', 'pine', 'bird0', 'bird1', 'moon', 'tuft1'] as const satisfies readonly SpriteName[];
 
 export interface WorldAssets {
   sprites: Record<(typeof WORLD_SPRITES)[number], HTMLCanvasElement>;
@@ -22,6 +22,8 @@ export interface WorldAssets {
     mountain: string;
     mountainShade: string;
     mountainSnow: string;
+    ridge: string;
+    firefly: string;
     hill: string;
     hillHi: string;
     hillDark: string;
@@ -47,6 +49,8 @@ export function buildWorldAssets(read: (cssVar: string) => string): WorldAssets 
       mountain: read('--color-world-mountain'),
       mountainShade: read('--color-world-mountain-shade'),
       mountainSnow: read('--color-world-mountain-snow'),
+      ridge: read('--color-world-ridge'),
+      firefly: read('--color-world-coin-hi'),
       hill: read('--color-world-hill'),
       hillHi: read('--color-world-hill-hi'),
       hillDark: read('--color-world-hill-dark'),
@@ -92,10 +96,22 @@ export interface WorldFrame {
   bump: (i: number) => number;
 }
 
-function hills(ctx: CanvasRenderingContext2D, f: WorldFrame, a: WorldAssets, factor: number, spacing: number, r: number) {
-  const off = -((f.cam * factor) % spacing);
-  for (let hx = off - spacing; hx < f.w + spacing; hx += spacing) {
-    const cx = Math.round(hx + spacing / 2);
+/** A stable pseudo-random number in [0, 1) for a world position, so the scenery never repeats
+ *  in step yet stays put as the camera moves (D-086). */
+function hash(n: number): number {
+  const x = Math.sin(n * 127.1 + 311.7) * 43758.5453;
+  return x - Math.floor(x);
+}
+
+/** Rolling hills of varied size: each hill's radius and offset come from its index. */
+function hills(ctx: CanvasRenderingContext2D, f: WorldFrame, a: WorldAssets, factor: number, spacing: number, r0: number) {
+  const scroll = f.cam * factor;
+  const first = Math.floor((scroll - f.w) / spacing) - 1;
+  const last = Math.ceil((scroll + f.w) / spacing) + 1;
+  for (let k = first; k <= last; k++) {
+    const r = Math.round(r0 * (0.7 + hash(k) * 0.6));
+    const cx = Math.round(k * spacing + (hash(k + 99) - 0.5) * spacing * 0.5 - scroll + f.w / 2);
+    if (cx + r < 0 || cx - r > f.w) continue;
     for (let i = -r; i <= r; i++) {
       const hh = Math.round(Math.sqrt(r * r - i * i) * 0.7);
       ctx.fillStyle = a.colors.hill;
@@ -106,8 +122,29 @@ function hills(ctx: CanvasRenderingContext2D, f: WorldFrame, a: WorldAssets, fac
     }
     ctx.fillStyle = a.colors.hillDark;
     for (const [dx, dy] of [[-6, -8], [4, -12], [10, -5], [-12, -4]] as const) {
-      if (Math.abs(dx) < r - 2) ctx.fillRect(cx + dx, GROUND_Y + dy, 1, 2);
+      if (Math.abs(dx) < r - 2 && hash(k * 7 + dx) > 0.3) ctx.fillRect(cx + dx, GROUND_Y + dy, 1, 2);
     }
+  }
+}
+
+/** The farthest layer: a pale ridge, almost the sky's colour, barely moving. */
+function ridge(ctx: CanvasRenderingContext2D, f: WorldFrame, a: WorldAssets) {
+  const scroll = f.cam * 0.06;
+  ctx.fillStyle = a.colors.ridge;
+  for (let x = 0; x < f.w; x++) {
+    const wx = x + scroll;
+    const top = Math.round(92 - 6 * Math.sin(wx / 23) - 4 * Math.sin(wx / 9 + 1.3) - 2 * Math.sin(wx / 4.1));
+    ctx.fillRect(x, top, 1, 110 - top);
+  }
+}
+
+/** Haze at the foot of the far layers: the sky's band colour dithered over them, thinning upward,
+ *  so distance fades into the sky instead of ending in a hard line. */
+function haze(ctx: CanvasRenderingContext2D, f: WorldFrame, a: WorldAssets, top: number, bottom: number) {
+  ctx.fillStyle = a.colors.skyBand;
+  for (let y = top; y < bottom; y++) {
+    const step = y > bottom - 3 ? 2 : y > bottom - 7 ? 3 : 4;
+    for (let x = (y * 3) % step; x < f.w; x += step) ctx.fillRect(x, y, 1, 1);
   }
 }
 
@@ -161,25 +198,46 @@ export function drawBackground(ctx: CanvasRenderingContext2D, f: WorldFrame, a: 
   for (let y = 86; y < 100; y += 2) for (let x = (y / 2) % 2; x < w; x += 2) ctx.fillRect(x, y, 1, 1);
   ctx.fillRect(0, 100, w, 40);
 
+  const t = f.still ? 0 : f.t;
   if (f.night) {
     ctx.fillStyle = a.colors.star;
     for (let i = 0; i < 26; i++) {
       const sx = wrap((i * 37 + 11) - cam * 0.1, w, 20);
       if ((((f.t / 30) + i) | 0) % 7 !== 0) ctx.fillRect(Math.round(sx), (i * 23) % 60 + 12, 1, 1);
     }
+    ctx.drawImage(s.moon, Math.round(wrap(w * 0.12 - cam * 0.03, w, 8)), 30);
   }
+  ridge(ctx, f, a);
   mountains(ctx, f, a);
+  haze(ctx, f, a, 96, 110);
   // Clouds drift on their own as well as with the camera, each at its own pace (D-081).
   for (let k = 0; k < 4; k++) {
-    const drift = f.still ? 0 : f.t * (0.02 + k * 0.006);
+    const drift = t * (0.02 + k * 0.006);
     ctx.drawImage(s.cloud, Math.round(wrap(k * 70 + 20 - cam * 0.2 - drift, w, 30)) - 24, 18 + (k % 2) * 12);
   }
+  // Birds cross the day sky in twos, wings beating (D-086); none at night.
+  if (!f.night) {
+    for (let k = 0; k < 2; k++) {
+      const bx = Math.round(wrap(k * 97 + 40 + t * (0.22 + k * 0.05) - cam * 0.3, w, 12));
+      const by = 26 + k * 9 + Math.round(Math.sin(t / 24 + k) * 2);
+      ctx.drawImage(((t / 9 + k * 3) | 0) % 2 ? s.bird1 : s.bird0, bx, by);
+      ctx.drawImage(((t / 9 + k * 3 + 1) | 0) % 2 ? s.bird1 : s.bird0, bx - 9, by + 4);
+    }
+  }
   hills(ctx, f, a, 0.5, 110, 26);
-  // A tree line between the hills and the bushes: in pairs and singles, picked by position.
-  for (let k = 0; k < 5; k++) {
-    const tx = Math.round(wrap(k * 61 + 30 - cam * 0.65, w, 24)) - 6;
-    ctx.drawImage(s.tree, tx, GROUND_Y - 14);
-    if (k % 2 === 0) ctx.drawImage(s.tree, tx + 9, GROUND_Y - 12);
+  haze(ctx, f, a, GROUND_Y - 6, GROUND_Y - 2);
+  // A tree line between the hills and the bushes: round trees and pines, in pairs and singles,
+  // each picked and placed by its index so the line never repeats in step (D-086).
+  {
+    const scroll = cam * 0.65;
+    const spacing = 34;
+    for (let k = Math.floor((scroll - w) / spacing) - 1; k <= Math.ceil((scroll + w) / spacing) + 1; k++) {
+      if (hash(k * 3.1) < 0.35) continue; // gaps in the tree line
+      const tx = Math.round(k * spacing + hash(k) * 14 - scroll + half);
+      const pine = hash(k + 7) < 0.4;
+      ctx.drawImage(pine ? s.pine : s.tree, tx - 6, GROUND_Y - (pine ? 12 : 14));
+      if (hash(k + 13) > 0.6) ctx.drawImage(s.tree, tx + 7, GROUND_Y - 12);
+    }
   }
   for (let k = 0; k < 6; k++) ctx.drawImage(s.bush, Math.round(wrap(k * 53 + 7 - cam * 0.8, w, 20)) - 10, GROUND_Y - 7);
 
@@ -229,7 +287,21 @@ export function drawForeground(ctx: CanvasRenderingContext2D, f: WorldFrame, a: 
   ctx.restore();
 
   // The near layer: tufts that move faster than the ground and pass in front of Pip (D-081).
-  for (let k = 0; k < 5; k++) ctx.drawImage(s.tuft, Math.round(wrap(k * 47 + 13 - cam * 1.3, w, 10)) - 3, GROUND_Y - 3);
+  const t = f.still ? 0 : f.t;
+  for (let k = 0; k < 5; k++) {
+    const sway = ((t / 22 + k) | 0) % 2 ? s.tuft1 : s.tuft;
+    ctx.drawImage(sway, Math.round(wrap(k * 47 + 13 - cam * 1.3, w, 10)) - 3, GROUND_Y - 3);
+  }
+  // Fireflies at night: blinking points drifting over the grass (D-086).
+  if (f.night) {
+    ctx.fillStyle = a.colors.firefly;
+    for (let k = 0; k < 9; k++) {
+      if ((((t / 14) | 0) + k * 3) % 5 === 0) continue;
+      const fx = wrap(k * 41 + 9 + Math.sin(t / 40 + k) * 6 - cam * 0.9, w, 6);
+      const fy = GROUND_Y - 10 - ((k * 7) % 22) + Math.round(Math.sin(t / 30 + k * 2) * 3);
+      ctx.fillRect(Math.round(fx), fy, 1, 1);
+    }
+  }
 
   const spin = [s.coin0, s.coin1, s.coin2, s.coin1];
   for (const c of coins) ctx.drawImage(spin[((c.t / 4) | 0) % 4]!, Math.round(c.x - cam + half) - 4, Math.round(c.y - 10));

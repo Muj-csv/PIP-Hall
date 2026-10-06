@@ -28,6 +28,13 @@ export const SPR = {
   tree: ['....bbbb....', '..bJJbbbbb..', '.bJJJbbbbbb.', 'bJJbbbbbbbNb', 'bJbbbbbbbbNb', 'bbbbbNbbbNNb', 'bbbbbbbbbNNb', '.bbbNbbbNNb.', '..NNbbbNNN..', '....NOON....', '.....OD.....', '.....OD.....', '.....OD.....', '....OODD....'],
   // A grass tuft in the near layer, passing in front of Pip.
   tuft: ['.L...L.', '.gL.Lg.', 'LggLggL', 'gGgggGg'],
+  // World depth pass (D-086): a pine for the tree line, a bird in two wing beats, the night moon,
+  // and the tuft's second frame so the near grass sways.
+  pine: ['....N....', '...NbN...', '..NbJbN..', '...NbN...', '..NbbbN..', '.NbJbbbN.', '..NbbbN..', '.NbbJbbN.', 'NbbbbbbbN', '.NNbbbNN.', '....O....', '....D....'],
+  bird0: ['kk...kk', '..k.k..', '...k...'],
+  bird1: ['.......', 'kkk.kkk', '...k...'],
+  moon: ['..www..', '.wwwww.', 'wwcwwww', 'wwwwwcw', 'wwwwwww', '.wwcww.', '..www..'],
+  tuft1: ['L...L..', '.Lg.gL.', 'LggLggL', 'gGgggGg'],
   // Night sky: a four-point sparkle and its smaller twinkle.
   star0: ['..y..', '.yhy.', 'yhhhy', '.yhy.', '..y..'],
   star1: ['.....', '..y..', '.yhy.', '..y..', '.....'],
@@ -82,6 +89,8 @@ export const WORLD_OVERRIDES: Partial<Record<SpriteName, Palette>> = {
   cloud: { w: '--color-world-cloud' },
   bush: { b: '--color-world-bush', B: '--color-world-hill-dark' },
   tree: { b: '--color-world-bush' },
+  pine: { b: '--color-world-bush' },
+  moon: { w: '--color-world-star', c: '--color-world-mountain-snow' },
   brick: { r: '--color-world-brick', m: '--color-world-mortar' },
   ground: { d: '--color-world-dirt' },
   tube: { H: '--color-world-tube-hi' },
