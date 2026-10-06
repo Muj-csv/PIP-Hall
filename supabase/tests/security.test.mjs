@@ -444,6 +444,44 @@ try {
   await expectOk(c, 'the owner can delete a tagged project', A, `delete from projects where id=$1`, [P2]);
   await expectSu(c, '…and its tags go with it', `select count(*)::int as n from project_collaborators where project_id=$1`, [P2], (r) => r.rows[0].n === 0);
 
+  console.log('passport (D-098)');
+  const exhibitA = linked[1]; // A's exhibit on show (see the Museum section)
+  const pipsOf = async (id) => (await c.query(`select coalesce(sum(amount),0)::int as n from pip_ledger where member_id=$1`, [id])).rows[0].n;
+  const achOf = async (id) => (await c.query(`select count(*)::int as n from member_achievements where member_id=$1`, [id])).rows[0].n;
+  await expectErr(c, 'anon cannot read a passport', 'anon', `select my_passport()`, [], /permission denied/);
+  await expectErr(c, 'anon cannot stamp an exhibit', 'anon', `select stamp_exhibit($1)`, [exhibitA], /permission denied/);
+  await expectErr(c, 'anon cannot import a passport', 'anon', `select import_passport('[]','[]')`, [], /permission denied/);
+  await expectOk(c, 'a member reads their passport', B, `select my_passport() as p`, [], (r) => r.rows[0].p.eligible === true && Array.isArray(r.rows[0].p.people) && Array.isArray(r.rows[0].p.exhibits));
+  await expectOk(c, 'visiting an exhibit stamps it once', B, `select stamp_exhibit($1) as s`, [exhibitA], (r) => r.rows[0].s === true);
+  await expectOk(c, '…and not twice', B, `select stamp_exhibit($1) as s`, [exhibitA], (r) => r.rows[0].s === false);
+  await expectOk(c, '…and shows in the passport', B, `select my_passport() as p`, [], (r) => r.rows[0].p.exhibits.some((x) => x.id === exhibitA && x.imported === false));
+  await expectOk(c, 'your own exhibit is no stamp', A, `select stamp_exhibit($1) as s`, [exhibitA], (r) => r.rows[0].s === false);
+  await expectOk(c, 'a project not on show is no stamp', B, `select stamp_exhibit($1) as s`, [linked[0]], (r) => r.rows[0].s === false);
+  await expectOk(c, 'a member without an approved card stamps nothing', C, `select stamp_exhibit($1) as s`, [exhibitA], (r) => r.rows[0].s === false);
+  await expectErr(c, '…and cannot import', C, `select import_passport('[]','[]')`, [], /NOT_ELIGIBLE/);
+  await expectErr(c, 'members cannot write stamps directly', B, `insert into passport_visits (member_id, project_id) values ($1, $2)`, [B, A], /permission denied/);
+  await expectErr(c, '…nor discoveries', B, `insert into discoveries (member_id, card_id) values ($1, $2)`, [B, Ms[5]], /permission denied/);
+  await expectErr(c, 'an import must be two lists', B, `select import_passport('{}','[]')`, [], /BAD_IMPORT/);
+  await expectErr(c, '…of at most 1000 stamps', B, `select import_passport((select jsonb_agg(jsonb_build_object('id', gen_random_uuid())) from generate_series(1,1001)),'[]')`, [], /BAD_IMPORT/);
+
+  // Graduation: an import is history only.
+  const pipsB = await pipsOf(B);
+  const achB = await achOf(B);
+  const everyone = (await c.query(`select coalesce(jsonb_agg(jsonb_build_object('id', profile_id, 'at', '2099-01-01T00:00:00Z')), '[]') as j from published_cards`)).rows[0].j;
+  const garbage = [{ id: 'not-a-uuid' }, { id: '00000000-0000-4000-8000-00000000dead' }, { id: B }, 'x', { id: Ms[6], at: 'yesterday; drop table x' }];
+  await expectOk(c, 'a member imports their device passport', B, `select import_passport($1::jsonb, $2::jsonb) as r`, [JSON.stringify([...everyone, ...garbage]), JSON.stringify([{ id: exhibitA }])],
+    (r) => r.rows[0].r.people > 0 && r.rows[0].r.exhibits === 0); // the exhibit was already stamped
+  await expectSu(c, '…skipping themselves, unknown and malformed ids', `select count(*)::int as n from discoveries where member_id=$1 and card_id in ($1, '00000000-0000-4000-8000-00000000dead')`, [B], (r) => r.rows[0].n === 0);
+  await expectSu(c, '…with no date in the future', `select count(*)::int as n from discoveries where member_id=$1 and created_at > now()`, [B], (r) => r.rows[0].n === 0);
+  await expectOk(c, '…and marked as imported', B, `select my_passport() as p`, [], (r) => r.rows[0].p.people.some((x) => x.imported === true));
+  await expectSu(c, 'an import pays no PIPs', `select coalesce(sum(amount),0)::int as n from pip_ledger where member_id=$1`, [B], (r) => r.rows[0].n === pipsB);
+  await expectSu(c, '…and unlocks no achievements', `select count(*)::int as n from member_achievements where member_id=$1`, [B], (r) => r.rows[0].n === achB);
+  const imported = (await c.query(`select card_id from discoveries where member_id=$1 and source='imported' limit 1`, [B])).rows[0].card_id;
+  await expectOk(c, 'opening an imported person later pays no discovery', B, `select discover_card($1) as r`, [imported], (r) => r.rows[0].r.amount === 0 && r.rows[0].r.new === false);
+  await expectOk(c, 'importing again adds nothing', B, `select import_passport($1::jsonb, '[]') as r`, [JSON.stringify(everyone)], (r) => r.rows[0].r.people === 0);
+  await c.query(readFileSync(join(here, '..', 'migrations', '20261006000500_passport.sql'), 'utf8'));
+  await expectOk(c, 'the passport migration is safe to run twice', B, `select my_passport() as p`, [], (r) => r.rows[0].p.people.length > 0 && r.rows[0].p.exhibits.length === 1);
+
   console.log('account deletion');
   await expectErr(c, 'anon cannot call delete_my_account', 'anon', `select delete_my_account()`, [], /permission denied/);
   await expectOk(c, 'member deletes own account', B, `select delete_my_account()`, []);

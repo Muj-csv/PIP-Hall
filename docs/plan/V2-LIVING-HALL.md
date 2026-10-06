@@ -62,7 +62,7 @@ Each phase ships on its own, behind a feature switch where it changes the hall, 
   - QR landing: badge QRs (in the app and in the PNG) open `/member/<name>?via=qr`; the profile greets "You found …!" once and tidies the address. The Passport stamp arrives with V2-2.
   - Evidence: `docs/build/evidence/share-previews/`.
 
-### V2-2 · Passport and search as play (P0)
+### V2-2 · Passport and search as play (P0) — done (D-098)
 
 **Loop:** open a profile or exhibit → a stamp lands in your Passport → the Passport shows what's left to find → search to find it → Pip walks you there.
 
@@ -71,6 +71,11 @@ Each phase ships on its own, behind a feature switch where it changes the hall, 
 - **"Why Pip picked"**: every search result explains itself from real data (skill listed, project uses it, collaborated on X, GitHub verified). No AI.
 - **Search → world:** choosing a result makes Pip run to that badge and its block light up. A **list mode** shows the same results as a plain list (keyboard and screen readers).
 - Budget: ≤ 12 KB gzipped JS; no new requests for guests; one RPC for members.
+- As built:
+  - `/passport` opens inside the device like a profile (iris, BACK, Esc). A **Passport** button sits by Random player and shows the stamp count.
+  - Account mode needs an approved card and PIPs on; otherwise the device Passport is used. An approved member sees "This device has N stamps… Bring them over" (history: no PIPs, no achievements; then the device copy is cleared).
+  - A badge QR scan stamps the person and says so.
+  - Evidence: `docs/build/evidence/passport/`.
 
 ### V2-3 · Missions and the event layer (P0)
 

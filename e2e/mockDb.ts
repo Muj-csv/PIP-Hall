@@ -17,6 +17,8 @@ export interface MockDb {
   /** PIP Progression E1 (mirrors supabase/migrations/*_pips_core.sql). */
   ledger?: Row[];
   discoveries?: Row[];
+  /** Exhibits stamped in members' Passports (V2-2). */
+  passportVisits?: Row[];
   memberAchievements?: Row[];
   /** MUSEUM and affiliations (mirrors supabase/migrations/*_museum.sql). */
   affiliations?: Row[];
@@ -61,7 +63,7 @@ function grant(db: MockDb, member: string, amount: number, reason: string, ref: 
 function checkAchievements(db: MockDb, member: string): string[] {
   db.memberAchievements ??= [];
   const live = (db.ledger ?? []).filter((r) => r.member_id === member && r.reason === 'project_live').length;
-  const found = (db.discoveries ?? []).filter((r) => r.member_id === member).length;
+  const found = (db.discoveries ?? []).filter((r) => r.member_id === member && r.source !== 'imported').length; // D-098
   const hold: Record<string, boolean> = {
     first_card: (db.ledger ?? []).some((r) => r.member_id === member && r.ref === 'first_approval'),
     first_project: live >= 1,
@@ -318,11 +320,49 @@ export async function handleDb(route: Route, db: MockDb, user: DbUser): Promise<
     if (card === userId || !inHall(userId) || !inHall(card)) return (await json(200, none)), true;
     db.discoveries ??= [];
     if (db.discoveries.some((r) => r.member_id === userId && r.card_id === card)) return (await json(200, { ...none, new: false })), true;
-    db.discoveries.push({ member_id: userId, card_id: card });
+    db.discoveries.push({ member_id: userId, card_id: card, created_at: new Date().toISOString(), source: 'verified' });
     const today = (db.ledger ?? []).filter((r) => r.member_id === userId && r.reason === 'discover').reduce((n, r) => n + Number(r.amount), 0);
     const paid = today + 5 <= 100 && grant(db, userId, 5, 'discover', `discover:${card}`);
     const unlocked = checkAchievements(db, userId);
     return (await json(200, { granted: paid, new: true, amount: paid ? 5 : 0, unlocked, balance: balanceOf(db, userId) })), true;
+  }
+  // Passport (V2-2, mirrors 20261006000500_passport.sql)
+  if (url.pathname === '/rest/v1/rpc/my_passport') {
+    const at = (r: Row) => String(r.created_at ?? r.visited_at ?? new Date().toISOString());
+    return (
+      await json(200, {
+        eligible: inHall(userId),
+        people: (db.discoveries ?? []).filter((r) => r.member_id === userId).map((r) => ({ id: r.card_id, at: at(r), imported: r.source === 'imported' })),
+        exhibits: (db.passportVisits ?? []).filter((r) => r.member_id === userId).map((r) => ({ id: r.project_id, at: at(r), imported: r.source === 'imported' })),
+      })
+    ), true;
+  }
+  if (url.pathname === '/rest/v1/rpc/stamp_exhibit') {
+    const id = String(body().p_project);
+    const onShow = (db.museumEntries ?? []).some((e) => e.project_id === id && e.member_id !== userId);
+    db.passportVisits ??= [];
+    if (!inHall(userId) || !onShow || db.passportVisits.some((r) => r.member_id === userId && r.project_id === id)) return (await json(200, false)), true;
+    db.passportVisits.push({ member_id: userId, project_id: id, visited_at: new Date().toISOString(), source: 'verified' });
+    return (await json(200, true)), true;
+  }
+  if (url.pathname === '/rest/v1/rpc/import_passport') {
+    if (!inHall(userId)) return (await err(400, 'P0001', 'NOT_ELIGIBLE')), true;
+    const { p_people, p_exhibits } = body() as { p_people: { id: string; at: string }[]; p_exhibits: { id: string; at: string }[] };
+    db.discoveries ??= [];
+    db.passportVisits ??= [];
+    let people = 0;
+    let exhibits = 0;
+    for (const s of p_people) {
+      if (s.id === userId || !inHall(s.id) || db.discoveries.some((r) => r.member_id === userId && r.card_id === s.id)) continue;
+      db.discoveries.push({ member_id: userId, card_id: s.id, created_at: s.at, source: 'imported' });
+      people++;
+    }
+    for (const s of p_exhibits) {
+      if (!(db.museumEntries ?? []).some((e) => e.project_id === s.id && e.member_id !== userId) || db.passportVisits.some((r) => r.member_id === userId && r.project_id === s.id)) continue;
+      db.passportVisits.push({ member_id: userId, project_id: s.id, visited_at: s.at, source: 'imported' });
+      exhibits++;
+    }
+    return (await json(200, { people, exhibits })), true;
   }
   if (url.pathname === '/rest/v1/pip_ledger' && method === 'GET') {
     const rows = (db.ledger ?? []).filter((r) => r.member_id === userId).sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));

@@ -97,6 +97,11 @@ Both are safe to run again (they only add columns and replace functions).
 1. Supabase **SQL editor:** run `supabase/migrations/20261006000300_project_collaborators.sql`. Safe to run again.
 2. Check: a member opens **My card → Collaborators**, tags another member of the hall on a project; that member sees the request in their own **Collaborators** panel and accepts. After the owner's next approval, the project's public card lists them.
 
+## Passport (V2-2, D-098)
+
+1. Supabase **SQL editor:** run `supabase/migrations/20261006000500_passport.sql` (after the console one). Safe to run again.
+2. Check: as a visitor, open a few profiles, then **Passport** in the hall: they're stamped. As an approved member (PIPs on), open an exhibit, then **Passport**: it's in "Exhibits visited", saved to your account.
+
 ## Link previews and badge export (V2-1, D-095)
 
 No SQL and no new settings: the functions in `api/` use the same `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` and `VITE_PUBLIC_ORIGIN` the site already has (Vercel gives project variables to functions too).
