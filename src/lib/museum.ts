@@ -2,8 +2,8 @@
 // member number, then title), and only the rest are shuffled.
 
 import type { Exhibit } from '../types/museum';
-import { CONSOLE_KINDS, type ConsoleKind } from './sprites';
-import { shuffle } from './shuffle';
+import { CONSOLE_KINDS, type ConsoleKind } from './sprites.js';
+import { shuffle } from './shuffle.js';
 
 export function arrangeMuseum(exhibits: readonly Exhibit[]): { featured: Exhibit[]; rest: Exhibit[] } {
   const featured = exhibits

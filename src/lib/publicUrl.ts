@@ -20,6 +20,16 @@ export function memberUrl(username: string): string {
   return publicOrigin() + memberPath(username);
 }
 
+/** What a badge's QR encodes: the member page, marked as a scan so it can greet the finder (V2-1). */
+export function memberQrUrl(username: string): string {
+  return `${memberUrl(username)}?via=qr`;
+}
+
+/** The approved badge as a PNG to save (D-095, a Vercel function; only where the hall has a backend). */
+export function badgePngUrl(username: string): string | null {
+  return import.meta.env.VITE_DATA_SOURCE === 'supabase' ? `/api/badge?u=${encodeURIComponent(username)}` : null;
+}
+
 /** Printed under the QR like a card ID: PIP·001·SAM. */
 export function serialFor(no: number, username: string): string {
   return `PIP·${String(no).padStart(3, '0')}·${username.slice(0, 3).toUpperCase()}`;

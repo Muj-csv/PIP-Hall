@@ -23,7 +23,7 @@ import { frameStyleVars, isFrameStyle } from "../../lib/rewards";
 import type { Pin } from "../../types/mart";
 import { rankOf, type Rank } from "../../lib/rank";
 import { placeStickers } from "../../lib/stickers";
-import { memberUrl, serialFor } from "../../lib/publicUrl";
+import { memberQrUrl, serialFor } from "../../lib/publicUrl";
 import type { PublicCard } from "../../types/card";
 import type { Appearance } from "../../types/mart";
 import { SpriteCanvas } from "../pixel/SpriteCanvas";
@@ -405,7 +405,7 @@ function CardFront({
                 aria-label={`Show QR code for ${c.full_name}'s page full screen`}
                 onClick={onShowQr}
               >
-                <QrCode value={memberUrl(c.username)} />
+                <QrCode value={memberQrUrl(c.username)} />
               </button>
               <span className="serial">{serialFor(card.no, c.username)}</span>
             </div>

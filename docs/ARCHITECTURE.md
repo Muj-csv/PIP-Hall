@@ -21,6 +21,8 @@ flowchart LR
   CRON[GitHub Actions weekly ping] --> SB
 ```
 
+**v2 note (D-095):** a thin presentation layer of Vercel functions in `api/` (link previews, OG images, badge PNGs) reads published data with the anon key and never writes. Data, auth and security stay in Supabase.
+
 ## 2. Requirements in scope (v1.0)
 
 | ID | Requirement | Source |

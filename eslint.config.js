@@ -22,4 +22,10 @@ export default tseslint.config(
     files: ['src/services/**/*.ts'],
     rules: { 'no-restricted-globals': 'off' },
   },
+  {
+    // The server's one gateway to published data (D-095), like src/services/ for the app.
+    files: ['api/_lib/data.ts'],
+    languageOptions: { globals: globals.node },
+    rules: { 'no-restricted-globals': 'off' },
+  },
 );

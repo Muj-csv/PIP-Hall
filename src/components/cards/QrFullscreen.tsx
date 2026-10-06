@@ -2,16 +2,18 @@
 // dialog: Esc or CLOSE dismisses it and focus returns to whatever opened it.
 
 import { useEffect, useRef, useState } from 'react';
-import { memberUrl } from '../../lib/publicUrl';
+import { memberQrUrl, memberUrl } from '../../lib/publicUrl';
 import type { PublicCard } from '../../types/card';
 import { QrCode } from './QrCode';
 
 export function QrFullscreen({ card, onClose }: { card: PublicCard; onClose: () => void }) {
-  return <QrSheet url={memberUrl(card.username)} heading="SCAN ME" codeTitle={`QR code for ${card.card.full_name}'s page`} onClose={onClose} />;
+  return <QrSheet url={memberUrl(card.username)} code={memberQrUrl(card.username)} heading="SCAN ME" codeTitle={`QR code for ${card.card.full_name}'s page`} onClose={onClose} />;
 }
 
 interface SheetProps {
   url: string;
+  /** What the code encodes, if not `url` (a badge adds ?via=qr). */
+  code?: string;
   heading: string;
   /** What the code is, for screen readers. */
   codeTitle: string;
@@ -20,7 +22,7 @@ interface SheetProps {
   onClose: () => void;
 }
 
-export function QrSheet({ url, heading, codeTitle, lead, onClose }: SheetProps) {
+export function QrSheet({ url, code = url, heading, codeTitle, lead, onClose }: SheetProps) {
   const ref = useRef<HTMLDialogElement>(null);
   // Who opened the sheet, read once during the first render (before showModal moves focus).
   const [opener] = useState(() => document.activeElement as HTMLElement | null);
@@ -52,7 +54,7 @@ export function QrSheet({ url, heading, codeTitle, lead, onClose }: SheetProps) 
         <h2 id="qr-title">{heading}</h2>
         {lead && <p className="m-0 text-center">{lead}</p>}
         <div className="qr-sheet-code">
-          <QrCode value={url} title={codeTitle} />
+          <QrCode value={code} title={codeTitle} />
         </div>
         <p className="m-0 text-center font-mono text-caption break-all">{url}</p>
         <p className="m-0 text-center text-caption">Turn your screen brightness up so the camera reads it.</p>

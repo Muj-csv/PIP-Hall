@@ -97,6 +97,15 @@ Both are safe to run again (they only add columns and replace functions).
 1. Supabase **SQL editor:** run `supabase/migrations/20261006000300_project_collaborators.sql`. Safe to run again.
 2. Check: a member opens **My card → Collaborators**, tags another member of the hall on a project; that member sees the request in their own **Collaborators** panel and accepts. After the owner's next approval, the project's public card lists them.
 
+## Link previews and badge export (V2-1, D-095)
+
+No SQL and no new settings: the functions in `api/` use the same `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` and `VITE_PUBLIC_ORIGIN` the site already has (Vercel gives project variables to functions too).
+
+1. Deploy as usual. Vercel builds `api/preview.ts`, `api/og.ts` and `api/badge.ts` as functions; `vercel.json` sends only link-preview crawlers (Messenger, Discord, Slack, X, LinkedIn, WhatsApp, Telegram…) to the preview page.
+2. Check: open `https://<your site>/api/og?member=<username>` in a browser. You should see a 1200×630 image of that member's badge.
+3. Check: paste a member link into the [Facebook Sharing Debugger](https://developers.facebook.com/tools/debug/) (that's what Messenger uses) or send it to yourself on Messenger/Discord. The preview shows the member's name, role and badge image. Chat apps cache previews for a while; the debugger's **Scrape Again** refreshes it.
+4. Check: on a member's profile, **Save badge (PNG)** downloads `pip-hall-<username>.png`; its QR opens the profile with "You found …!".
+
 ## Museum consoles (D-091)
 
 1. Supabase **SQL editor:** run `supabase/migrations/20261006000400_museum_consoles.sql` (after the collaborators one). Safe to run again.

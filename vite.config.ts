@@ -37,6 +37,8 @@ export default defineConfig({
         // The app shell plus the Latin font files; other scripts' fonts load on demand.
         globPatterns: ['**/*.{js,css,html,svg,png}', 'assets/*-latin-[0-9]*-normal-*.woff2'],
         navigateFallback: '/index.html',
+        // Server routes (D-095) must reach the network, never the app shell.
+        navigateFallbackDenylist: [/^\/api\//],
         cleanupOutdatedCaches: true,
         runtimeCaching: [
           {
@@ -71,7 +73,7 @@ export default defineConfig({
   ],
   server: { port: 5173 },
   test: {
-    include: ['src/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'api/**/*.test.ts'],
     environment: 'node',
   },
 });

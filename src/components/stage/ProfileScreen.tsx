@@ -2,10 +2,10 @@
 // PROFILE iris into it, and /member/:username (what a badge's QR opens) lands straight on it.
 // The badge here is the real one: tap it, or "Show Quest Log", to turn it over.
 
-import { useEffect, useMemo, useRef } from 'react';
-import { Link } from 'react-router';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useSearchParams } from 'react-router';
 import { collaborationsOf } from '../../lib/collab';
-import { memberPath, serialFor } from '../../lib/publicUrl';
+import { badgePngUrl, memberPath, serialFor } from '../../lib/publicUrl';
 import { rankOf } from '../../lib/rank';
 import { GEM_SPRITES, GEM_TONE_PALETTES } from '../../lib/sprites';
 import { SpriteCanvas } from '../pixel/SpriteCanvas';
@@ -34,6 +34,16 @@ export function ProfileScreen({ card, onBack, onShowQr, reward = null, hall = []
   const rank = rankOf(c.projects.length);
   const collabs = useMemo(() => collaborationsOf(card.username, hall), [card.username, hall]);
   useEffect(() => back.current?.focus(), []);
+  // Opened from a badge's QR (?via=qr): greet the finder once, then tidy the address (V2-1).
+  const [params, setParams] = useSearchParams();
+  const [scanned] = useState(() => params.get('via') === 'qr');
+  useEffect(() => {
+    if (!params.has('via')) return;
+    const next = new URLSearchParams(params);
+    next.delete('via');
+    setParams(next, { replace: true });
+  }, [params, setParams]);
+  const png = badgePngUrl(c.username);
 
   const meta = [`@${c.username}`, `No.${String(card.no).padStart(3, '0')}`, c.role, c.org_position, c.department].filter(Boolean).join(' · ');
   const links = [
@@ -83,6 +93,7 @@ export function ProfileScreen({ card, onBack, onShowQr, reward = null, hall = []
         )}
       </header>
 
+      {scanned && <DialogueBox text={`You found ${c.full_name.split(' ')[0]}! You scanned their badge.`} emote="approved" />}
       {reward && <DialogueBox text={reward} emote="approved" />}
 
       <div className="profile-layout">
@@ -91,6 +102,11 @@ export function ProfileScreen({ card, onBack, onShowQr, reward = null, hall = []
           <button type="button" className="pixel-btn justify-self-center" data-variant="primary" onClick={onShowQr}>
             SCAN ME · show QR
           </button>
+          {png && (
+            <a className="pixel-btn justify-self-center" href={png} download={`pip-hall-${c.username}.png`}>
+              Save badge (PNG)
+            </a>
+          )}
           <p className="m-0 text-center font-mono text-caption">{serialFor(card.no, c.username)}</p>
         </section>
 
