@@ -31,7 +31,8 @@ export const pipService = {
   },
 
   async catalog(): Promise<Achievement[]> {
-    const { data, error } = await requireSupabase().from('achievements').select('key, name, description, reward').order('sort');
+    // '*' so the list still loads before the admin-rewards update adds gem and tone (D-087).
+    const { data, error } = await requireSupabase().from('achievements').select('*').order('sort');
     if (error) throw error;
     return (data ?? []) as Achievement[];
   },

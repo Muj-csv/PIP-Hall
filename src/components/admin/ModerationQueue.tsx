@@ -1,18 +1,23 @@
 // The admin's queue (FR-08): Pending / Published / Featured tabs. Each tab is a list of cards
 // on the left and the selected card's ReviewPanel on the right. The Affiliations tab manages the
-// labels admins give members (D-067).
+// labels admins give members (D-067); the Rewards tab designs borders and badges (D-087).
 
 import { useRef, useState, type KeyboardEvent } from 'react';
 import type { Queue } from '../../services/adminService';
 import { DialogueBox } from '../dialogue/DialogueBox';
+import { pipsEnabled } from '../../lib/features';
 import { AffiliationsManager } from './AffiliationsManager';
+import { RewardsManager } from './RewardsManager';
 import { PendingReview, PublishedReview } from './ReviewPanel';
 
-type Tab = 'pending' | 'published' | 'featured' | 'affiliations';
-const TABS: Tab[] = ['pending', 'published', 'featured', 'affiliations'];
-const LABEL: Record<Tab, string> = { pending: 'Pending', published: 'Published', featured: 'Featured', affiliations: 'Affiliations' };
+type Tab = 'pending' | 'published' | 'featured' | 'affiliations' | 'rewards';
+const TABS: Tab[] = ['pending', 'published', 'featured', 'affiliations', ...(pipsEnabled ? (['rewards'] as const) : [])];
+const LABEL: Record<Tab, string> = { pending: 'Pending', published: 'Published', featured: 'Featured', affiliations: 'Affiliations', rewards: 'Rewards' };
+/** Tabs that are tools, not lists of cards: no count on the tab. */
+const TOOLS: readonly Tab[] = ['affiliations', 'rewards'];
 const EMPTY: Record<Tab, string> = {
   affiliations: '',
+  rewards: '',
   pending: 'Nobody’s waiting for review. New cards show up here when members submit them.',
   published: 'The hall is empty. Approve a card and it hangs here.',
   featured: 'No featured cards yet. Feature one from the Published tab and it wears a star.',
@@ -27,7 +32,7 @@ interface Row {
 export function ModerationQueue({ queue, onDone }: { queue: Queue; onDone: (message: string) => void }) {
   const [tab, setTab] = useState<Tab>('pending');
   const [picked, setPicked] = useState<Partial<Record<Tab, string>>>({});
-  const tabRefs = useRef<Record<Tab, HTMLButtonElement | null>>({ pending: null, published: null, featured: null, affiliations: null });
+  const tabRefs = useRef<Record<Tab, HTMLButtonElement | null>>({ pending: null, published: null, featured: null, affiliations: null, rewards: null });
 
   const featured = queue.published.filter((c) => c.is_featured);
   const rows: Record<Tab, Row[]> = {
@@ -35,6 +40,7 @@ export function ModerationQueue({ queue, onDone }: { queue: Queue; onDone: (mess
     published: queue.published.map((c) => ({ id: c.profile_id, name: c.card.full_name, detail: `@${c.username} · No.${String(c.no).padStart(3, '0')}${c.is_featured ? ' · ★ featured' : ''}` })),
     featured: featured.map((c) => ({ id: c.profile_id, name: c.card.full_name, detail: `@${c.username} · No.${String(c.no).padStart(3, '0')}` })),
     affiliations: [],
+    rewards: [],
   };
   const list = rows[tab];
   // The picked card, or the first one if it left this tab (approved, unpublished…).
@@ -71,13 +77,15 @@ export function ModerationQueue({ queue, onDone }: { queue: Queue; onDone: (mess
             tabIndex={tab === t ? 0 : -1}
             onClick={() => setTab(t)}
           >
-            {t === 'affiliations' ? LABEL[t] : `${LABEL[t]} (${rows[t].length})`}
+            {TOOLS.includes(t) ? LABEL[t] : `${LABEL[t]} (${rows[t].length})`}
           </button>
         ))}
       </div>
       <div id={`panel-${tab}`} role="tabpanel" aria-labelledby={`tab-${tab}`}>
         {tab === 'affiliations' ? (
           <AffiliationsManager onDone={onDone} />
+        ) : tab === 'rewards' ? (
+          <RewardsManager members={queue.published} onDone={onDone} />
         ) : list.length === 0 ? (
           <DialogueBox text={EMPTY[tab]} emote={tab === 'pending' ? 'approved' : undefined} />
         ) : (

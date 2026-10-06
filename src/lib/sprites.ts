@@ -298,3 +298,27 @@ export const RANK_GEMS: Readonly<Record<'member' | 'builder' | 'legend', { sprit
 };
 
 export const FRAME_KEYS = Object.keys(FRAME_DOODLES);
+
+// ---------------------------------------------------------------- admin-made badges (D-087)
+
+/** Badge gems an admin can pick: one shape each, coloured by the badge's tone (ink outline). */
+export const GEM_SPRITES: Readonly<Record<string, SpriteMap>> = {
+  star: ['...k...', '..kmk..', 'kkkhkkk', 'kmhhhmk', '.kmmmk.', '.kmkmk.', '.kk.kk.'],
+  circle: ['..kkk..', '.khhmk.', 'khmmmmk', 'kmmmmmk', 'kmmmmmk', '.kmmmk.', '..kkk..'],
+  diamond: ['...k...', '..khk..', '.khmmk.', 'khmmmmk', '.kmmmk.', '..kmk..', '...k...'],
+  heart: ['.kk.kk.', 'khhkmmk', 'khmmmmk', 'kmmmmmk', '.kmmmk.', '..kmk..', '...k...'],
+  shield: ['kkkkkkk', 'khhmmmk', 'khmmmmk', 'kmmmmmk', '.kmmmk.', '..kmk..', '...k...'],
+  bolt: ['....kk.', '...khk.', '..khk..', '.kkhkkk', '..kmk..', '.kmk...', '.kk....'],
+  crown: ['k..k..k', 'kmkhkmk', 'kmmhmmk', 'kmmmmmk', 'khhhhhk', 'kkkkkkk', '.......'],
+  leaf: ['....kkk', '..kkhmk', '.khhmmk', 'khmmmk.', 'kmmmk..', '.kkk...', 'k......'],
+};
+
+/** The two tokens (main, highlight) each badge tone paints its gem with. */
+export const GEM_TONE_PALETTES: Readonly<Record<string, Palette>> = {
+  gold: { k: '--color-card-ink', m: '--color-card-coin', h: '--color-card-coin-hi' },
+  green: { k: '--color-card-ink', m: '--color-card-grass', h: '--color-card-grass-light' },
+  sky: { k: '--color-card-ink', m: '--color-card-sky', h: '--color-card-cream' },
+  plum: { k: '--color-card-ink', m: '--color-card-plum', h: '--color-card-band' },
+  red: { k: '--color-card-ink', m: '--color-card-lanyard', h: '--color-card-cream' },
+  silver: { k: '--color-card-ink', m: '--color-card-metal', h: '--color-card-metal-hi' },
+};

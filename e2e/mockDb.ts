@@ -25,6 +25,9 @@ export interface MockDb {
   /** PIP MART (mirrors supabase/migrations/*_pip_mart.sql). */
   inventory?: Row[];
   appearance?: Row[];
+  /** Borders and badges designed in Admin → Rewards (D-087). */
+  customItems?: Row[];
+  customBadges?: Row[];
 }
 
 export const MART_ITEMS = [
@@ -321,7 +324,7 @@ export async function handleDb(route: Route, db: MockDb, user: DbUser): Promise<
     const rows = (db.ledger ?? []).filter((r) => r.member_id === userId).sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
     return (await json(200, rows.slice(0, Number(url.searchParams.get('limit') ?? 50)))), true;
   }
-  if (url.pathname === '/rest/v1/achievements' && method === 'GET') return (await json(200, ACHIEVEMENTS)), true;
+  if (url.pathname === '/rest/v1/achievements' && method === 'GET') return (await json(200, [...ACHIEVEMENTS, ...(db.customBadges ?? [])])), true;
   if (url.pathname === '/rest/v1/member_achievements' && method === 'GET') {
     const rows = filterRows(db.memberAchievements ?? [], url).filter((r) => inHall(String(r.member_id)));
     return (await json(200, rows)), true;
@@ -395,7 +398,8 @@ export async function handleDb(route: Route, db: MockDb, user: DbUser): Promise<
     return (await json(200, out)), true;
   }
 
-  // ---- PIP MART
+  // ---- PIP MART (with admin-made borders, D-087)
+  const allItems = (): Row[] => [...MART_ITEMS.map((m) => ({ ...m, for_sale: true, active: true, style: null })), ...(db.customItems ?? [])];
   const owns = (id: string, key: string) => (db.inventory ?? []).some((r) => r.member_id === id && r.item_key === key);
   const perksOf = (id: string) =>
     (db.memberAffiliations ?? [])
@@ -410,7 +414,8 @@ export async function handleDb(route: Route, db: MockDb, user: DbUser): Promise<
       const p = perksOf(id).find((x) => x.key === a.frame_affiliation);
       return p ? { frame: 'member', label: p.label } : null;
     }
-    return owns(id, String(a.frame)) ? { frame: a.frame, label: null } : null;
+    const item = allItems().find((m) => m.key === a.frame);
+    return owns(id, String(a.frame)) ? { frame: a.frame, label: null, style: item?.style ?? null } : null;
   };
   if (url.pathname === '/rest/v1/rpc/my_mart') {
     if (!userId) return (await err(401, '42501', 'permission denied for function my_mart')), true;
@@ -418,7 +423,9 @@ export async function handleDb(route: Route, db: MockDb, user: DbUser): Promise<
     return (await json(200, {
       eligible: inHall(userId),
       balance: balanceOf(db, userId),
-      items: MART_ITEMS.map((m) => ({ ...m, owned: owns(userId, m.key) })),
+      items: allItems()
+        .filter((m) => (m.active && m.for_sale) || owns(userId, String(m.key)))
+        .map((m) => ({ key: m.key, kind: 'frame', name: m.name, description: m.description, price: m.price, for_sale: m.for_sale, style: m.style, owned: owns(userId, String(m.key)) })),
       perks: perksOf(userId),
       equipped: { frame: a?.frame ?? null, affiliation: a?.frame_affiliation ?? null },
     })), true;
@@ -427,7 +434,7 @@ export async function handleDb(route: Route, db: MockDb, user: DbUser): Promise<
     const { p_key } = body() as { p_key: string };
     if (!userId) return (await err(401, '42501', 'permission denied for function buy_item')), true;
     if (!inHall(userId)) return (await err(400, 'P0001', 'NOT_ELIGIBLE')), true;
-    const item = MART_ITEMS.find((m) => m.key === p_key);
+    const item = allItems().find((m) => m.key === p_key && m.active && m.for_sale) as { price: number } | undefined;
     if (!item) return (await err(400, 'P0001', 'NO_SUCH_ITEM')), true;
     if (owns(userId, p_key)) return (await err(400, 'P0001', 'ALREADY_OWNED')), true;
     const bal = balanceOf(db, userId);
@@ -453,6 +460,62 @@ export async function handleDb(route: Route, db: MockDb, user: DbUser): Promise<
       return v ? [{ profile_id: c.profile_id, ...v }] : [];
     });
     return (await json(200, out)), true;
+  }
+  if (url.pathname === '/rest/v1/rpc/card_pins') {
+    const out = db.published.flatMap((c) => {
+      const pins = (db.memberAchievements ?? [])
+        .filter((m) => m.member_id === c.profile_id)
+        .map((m) => (db.customBadges ?? []).find((b) => b.key === m.key))
+        .filter((b): b is Row => Boolean(b))
+        .reverse()
+        .slice(0, 3)
+        .map((b) => ({ key: b.key, name: b.name, gem: b.gem, tone: b.tone }));
+      return pins.length ? [{ profile_id: c.profile_id, pins }] : [];
+    });
+    return (await json(200, out)), true;
+  }
+  const REWARDS_ADMIN = ['admin_mart_items', 'admin_save_frame', 'admin_set_item_active', 'admin_save_badge', 'admin_grant_badge', 'admin_revoke_badge'];
+  const rfn = url.pathname.replace('/rest/v1/rpc/', '');
+  if (REWARDS_ADMIN.includes(rfn)) {
+    if (!userId) return (await err(401, '42501', `permission denied for function ${rfn}`)), true;
+    if (!admin) return (await err(403, '42501', 'NOT_ADMIN')), true;
+    const b = body() as Record<string, unknown>;
+    if (rfn === 'admin_mart_items') return (await json(200, allItems())), true;
+    if (rfn === 'admin_save_frame') {
+      if (MART_ITEMS.some((m) => m.key === b.p_key)) return (await err(400, 'P0001', 'BUILT_IN')), true;
+      db.customItems = (db.customItems ?? []).filter((m) => m.key !== b.p_key);
+      db.customItems.push({ key: b.p_key, kind: 'frame', name: b.p_name, description: b.p_description, price: b.p_price, for_sale: b.p_for_sale, active: true, style: b.p_style, sort: 100 });
+      return (await json(200, null)), true;
+    }
+    if (rfn === 'admin_set_item_active') {
+      const m = (db.customItems ?? []).find((x) => x.key === b.p_key);
+      if (!m) return (await err(400, 'P0001', 'NO_SUCH_ITEM')), true;
+      m.active = b.p_active;
+      return (await json(200, null)), true;
+    }
+    if (rfn === 'admin_save_badge') {
+      if (ACHIEVEMENTS.some((a) => a.key === b.p_key)) return (await err(400, 'P0001', 'BUILT_IN')), true;
+      db.customBadges = (db.customBadges ?? []).filter((x) => x.key !== b.p_key);
+      db.customBadges.push({ key: b.p_key, name: b.p_name, description: b.p_description, reward: b.p_reward, sort: 100, custom: true, gem: b.p_gem, tone: b.p_tone, reward_frame: b.p_frame });
+      return (await json(200, null)), true;
+    }
+    const badge = (db.customBadges ?? []).find((x) => x.key === b.p_key);
+    if (rfn === 'admin_grant_badge') {
+      if (!badge) return (await err(400, 'P0001', 'NO_SUCH_BADGE')), true;
+      const member = String(b.p_member);
+      if (!inHall(member)) return (await err(400, 'P0001', 'NOT_PUBLISHED')), true;
+      db.memberAchievements ??= [];
+      if (db.memberAchievements.some((m) => m.member_id === member && m.key === badge.key)) return (await json(200, false)), true;
+      db.memberAchievements.push({ member_id: member, key: badge.key });
+      if (Number(badge.reward) > 0) grant(db, member, Number(badge.reward), 'achievement', `achievement:${String(badge.key)}`);
+      if (badge.reward_frame && !owns(member, String(badge.reward_frame))) (db.inventory ??= []).push({ member_id: member, item_key: badge.reward_frame });
+      return (await json(200, true)), true;
+    }
+    if (rfn === 'admin_revoke_badge') {
+      const before = (db.memberAchievements ?? []).length;
+      db.memberAchievements = (db.memberAchievements ?? []).filter((m) => !(badge && m.member_id === b.p_member && m.key === badge.key));
+      return (await json(200, db.memberAchievements.length < before)), true;
+    }
   }
   if (url.pathname === '/rest/v1/rpc/admin_set_affiliation_frame') {
     if (!admin) return (await err(403, '42501', 'NOT_ADMIN')), true;

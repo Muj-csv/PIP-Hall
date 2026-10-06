@@ -817,6 +817,18 @@
   --trim-gap: calc(var(--p) * 5);
   --trim-motion: trim-pulse 2.4s steps(2) infinite;
 }
+/* Borders designed in /admin (D-087): the tones arrive as inline CSS variables (theme tokens
+   only); the motion is picked from the same set the built-in frames use. */
+.badge[data-frame='custom'][data-motion='flow'] { --trim-motion: trim-flow 1.4s steps(4) infinite; }
+.badge[data-frame='custom'][data-motion='twinkle'] { --trim-motion: trim-twinkle 1.8s steps(2) infinite; --trim-return: reverse; }
+.badge[data-frame='custom'][data-motion='pulse'] { --trim-motion: trim-pulse 2.4s steps(2) infinite; }
+.badge[data-frame='custom'][data-motion='gleam'] .holder::before,
+.badge[data-frame='custom'][data-motion='gleam'] .holder::after {
+  background:
+    linear-gradient(var(--color-card-cream), var(--color-card-cream)) 0 -20% / var(--p) calc(var(--p) * 3) no-repeat,
+    conic-gradient(at var(--p) var(--p), transparent 75%, var(--trim) 0) 0 0 / var(--p) var(--trim-gap);
+  animation: pearl-gleam 3s steps(24) infinite;
+}
 /* The dark frames print in cream so the label stays readable. */
 .badge[data-frame='dusk'] .holder-print {
   color: var(--color-card-cream);
@@ -865,6 +877,23 @@
 }
 /* Rank gem (D-080): shape tells the rank (round, diamond, star); the word is in the title and for
    screen readers. */
+/* Admin-made badges (D-087): enamel pins on the holder's top strip, left of the clip hole. */
+.holder-pins {
+  position: absolute;
+  top: var(--p);
+  left: calc(var(--p) * 6);
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  pointer-events: auto;
+}
+.pin-gem {
+  display: block;
+  height: 10px;
+  width: auto;
+  image-rendering: pixelated;
+}
 .band-rank {
   margin-left: auto;
   display: inline-flex;
@@ -2278,7 +2307,7 @@ textarea.pixel-input {
   .pixel-btn { transition: none; }
   .foil, .badge[data-foil] .foil, .sparkle { animation: none; transition: none; }
   .sparkle { display: none; }
-  .badge[data-frame] .holder::before, .badge[data-frame] .holder::after { animation: none; }
+  .badge[data-frame] .holder::before, .badge[data-frame] .holder::after, .badge[data-frame='custom'][data-motion] .holder::before, .badge[data-frame='custom'][data-motion] .holder::after { animation: none; }
   .page-dissolve { display: none; }
   .menu-panel { animation: none; }
   .unbox-flash, .unbox-doodle, .unbox-pip { animation: none; }
@@ -2444,4 +2473,77 @@ textarea.pixel-input {
   grid-template-columns: 32px minmax(0, 1fr);
   gap: 12px;
   align-items: start;
+}
+
+/* ---------------------------------------------------------------- admin → rewards (D-087) */
+.rewards-builder {
+  display: grid;
+  gap: 16px;
+}
+@media (min-width: 900px) {
+  .rewards-builder {
+    grid-template-columns: minmax(0, 1fr) 260px;
+    align-items: start;
+  }
+}
+.rewards-preview {
+  justify-self: center;
+  width: 224px;
+}
+.rewards-row {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  align-items: start;
+}
+.rewards-gems {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.rewards-gems legend {
+  margin-bottom: 4px;
+}
+.rewards-gem-pick {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  min-width: 56px;
+  min-height: 44px;
+  padding: 6px;
+  cursor: pointer;
+  font-size: var(--text-caption);
+  border: 3px solid var(--color-border);
+  background: var(--color-surface);
+}
+/* The picked gem is pressed in and outlined in ink: not colour alone. */
+.rewards-gem-pick[data-picked] {
+  background: var(--color-surface-raised);
+  box-shadow: inset 0 0 0 3px var(--color-text-primary);
+}
+.rewards-gem-pick:has(:focus-visible) {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+.rewards-gem {
+  image-rendering: pixelated;
+}
+.rewards-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.rewards-list > li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 2px dashed var(--color-border);
 }

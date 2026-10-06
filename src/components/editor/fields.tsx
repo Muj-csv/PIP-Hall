@@ -114,3 +114,38 @@ export function Toggle({ field, label, hint, checked, onChange, error }: Omit<Ba
     </div>
   );
 }
+
+/** A labelled pixel select (Admin → Rewards, D-087). */
+export function SelectField<T extends string>({
+  field,
+  label,
+  hint,
+  error,
+  value,
+  options,
+  onChange,
+}: Omit<Base, 'max'> & { value: T; options: readonly { value: T; label: string }[]; onChange: (v: T) => void }) {
+  const id = useId();
+  return (
+    <div className="field" data-field={field}>
+      <label htmlFor={id} className="field-label">
+        {label}
+      </label>
+      <select
+        id={id}
+        className="pixel-input"
+        value={value}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? `${id}-err` : hint ? `${id}-hint` : undefined}
+        onChange={(e) => onChange(e.target.value as T)}
+      >
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+      <Meta id={id} error={error} hint={hint} />
+    </div>
+  );
+}
