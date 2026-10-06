@@ -709,6 +709,66 @@ try {
   await expectSu(c, 'the wings migration is safe to run twice, and keeps the curators’ words', `select 1`, [], () =>
     after.find((w) => w.key === 'web')?.note === 'Things you can open in a browser.' && after.find((w) => w.key === 'featured')?.name === 'Hall of Fame' && !after.some((w) => w.key === 'collab'));
 
+  console.log('seasons and events (D-103)');
+  // The identity migration was re-run above; the events migration comes after it again.
+  await c.query(readFileSync(join(here, '..', 'migrations', '20261006001000_seasons.sql'), 'utf8'));
+  const today = `(now() at time zone 'Asia/Manila')::date`;
+  const save = (key, from, to, kind, param, n, reward, frame) =>
+    `select admin_save_season('${key}', 'Build Week', 'Ship something small.', ${today} + ${from}, ${today} + ${to}, ${kind}, ${param}, ${n}, ${reward}, ${frame})`;
+  await expectOk(c, 'no event is scheduled until a curator schedules one', 'anon', `select current_season() as s`, [], (r) => r.rows[0].s.live === null && r.rows[0].s.next === null);
+  await expectErr(c, 'members cannot schedule events', A, save('build-week', 5, 11, `'people'`, 'null', 3, 30, `'pearl'`), [], /NOT_ADMIN/);
+  await expectErr(c, 'visitors cannot either', 'anon', save('build-week', 5, 11, 'null', 'null', 'null', 'null', 'null'), [], /permission denied/);
+  await expectOk(c, 'an admin schedules Build Week with a Mission and a limited frame', ADMIN, save('build-week', 5, 11, `'people'`, 'null', 3, 30, `'pearl'`), []);
+  await expectOk(c, 'visitors see it coming', 'anon', `select current_season() as s`, [], (r) =>
+    r.rows[0].s.live === null && r.rows[0].s.next?.key === 'build-week' && r.rows[0].s.next.mission.reward === 30 && r.rows[0].s.next.frame.key === 'pearl' && r.rows[0].s.next.counts === null);
+  await expectOk(c, 'the limited frame is off the shelf before the event', M, `select my_mart() as m`, [], (r) => !r.rows[0].m.items.some((i) => i.key === 'pearl'));
+  await expectErr(c, '…and can’t be bought', M, `select buy_item('pearl')`, [], /NOT_IN_SEASON/);
+  await expectErr(c, 'events never overlap', ADMIN, save('other', 7, 9, 'null', 'null', 'null', 'null', 'null'), [], /OVERLAP/);
+  await expectErr(c, 'an event ends after it starts', ADMIN, save('backwards', 40, 39, 'null', 'null', 'null', 'null', 'null'), [], /BAD_DATES/);
+  await expectErr(c, '…and lasts at most a month', ADMIN, save('long', 40, 80, 'null', 'null', 'null', 'null', 'null'), [], /BAD_DATES/);
+  await expectErr(c, 'an event Mission must be one the hall knows', ADMIN, save('m1', 40, 41, `'people'`, 'null', 1, 30, 'null'), [], /BAD_MISSION/);
+  await expectErr(c, '…a skill Mission names a skill', ADMIN, save('m2', 40, 41, `'skill'`, 'null', 1, 30, 'null'), [], /BAD_MISSION/);
+  await expectErr(c, '…and pays 5 to 200 PIPs', ADMIN, save('m3', 40, 41, `'people'`, 'null', 3, 500, 'null'), [], /BAD_REWARD/);
+  await expectErr(c, 'the limited item must be a frame', ADMIN, save('m4', 40, 41, 'null', 'null', 'null', 'null', `'plate-brass'`), [], /NO_SUCH_FRAME/);
+  await expectOk(c, 'an event that hasn’t started can be removed', ADMIN, `${save('later', 40, 41, 'null', 'null', 'null', 'null', 'null')}; select admin_delete_season('later')`, []);
+  await expectErr(c, 'the events table is not read directly', 'anon', `select * from hall_seasons`, [], /permission denied/);
+
+  // Build Week starts (yesterday, on the hall's calendar).
+  await as(c, ADMIN, save('build-week', -1, 5, `'people'`, 'null', 3, 30, `'pearl'`));
+  const live = (await as(c, 'anon', `select current_season() as s`)).rows[0].s.live;
+  const truth = (await c.query(`select
+      count(*) filter (where event_type='PROJECT_PUBLISHED')::int as projects,
+      count(*) filter (where event_type='EXHIBIT_ADDED')::int as exhibits,
+      count(*) filter (where event_type='COLLAB_PUBLISHED')::int as teamups,
+      count(*) filter (where event_type='CARD_APPROVED' and not exists (select 1 from hall_events f where f.actor_id=e.actor_id and f.event_type='CARD_APPROVED' and f.id<e.id))::int as joined
+    from hall_events e where visibility='public' and created_at >= (${today} - 1)::timestamp at time zone 'Asia/Manila'`)).rows[0];
+  await expectSu(c, 'a live event counts only real public events in its dates', `select 1`, [], () =>
+    live?.key === 'build-week' && ['joined', 'projects', 'exhibits', 'teamups'].every((k) => live.counts[k] === truth[k]) && truth.joined > 0);
+  await expectOk(c, 'a member hasn’t done the event Mission yet', M, `select my_season() as s`, [], (r) => r.rows[0].s.eligible && r.rows[0].s.done === false);
+  await expectErr(c, 'a member out of the hall can’t claim it', Ms[0], `select complete_season_mission()`, [], /NOT_ELIGIBLE/);
+  await expectErr(c, 'a member who hasn’t met three people since it began can’t', Ms[9], `select complete_season_mission()`, [], /NOT_DONE/);
+  const pipsBW = await pipsOf(M);
+  await expectOk(c, 'a member who has claims it (+30)', M, `select complete_season_mission() as r`, [], (r) => r.rows[0].r.amount === 30 && r.rows[0].r.balance === pipsBW + 30);
+  await expectErr(c, '…once', M, `select complete_season_mission()`, [], /ALREADY_DONE/);
+  await expectOk(c, '…and it shows as done', M, `select my_season() as s`, [], (r) => r.rows[0].s.done === true);
+  await expectSu(c, 'it is recorded like any Mission, with its own key', `select scope, period from mission_completions where member_id=$1 and key='season:build-week'`, [M], (r) => r.rowCount === 1 && r.rows[0].scope === 'season' && r.rows[0].period === 'build-week');
+  await expectOk(c, 'it doesn’t count against today’s Missions', M, `select my_missions() as m`, [], (r) => !r.rows[0].m.done.includes('season:build-week'));
+  await c.query(`select grant_pips($1, 1000, 'achievement', 'test:limited')`, [M]);
+  await expectOk(c, 'during the event the limited frame is on the shelf, with its last day', M, `select my_mart() as m, (${today} + 5)::text as last`, [], (r) => {
+    const pearl = r.rows[0].m.items.find((i) => i.key === 'pearl');
+    return pearl && pearl.limited_until === r.rows[0].last;
+  });
+  await expectOk(c, '…and can be bought', M, `select buy_item('pearl') as b`, [], (r) => typeof r.rows[0].b.balance === 'number');
+  await expectErr(c, 'an event that has started can’t be removed', ADMIN, `select admin_delete_season('build-week')`, [], /ALREADY_STARTED/);
+  await expectOk(c, 'admins see each event’s state', ADMIN, `select admin_seasons() as s`, [], (r) => r.rows[0].s.find((x) => x.key === 'build-week')?.state === 'live');
+  // The event ends: the frame leaves the shelf, owners keep it.
+  await as(c, ADMIN, save('build-week', -8, -2, `'people'`, 'null', 3, 30, `'pearl'`));
+  await expectOk(c, 'after the event, owners keep the frame', M, `select my_mart() as m`, [], (r) => r.rows[0].m.items.some((i) => i.key === 'pearl' && i.owned && i.limited_until === null));
+  await expectOk(c, '…and nobody else can buy it', Ms[9], `select my_mart() as m`, [], (r) => !r.rows[0].m.items.some((i) => i.key === 'pearl'));
+  await expectErr(c, 'an event Mission can’t be claimed after the event', Ms[2], `select complete_season_mission()`, [], /NO_EVENT_MISSION/);
+  await c.query(readFileSync(join(here, '..', 'migrations', '20261006001000_seasons.sql'), 'utf8'));
+  await expectOk(c, 'the events migration is safe to run twice', ADMIN, `select admin_seasons() as s`, [], (r) => r.rows[0].s.some((x) => x.key === 'build-week' && x.state === 'over'));
+
   console.log('account deletion');
   await expectErr(c, 'anon cannot call delete_my_account', 'anon', `select delete_my_account()`, [], /permission denied/);
   await expectOk(c, 'member deletes own account', B, `select delete_my_account()`, []);
