@@ -70,7 +70,7 @@ test('featured makers are pinned on top, and Shuffle never moves them', async ({
     await page.getByRole('button', { name: /Shuffle/ }).click();
     await expect(featured).toHaveText(before!);
   }
-  await expect(page.getByRole('list', { name: 'More exhibits' })).not.toContainText('Sample Player 2');
+  await expect(page.getByRole('list', { name: 'More exhibits' })).not.toContainText('by Sample Player 2'); // credited as a collaborator is fine
 });
 
 test('exhibits tilt toward the pointer, and lie flat with reduced motion', async ({ page, isMobile }) => {

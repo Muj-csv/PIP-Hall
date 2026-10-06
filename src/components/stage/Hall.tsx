@@ -564,6 +564,7 @@ export function Hall({ profile = null }: HallProps) {
         <ProfileScreen
           key={current.username}
           card={current}
+          hall={all}
           onBack={closeProfile}
           onShowQr={() => setQrCard(current)}
           reward={reward?.for === current.profile_id ? reward.text : null}

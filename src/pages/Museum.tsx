@@ -7,6 +7,7 @@ import { Link } from 'react-router';
 import { DialogueBox } from '../components/dialogue/DialogueBox';
 import { MenuPage } from '../components/shell/MenuPage';
 import { exhibitPath, memberPath } from '../lib/publicUrl';
+import { creditLine } from '../lib/collab';
 import { arrangeMuseum } from '../lib/museum';
 import { museumService } from '../services/museumService';
 import { ExhibitArt } from '../components/museum/ExhibitArt';
@@ -112,7 +113,8 @@ function ExhibitFrame({ exhibit: e }: { exhibit: Exhibit }) {
           by{' '}
           <Link to={memberPath(e.username)} className="underline decoration-2">
             {e.full_name}
-          </Link>{' '}
+          </Link>
+          {(p.collaborators?.length ?? 0) > 0 && <> with {creditLine(p.collaborators!.map((c) => c.full_name))}</>}{' '}
           <span className="text-text-secondary">· No.{String(e.member_no).padStart(3, '0')}</span>
         </p>
       </div>
