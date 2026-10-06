@@ -312,7 +312,7 @@ try {
   await expectErr(c, 'anon cannot read anyone’s Mart', 'anon', `select my_mart()`, [], /permission denied/);
   await expectErr(c, 'a member without a card in the hall cannot buy', NOCARD, `select buy_item('meadow')`, [], /NOT_ELIGIBLE/);
   await expectOk(c, '…and their Mart says so', NOCARD, `select my_mart() as m`, [], (r) => r.rows[0].m.eligible === false);
-  await expectOk(c, 'anyone can read the catalogue', 'anon', `select key from mart_items order by sort`, [], (r) => r.rows.map((x) => x.key).join() === 'meadow,dusk,pearl,gold');
+  await expectOk(c, 'anyone can read the catalogue', 'anon', `select key from mart_items where kind = 'frame' order by sort`, [], (r) => r.rows.map((x) => x.key).join() === 'meadow,dusk,pearl,gold');
   await expectErr(c, 'members cannot write the catalogue', A, `update mart_items set price = 1`, [], /permission denied/);
   await expectErr(c, 'members cannot give themselves items', A, `insert into inventory (member_id, item_key) values ($1,'gold')`, [A], /permission denied/);
   await expectErr(c, 'members cannot write their appearance directly', A, `insert into card_appearance (member_id, frame) values ($1,'gold')`, [A], /permission denied/);
@@ -528,6 +528,7 @@ try {
   await expectOk(c, 'the missions migration is safe to run twice', M, `select my_missions() as m`, [], (r) => r.rows[0].m.done.length === 4);
   // Later migrations redefine some of its functions, so they are applied again after it, in order.
   await c.query(readFileSync(join(here, '..', 'migrations', '20261006000700_notifications.sql'), 'utf8'));
+  await c.query(readFileSync(join(here, '..', 'migrations', '20261006000800_identity.sql'), 'utf8'));
 
   console.log('notifications and recent in the hall (D-100)');
   const bell = async (uid) => (await as(c, uid, `select my_notifications() as n`)).rows[0].n;
@@ -607,6 +608,75 @@ try {
   await expectErr(c, 'visitors still cannot read the raw events', 'anon', `select * from hall_events`, [], /permission denied/);
   await c.query(readFileSync(join(here, '..', 'migrations', '20261006000700_notifications.sql'), 'utf8'));
   await expectOk(c, 'the notifications migration is safe to run twice', Ms[4], `select my_notifications() as n`, [], (r) => r.rows[0].n.items.some((x) => x.type === 'COLLAB_PUBLISHED'));
+
+  console.log('titles, plates and mission rerolls (D-101)');
+  const titlesOf = async (uid) => (await as(c, uid, `select my_titles() as t`)).rows[0].t;
+  const earnedOf = (t) => t.titles.filter((x) => x.earned).map((x) => x.key);
+  const hallTitle = async (id) => (await as(c, 'anon', `select hall_titles() as h`)).rows[0].h.find((x) => x.profile_id === id);
+  await expectErr(c, 'visitors have no titles of their own', 'anon', `select my_titles()`, [], /permission denied/);
+  await expectOk(c, 'the first member is a Card Holder, a Pioneer and (credited with M4) a Connector', A, `select my_titles() as t`, [], (r) => {
+    const e = earnedOf(r.rows[0].t);
+    return r.rows[0].t.eligible && ['card_holder', 'pioneer', 'connector'].every((k) => e.includes(k)) && !e.includes('curator');
+  });
+  await expectOk(c, 'a credited collaborator is a Connector too', Ms[4], `select my_titles() as t`, [], (r) => earnedOf(r.rows[0].t).includes('connector'));
+  const late = (await c.query(`select profile_id from published_cards where member_no > 10 order by member_no limit 1`)).rows[0].profile_id;
+  await expectOk(c, 'later members are not Pioneers', late, `select my_titles() as t`, [], (r) => !earnedOf(r.rows[0].t).includes('pioneer'));
+  await expectOk(c, 'a member out of the hall has no titles', Ms[0], `select my_titles() as t`, [], (r) => !r.rows[0].t.eligible && earnedOf(r.rows[0].t).length === 0);
+  await expectErr(c, '…and cannot wear one', Ms[0], `select equip_title('card_holder')`, [], /NOT_ELIGIBLE/);
+  await expectErr(c, 'a title not earned yet cannot be worn', M, `select equip_title('explorer')`, [], /NOT_EARNED/);
+  await expectErr(c, '…nor one that doesn’t exist', M, `select equip_title('legend')`, [], /NOT_EARNED/);
+  for (const m of [Ms[9], C]) await as(c, M, `select discover_card($1)`, [m]);
+  await expectOk(c, 'meeting 10 members makes an Explorer', M, `select my_titles() as t`, [], (r) => earnedOf(r.rows[0].t).includes('explorer'));
+  await expectOk(c, 'an earned title can be worn', M, `select equip_title('explorer')`, []);
+  await expectOk(c, '…and the hall sees it on the badge', 'anon', `select hall_titles() as h`, [], (r) => r.rows[0].h.find((x) => x.profile_id === M)?.title === 'explorer');
+  const before10 = earnedOf(await titlesOf(M));
+  await expectSu(c, 'Pathfinder needs 10 Missions', `select 1`, [], () => !before10.includes('pathfinder'));
+  await c.query(`insert into mission_completions (member_id, key, scope, period, kind, n) select $1, 'old:' || g, 'daily', '2026-01-0' || g, 'people', 3 from generate_series(1, 6) g`, [M]);
+  await expectOk(c, '…and ten make a Pathfinder', M, `select my_titles() as t`, [], (r) => earnedOf(r.rows[0].t).includes('pathfinder'));
+  await expectOk(c, 'hall_titles lists every member in the hall, and only them', 'anon', `select hall_titles() as h, (select count(*)::int from published_cards) as n`, [],
+    (r) => r.rows[0].h.length === r.rows[0].n && !r.rows[0].h.some((x) => x.profile_id === Ms[0]) && r.rows[0].h.every((x) => x.earned.includes('card_holder')));
+  // A title goes when its proof goes: M4 leaves the team project and the owner's card is approved again.
+  await as(c, Ms[4], `select equip_title('connector')`);
+  await as(c, Ms[4], `select leave_collaboration($1)`, [P1]);
+  await reapprove();
+  await expectOk(c, 'a title whose proof is gone is no longer earned', Ms[4], `select my_titles() as t`, [], (r) => !earnedOf(r.rows[0].t).includes('connector') && r.rows[0].t.title === null);
+  const m4 = await hallTitle(Ms[4]);
+  await expectSu(c, '…and leaves the badge', `select 1`, [], () => m4.title === null);
+  await expectErr(c, 'members cannot write their appearance directly', M, `update card_appearance set title='pioneer' where member_id=$1`, [M], /permission denied/);
+
+  // Title plates: a PIP MART kind of their own.
+  await expectOk(c, 'plates are on sale in the PIP MART', A, `select my_mart() as m`, [], (r) => r.rows[0].m.items.filter((i) => i.kind === 'plate').length === 3);
+  await expectErr(c, 'a plate not owned cannot be worn', A, `select equip_plate('plate-brass')`, [], /NOT_OWNED/);
+  await c.query(`select grant_pips($1, 500, 'achievement', 'test:plates')`, [A]);
+  const pipsA = await pipsOf(A);
+  await expectOk(c, 'buying a plate spends its price', A, `select buy_item('plate-brass') as b`, [], (r) => r.rows[0].b.balance === pipsA - 150);
+  await expectErr(c, 'a plate is not a frame', A, `select equip_frame('plate-brass')`, [], /NOT_OWNED/);
+  await expectErr(c, 'a frame is not a plate', A, `select equip_plate('meadow')`, [], /NOT_OWNED/);
+  await expectOk(c, 'the owner wears the plate with a title', A, `select equip_plate('plate-brass'), equip_title('pioneer')`, []);
+  await expectOk(c, 'the hall sees the title on its plate', 'anon', `select hall_titles() as h`, [], (r) => {
+    const a = r.rows[0].h.find((x) => x.profile_id === A);
+    return a.title === 'pioneer' && a.plate_style?.plate === 'gold' && a.plate_style?.ink === 'ink';
+  });
+  await expectOk(c, 'my_mart says what is worn', A, `select my_mart() as m`, [], (r) => r.rows[0].m.equipped.plate === 'plate-brass' && r.rows[0].m.equipped.title === 'pioneer');
+  await expectOk(c, 'taking the plate off', A, `select equip_plate(null)`, []);
+  const plain = await hallTitle(A);
+  await expectSu(c, '…shows the plain plate', `select 1`, [], () => plain.plate_style === null);
+  await expectErr(c, 'an admin border cannot take over a plate', ADMIN, `select admin_save_frame('plate-brass','Mine','',10,true,'{"frame":"gold","hi":"coin-hi","shade":"coin-shade","trim":"ink","gap":3,"motion":"none","doodle":"none"}')`, [], /BUILT_IN/);
+  await expectOk(c, 'the borders list in Admin has no plates', ADMIN, `select admin_mart_items() as m`, [], (r) => !r.rows[0].m.some((i) => i.key.startsWith('plate-')));
+
+  // Mission rerolls: once a day, 15 PIPs, never more Missions paid.
+  const pipsM2 = await pipsOf(M);
+  await expectOk(c, 'no reroll yet today', M, `select my_missions() as m`, [], (r) => r.rows[0].m.rerolls === 0);
+  await expectOk(c, 'a reroll costs 15 PIPs', M, `select reroll_missions() as r`, [], (r) => r.rows[0].r.rerolls === 1 && r.rows[0].r.balance === pipsM2 - 15);
+  await expectErr(c, '…once a day', M, `select reroll_missions()`, [], /REROLL_LIMIT/);
+  await expectOk(c, 'my_missions counts it, for the new pick', M, `select my_missions() as m`, [], (r) => r.rows[0].m.rerolls === 1);
+  await expectSu(c, 'the reroll is in the ledger as spending', `select amount, reason from pip_ledger where member_id=$1 and ref like 'reroll:%'`, [M], (r) => r.rowCount === 1 && r.rows[0].amount === -15 && r.rows[0].reason === 'purchase');
+  await expectErr(c, 'a reroll still pays no fourth daily Mission', M, `select complete_mission('daily','tech','TypeScript',1)`, [], /MISSION_LIMIT/);
+  await expectErr(c, 'members out of the hall cannot reroll', Ms[0], `select reroll_missions()`, [], /NOT_ELIGIBLE/);
+  await expectErr(c, 'visitors cannot reroll', 'anon', `select reroll_missions()`, [], /permission denied/);
+  await expectErr(c, 'members cannot read or write rerolls directly', M, `select * from mission_rerolls`, [], /permission denied/);
+  await c.query(readFileSync(join(here, '..', 'migrations', '20261006000800_identity.sql'), 'utf8'));
+  await expectOk(c, 'the identity migration is safe to run twice', A, `select my_titles() as t, my_mart() as m`, [], (r) => r.rows[0].t.title === 'pioneer' && r.rows[0].m.items.filter((i) => i.kind === 'plate').length === 3);
 
   console.log('account deletion');
   await expectErr(c, 'anon cannot call delete_my_account', 'anon', `select delete_my_account()`, [], /permission denied/);
