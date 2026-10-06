@@ -2,8 +2,10 @@
 // PROFILE iris into it, and /member/:username (what a badge's QR opens) lands straight on it.
 // The badge here is the real one: tap it, or "Show Quest Log", to turn it over.
 
-import { useEffect, useRef } from 'react';
-import { serialFor } from '../../lib/publicUrl';
+import { useEffect, useMemo, useRef } from 'react';
+import { Link } from 'react-router';
+import { collaborationsOf } from '../../lib/collab';
+import { memberPath, serialFor } from '../../lib/publicUrl';
 import { rankOf } from '../../lib/rank';
 import { GEM_SPRITES, GEM_TONE_PALETTES } from '../../lib/sprites';
 import { SpriteCanvas } from '../pixel/SpriteCanvas';
@@ -20,14 +22,17 @@ interface Props {
   onShowQr: () => void;
   /** Pip's line when opening this profile earned PIPs (E1). */
   reward?: string | null;
+  /** Every card in the hall, to find projects that credit this member (D-090). */
+  hall?: readonly PublicCard[];
 }
 
-export function ProfileScreen({ card, onBack, onShowQr, reward = null }: Props) {
+export function ProfileScreen({ card, onBack, onShowQr, reward = null, hall = [] }: Props) {
   const back = useRef<HTMLButtonElement>(null);
   const c = card.card;
   const achievements = useAchievements(card.profile_id);
   const affiliations = useAffiliations(card.profile_id);
   const rank = rankOf(c.projects.length);
+  const collabs = useMemo(() => collaborationsOf(card.username, hall), [card.username, hall]);
   useEffect(() => back.current?.focus(), []);
 
   const meta = [`@${c.username}`, `No.${String(card.no).padStart(3, '0')}`, c.role, c.org_position, c.department].filter(Boolean).join(' · ');
@@ -135,6 +140,28 @@ export function ProfileScreen({ card, onBack, onShowQr, reward = null }: Props) 
               </ol>
             )}
           </section>
+
+          {collabs.length > 0 && (
+            <section className="menu-panel" aria-labelledby="profile-collabs">
+              <h3 id="profile-collabs" className="panel-title">
+                Collaborations <span className="text-text-secondary">· {collabs.length}</span>
+              </h3>
+              <ul className="collab-credits">
+                {collabs.map(({ project, owner }) => (
+                  <li key={`${owner.username}-${project.title}`}>
+                    <b>{project.title}</b>{' '}
+                    <span className="text-text-secondary">
+                      with{' '}
+                      <Link to={memberPath(owner.username)} className="underline decoration-2">
+                        {owner.card.full_name} (@{owner.username})
+                      </Link>
+                    </span>
+                    {project.description && <p className="m-0 text-caption">{project.description}</p>}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
         </div>
       </div>
     </section>
@@ -170,6 +197,19 @@ function Quest({ project: p, n }: { project: PublicProject; n: number }) {
           {p.title}
         </h4>
         {p.description && <p className="m-0">{p.description}</p>}
+        {(p.collaborators?.length ?? 0) > 0 && (
+          <p className="m-0 text-caption">
+            With{' '}
+            {p.collaborators!.map((m, i) => (
+              <span key={m.username}>
+                {i > 0 && (i === p.collaborators!.length - 1 ? ' and ' : ', ')}
+                <Link to={memberPath(m.username)} className="underline decoration-2">
+                  {m.full_name}
+                </Link>
+              </span>
+            ))}
+          </p>
+        )}
         {facts && <p className="m-0 text-caption text-text-secondary">{facts}</p>}
         {p.tech_stack.length > 0 && <p className="m-0 text-caption">{p.tech_stack.join(' · ')}</p>}
         {(p.project_url || p.github_url) && (

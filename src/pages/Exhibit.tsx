@@ -3,10 +3,15 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router';
+import { FlipBadge } from '../components/cards/BadgeStage';
+import { QrFullscreen } from '../components/cards/QrFullscreen';
 import { DialogueBox } from '../components/dialogue/DialogueBox';
 import { ExhibitArt } from '../components/museum/ExhibitArt';
 import { MenuPage } from '../components/shell/MenuPage';
+import { creditLine, makersOf } from '../lib/collab';
 import { exhibitPath, exhibitUrl, memberPath } from '../lib/publicUrl';
+import { useCards } from '../lib/useCards';
+import type { PublicCard } from '../types/card';
 import { museumService } from '../services/museumService';
 import type { Exhibit as ExhibitRow } from '../types/museum';
 
@@ -17,6 +22,8 @@ export default function Exhibit() {
   const [load, setLoad] = useState<Load>({ status: 'loading' });
   const [attempt, setAttempt] = useState(0);
   const [shared, setShared] = useState<string | null>(null);
+  const [qrCard, setQrCard] = useState<PublicCard | null>(null);
+  const cards = useCards();
 
   useEffect(() => {
     let on = true;
@@ -37,6 +44,9 @@ export default function Exhibit() {
   const next = ordered.length > 1 && at >= 0 ? ordered[(at + 1) % ordered.length] : undefined;
 
   const title = exhibit ? `${exhibit.project.title} · Museum` : load.status === 'ready' ? 'Not on show' : 'Museum';
+  // The owner, then the collaborators who accepted, as approved (D-090).
+  const makers = exhibit && cards.status === 'ready' ? makersOf(exhibit.username, exhibit.project, cards.cards) : [];
+  const withNames = (exhibit?.project.collaborators ?? []).map((c) => c.full_name);
 
   const share = async () => {
     if (!exhibit) return;
@@ -93,7 +103,8 @@ export default function Exhibit() {
               Made by{' '}
               <Link to={memberPath(exhibit.username)} className="underline decoration-2">
                 {exhibit.full_name}
-              </Link>{' '}
+              </Link>
+              {withNames.length > 0 && <> with {creditLine(withNames)}</>}{' '}
               <span className="text-text-secondary">· No.{String(exhibit.member_no).padStart(3, '0')}</span>
             </p>
             <div className="flex flex-wrap gap-space-2">
@@ -120,6 +131,24 @@ export default function Exhibit() {
         </article>
       )}
 
+      {exhibit && makers.length > 0 && (
+        <section className="made-by" aria-labelledby="made-by-title">
+          <h2 id="made-by-title" className="panel-title">
+            Made by{makers.length > 1 ? ` · ${makers.length} makers` : ''}
+          </h2>
+          <ul className="made-by-list" aria-label="Makers">
+            {makers.map((c) => (
+              <li key={c.username}>
+                <FlipBadge card={c} label={c.card.full_name} onShowQr={() => setQrCard(c)} />
+                <Link to={memberPath(c.username)} className="pixel-btn justify-self-center">
+                  Open profile<span className="sr-only"> of {c.card.full_name}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       {exhibit && prev && next && (
         <nav aria-label="More exhibits" className="flex flex-wrap justify-between gap-space-2">
           <Link to={exhibitPath(prev.project_id)} className="pixel-btn">
@@ -134,6 +163,7 @@ export default function Exhibit() {
           )}
         </nav>
       )}
+      {qrCard && <QrFullscreen card={qrCard} onClose={() => setQrCard(null)} />}
     </MenuPage>
   );
 }

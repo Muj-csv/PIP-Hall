@@ -34,7 +34,14 @@
           "stars": null,
           "tech_stack": [],
           "source": "manual",
-          "project_date": null
+          "project_date": null,
+          "collaborators": [
+            {
+              "username": "sample-player-2",
+              "full_name": "Sample Player 2",
+              "member_no": 2
+            }
+          ]
         },
         {
           "title": "Sample Quest Two",

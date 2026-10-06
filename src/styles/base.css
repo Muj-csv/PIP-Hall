@@ -2585,3 +2585,29 @@ textarea.pixel-input {
   font-size: var(--text-caption);
   letter-spacing: 0.04em;
 }
+
+/* The makers of an exhibit (D-090): their real badges, side by side where there is room. */
+.made-by {
+  display: grid;
+  gap: 16px;
+}
+.made-by-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 24px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.made-by-list > li {
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+}
+.collab-credits {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}

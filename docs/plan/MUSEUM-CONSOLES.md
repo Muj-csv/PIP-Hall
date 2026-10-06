@@ -40,11 +40,14 @@ Status: **planned** (2026-10-06). Decisions agreed with the user are marked ✔.
   - The tagged member sees a **Collaboration requests** panel (Accept / Decline) in their editor and Settings.
 - As built: one **Collaborators** panel in the editor holds both sides (tagging on your projects, and requests from others); Settings doesn't repeat it.
 
-### Phase 2: "Made by": the makers' badges on the exhibit page
+### Phase 2: "Made by": the makers' badges on the exhibit page — done (D-090)
 
 - `/museum/:id` shows a **Made by** row with the owner's real badge and each accepted collaborator's. Each badge flips, shows its QR, and opens the member's profile.
 - Profiles list collaborations as "with @owner" in the Quest Log.
 - `museum_exhibits()` returns the project's collaborators, so the gallery plaque can say "by A, B and C".
+- As built:
+  - Collaborators on a profile get their own **Collaborations** panel under the Quest Log; the owner's Quest Log entry says "With A and B".
+  - `museum_exhibits()` needed no change: it already returns the project from the approved snapshot, and the snapshot carries `collaborators` since phase 1.
 
 ### Phase 3: console frames
 
