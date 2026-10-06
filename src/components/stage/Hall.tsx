@@ -42,6 +42,7 @@ import {
 } from '../world/world';
 import { HallSearch } from './HallSearch';
 import { Hud } from './Hud';
+import { MissionsPanel } from './MissionsPanel';
 import { PassportScreen } from './PassportScreen';
 import { MissingScreen, ProfileScreen } from './ProfileScreen';
 
@@ -642,6 +643,19 @@ export function Hall({ profile = null, passport = false }: HallProps) {
         controlsDisabled={count === 0}
         ledBlink={ledBlink}
       />
+      {cardsState.status === 'ready' && all.length > 0 && (
+        <MissionsPanel
+          cards={all}
+          onSearch={(patch) => {
+            const next = filtersToParams({ ...NO_FILTERS, q: patch.q ?? '', skill: patch.skill ?? null, department: patch.department ?? null });
+            if (mode !== 'level') navigate({ pathname: '/', search: next.toString() });
+            else setParams(next, { replace: true });
+            screenRef.current?.focus({ preventScroll: true });
+          }}
+          onRandom={randomPlayer}
+          onPips={pips.setBalance}
+        />
+      )}
       {qrCard && <QrFullscreen card={qrCard} onClose={() => setQrCard(null)} />}
     </>
   );

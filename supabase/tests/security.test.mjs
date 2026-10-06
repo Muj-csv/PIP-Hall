@@ -482,6 +482,51 @@ try {
   await c.query(readFileSync(join(here, '..', 'migrations', '20261006000500_passport.sql'), 'utf8'));
   await expectOk(c, 'the passport migration is safe to run twice', B, `select my_passport() as p`, [], (r) => r.rows[0].p.people.length > 0 && r.rows[0].p.exhibits.length === 1);
 
+  console.log('hall events and missions (D-099)');
+  const events = async (sql, params) => (await c.query(`select event_type, actor_id, target_id, visibility, metadata from hall_events where ${sql}`, params)).rows;
+  await expectSu(c, 'approvals are recorded as public events', `select count(*)::int as n from hall_events where event_type='CARD_APPROVED' and actor_id=$1 and visibility='public'`, [Ms[1]], (r) => r.rows[0].n >= 1);
+  await expectSu(c, 'unlocked achievements are recorded', `select count(*)::int as n from hall_events where event_type='ACHIEVEMENT_UNLOCKED' and actor_id=$1 and target_id='explorer'`, [A], (r) => r.rows[0].n === 1);
+  await expectSu(c, 'exhibits put in the Museum are recorded', `select count(*)::int as n from hall_events where event_type='EXHIBIT_ADDED' and target_id=$1`, [linked[1]], (r) => r.rows[0].n >= 1);
+  await expectSu(c, 'an accepted collaboration is private, with its owner', `select visibility, metadata->>'owner' as owner from hall_events where event_type='COLLAB_ACCEPTED' and actor_id=$1 limit 1`, [B], (r) => r.rows[0].visibility === 'private' && r.rows[0].owner === A);
+  const featuredBefore = (await events(`event_type='MEMBER_FEATURED' and actor_id=$1`, [Ms[2]])).length;
+  await as(c, ADMIN, `select set_featured($1, true)`, [Ms[2]]);
+  await expectSu(c, 'featuring a member is recorded once…', `select count(*)::int as n from hall_events where event_type='MEMBER_FEATURED' and actor_id=$1`, [Ms[2]], (r) => r.rows[0].n === featuredBefore + 1);
+  await expectSu(c, '…and is not mistaken for an approval', `select count(*)::int as n from hall_events where event_type='CARD_APPROVED' and actor_id=$1`, [Ms[2]], (r) => r.rows[0].n === 1);
+  await as(c, ADMIN, `select set_featured($1, false)`, [Ms[2]]);
+  await expectErr(c, 'anon cannot read events', 'anon', `select * from hall_events`, [], /permission denied/);
+  await expectOk(c, 'a member reads only their own events', B, `select distinct actor_id from hall_events`, [], (r) => r.rows.every((x) => x.actor_id === B));
+  await expectOk(c, '…and the private events about their projects', A, `select count(*)::int as n from hall_events where event_type='COLLAB_ACCEPTED'`, [], (r) => r.rows[0].n >= 1);
+  await expectErr(c, 'members cannot write events', A, `insert into hall_events (actor_id, event_type) values ($1, 'CARD_APPROVED')`, [A], /permission denied/);
+  await expectErr(c, 'members cannot call the event logger', A, `select log_event($1, 'CARD_APPROVED', null, null, '{}', 'public')`, [A], /permission denied/);
+
+  // Missions: Ms[1] meets three members today, one of them a Python person from Engineering.
+  const M = Ms[1];
+  await c.query(`update published_cards set card = jsonb_set(jsonb_set(card, '{skills}', '["Python","SQL"]'), '{department}', '"Engineering"') where profile_id=$1`, [Ms[3]]);
+  await expectErr(c, 'anon cannot do missions', 'anon', `select complete_mission('daily','people',null,3)`, [], /permission denied/);
+  await expectErr(c, 'a member without an approved card cannot claim a mission', C, `select complete_mission('daily','people',null,3)`, [], /NOT_ELIGIBLE/);
+  await expectErr(c, 'a mission below its minimum size is refused', M, `select complete_mission('daily','people',null,1)`, [], /BAD_MISSION/);
+  await expectErr(c, 'an unknown mission kind is refused', M, `select complete_mission('daily','anything','x',1)`, [], /BAD_MISSION/);
+  await expectErr(c, 'a skill mission needs a skill', M, `select complete_mission('daily','skill',null,1)`, [], /BAD_MISSION/);
+  await expectErr(c, 'a mission that isn’t done yet pays nothing', M, `select complete_mission('daily','skill','Python',1)`, [], /NOT_DONE/);
+  for (const m of [Ms[3], Ms[4], Ms[5]]) await as(c, M, `select discover_card($1)`, [m]);
+  const pipsM = await pipsOf(M);
+  await expectOk(c, 'finding a Python person completes the skill mission (+10)', M, `select complete_mission('daily','skill','python',1) as r`, [], (r) => r.rows[0].r.amount === 10);
+  await expectErr(c, '…once', M, `select complete_mission('daily','skill','PYTHON',1)`, [], /ALREADY_DONE/);
+  await expectOk(c, 'meeting someone from Engineering completes the department mission', M, `select complete_mission('daily','department','Engineering',1) as r`, [], (r) => r.rows[0].r.amount === 10);
+  await expectOk(c, 'meeting three people completes the people mission', M, `select complete_mission('daily','people',null,3) as r`, [], (r) => r.rows[0].r.amount === 10);
+  await expectErr(c, 'a fourth daily mission pays nothing', M, `select complete_mission('daily','tech','TypeScript',1)`, [], /MISSION_LIMIT/);
+  await expectSu(c, 'three daily missions paid exactly 30 PIPs', `select coalesce(sum(amount),0)::int as n from pip_ledger where member_id=$1`, [M], (r) => r.rows[0].n === pipsM + 30);
+  await expectErr(c, 'the weekly mission checks this week’s activity', M, `select complete_mission('weekly','people',null,8)`, [], /NOT_DONE/);
+  for (const m of [Ms[2], Ms[6], Ms[7], Ms[8], A]) await as(c, M, `select discover_card($1)`, [m]);
+  await expectOk(c, 'meeting eight people this week completes the weekly mission (+40)', M, `select complete_mission('weekly','people',null,8) as r`, [], (r) => r.rows[0].r.amount === 40);
+  await expectErr(c, '…and only one weekly mission pays', M, `select complete_mission('weekly','exhibits',null,5)`, [], /MISSION_LIMIT|NOT_DONE/);
+  await expectOk(c, 'my_missions lists today’s and this week’s completions', M, `select my_missions() as m`, [], (r) => r.rows[0].m.eligible && r.rows[0].m.done.length === 4 && /^\d{4}-\d{2}-\d{2}$/.test(r.rows[0].m.day) && /^\d{4}-W\d{2}$/.test(r.rows[0].m.week));
+  await expectSu(c, 'each completion is a private event', `select count(*)::int as n from hall_events where event_type='MISSION_COMPLETED' and actor_id=$1 and visibility='private'`, [M], (r) => r.rows[0].n === 4);
+  await expectErr(c, 'members cannot write completions directly', M, `insert into mission_completions (member_id, key, scope, period, kind, n) values ($1,'x','daily','d','people',3)`, [M], /permission denied/);
+  await expectErr(c, 'imported stamps never complete a mission (B only has imported stamps)', B, `select complete_mission('daily','people',null,3)`, [], /NOT_DONE/);
+  await c.query(readFileSync(join(here, '..', 'migrations', '20261006000600_missions_events.sql'), 'utf8'));
+  await expectOk(c, 'the missions migration is safe to run twice', M, `select my_missions() as m`, [], (r) => r.rows[0].m.done.length === 4);
+
   console.log('account deletion');
   await expectErr(c, 'anon cannot call delete_my_account', 'anon', `select delete_my_account()`, [], /permission denied/);
   await expectOk(c, 'member deletes own account', B, `select delete_my_account()`, []);

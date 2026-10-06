@@ -2,6 +2,8 @@
 // to end. It mimics the rules they depend on (supabase/migrations): members see only their own
 // drafts and admins see all; editing a non-draft card sends it back to draft, any project write
 // does too; submit needs a draft; max 6 projects; moderation functions refuse non-admins.
+import { missionKey, missionMet, missionPeriod, type MissionKind, type MissionScope } from '../src/lib/missions';
+import type { PublicCard } from '../src/types/card';
 import type { Route } from '@playwright/test';
 
 export type Row = Record<string, unknown>;
@@ -17,6 +19,8 @@ export interface MockDb {
   /** PIP Progression E1 (mirrors supabase/migrations/*_pips_core.sql). */
   ledger?: Row[];
   discoveries?: Row[];
+  /** Missions members claimed (V2-3). */
+  missionCompletions?: Row[];
   /** Exhibits stamped in members' Passports (V2-2). */
   passportVisits?: Row[];
   memberAchievements?: Row[];
@@ -325,6 +329,32 @@ export async function handleDb(route: Route, db: MockDb, user: DbUser): Promise<
     const paid = today + 5 <= 100 && grant(db, userId, 5, 'discover', `discover:${card}`);
     const unlocked = checkAchievements(db, userId);
     return (await json(200, { granted: paid, new: true, amount: paid ? 5 : 0, unlocked, balance: balanceOf(db, userId) })), true;
+  }
+  // Missions (V2-3, mirrors 20261006000600_missions_events.sql): same condition check as the app.
+  if (url.pathname === '/rest/v1/rpc/my_missions') {
+    const day = missionPeriod('daily').label;
+    const week = missionPeriod('weekly').label;
+    const done = (db.missionCompletions ?? []).filter((r) => r.member_id === userId && (r.period === day || r.period === week)).map((r) => ({ key: r.key }));
+    return (await json(200, { eligible: inHall(userId), day, week, done })), true;
+  }
+  if (url.pathname === '/rest/v1/rpc/complete_mission') {
+    if (!inHall(userId)) return (await err(400, 'P0001', 'NOT_ELIGIBLE')), true;
+    const { p_scope, p_kind, p_param, p_n } = body() as { p_scope: MissionScope; p_kind: MissionKind; p_param: string | null; p_n: number };
+    const period = missionPeriod(p_scope);
+    const key = missionKey(p_scope, period.label, p_kind, p_param, p_n);
+    db.missionCompletions ??= [];
+    if (db.missionCompletions.some((r) => r.member_id === userId && r.key === key)) return (await err(400, 'P0001', 'ALREADY_DONE')), true;
+    if (db.missionCompletions.filter((r) => r.member_id === userId && r.scope === p_scope && r.period === period.label).length >= (p_scope === 'weekly' ? 1 : 3)) return (await err(400, 'P0001', 'MISSION_LIMIT')), true;
+    const passport = {
+      people: (db.discoveries ?? []).filter((r) => r.member_id === userId).map((r) => ({ id: String(r.card_id), at: String(r.created_at), imported: r.source === 'imported' })),
+      exhibits: (db.passportVisits ?? []).filter((r) => r.member_id === userId).map((r) => ({ id: String(r.project_id), at: String(r.visited_at), imported: r.source === 'imported' })),
+    };
+    const cards = db.published.map((c) => ({ ...c, no: c.member_no })) as unknown as PublicCard[];
+    if (!missionMet({ scope: p_scope, kind: p_kind, param: p_param, n: p_n, key, title: '', action: { random: true } }, passport, cards, period.starts)) return (await err(400, 'P0001', 'NOT_DONE')), true;
+    db.missionCompletions.push({ member_id: userId, key, scope: p_scope, period: period.label });
+    const amount = p_scope === 'weekly' ? 40 : 10;
+    grant(db, userId, amount, 'mission', `mission:${key}`);
+    return (await json(200, { key, amount, balance: balanceOf(db, userId) })), true;
   }
   // Passport (V2-2, mirrors 20261006000500_passport.sql)
   if (url.pathname === '/rest/v1/rpc/my_passport') {
