@@ -18,9 +18,9 @@ export function MenuPage({ title, children, wide = false }: { title: string; chi
 }
 
 /** A bordered pixel panel for menu content. */
-export function Panel({ children, label }: { children: ReactNode; label?: string }) {
+export function Panel({ children, label, id }: { children: ReactNode; label?: string; id?: string }) {
   return (
-    <section className="menu-panel" aria-label={label}>
+    <section className="menu-panel" aria-label={label} id={id}>
       {children}
     </section>
   );

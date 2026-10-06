@@ -22,10 +22,15 @@ create table if not exists public.hall_events (
   visibility   text not null default 'public',
   created_at   timestamptz not null default now()
 );
-alter table public.hall_events drop constraint if exists hall_events_event_type_check;
-alter table public.hall_events add constraint hall_events_event_type_check check (event_type in (
-  'CARD_APPROVED', 'PROJECT_PUBLISHED', 'EXHIBIT_ADDED', 'COLLAB_ACCEPTED', 'ACHIEVEMENT_UNLOCKED',
-  'MISSION_COMPLETED', 'MEMBER_FEATURED'));
+-- Added only if missing, so running this file again never narrows a list a later migration widened.
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'hall_events_event_type_check') then
+    alter table public.hall_events add constraint hall_events_event_type_check check (event_type in (
+      'CARD_APPROVED', 'PROJECT_PUBLISHED', 'EXHIBIT_ADDED', 'COLLAB_ACCEPTED', 'ACHIEVEMENT_UNLOCKED',
+      'MISSION_COMPLETED', 'MEMBER_FEATURED'));
+  end if;
+end $$;
 alter table public.hall_events drop constraint if exists hall_events_visibility_check;
 alter table public.hall_events add constraint hall_events_visibility_check check (visibility in ('public', 'private'));
 create index if not exists hall_events_created_idx on public.hall_events (created_at desc);

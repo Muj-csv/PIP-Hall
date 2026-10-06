@@ -44,6 +44,8 @@ export const SPR = {
   iconCode: ['.....', '.k.k.', 'k...k', '.k.k.', '.....'],
   iconCase: ['.k.k.', 'kkkkk', 'kk.kk', 'kkkkk', '.....'],
   iconGlobe: ['.kkk.', 'k.k.k', 'kkkkk', 'k.k.k', '.kkk.'],
+  // The bell in the top bar (V2-4): a dome, a lip and a clapper.
+  iconBell: ['...k...', '..kkk..', '.kk.kk.', '.k...k.', '.k...k.', 'kkkkkkk', '...k...'],
 } as const satisfies Record<string, SpriteMap>;
 
 export type SpriteName = keyof typeof SPR;

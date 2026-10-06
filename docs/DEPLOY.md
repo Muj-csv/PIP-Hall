@@ -97,6 +97,11 @@ Both are safe to run again (they only add columns and replace functions).
 1. Supabase **SQL editor:** run `supabase/migrations/20261006000300_project_collaborators.sql`. Safe to run again.
 2. Check: a member opens **My card → Collaborators**, tags another member of the hall on a project; that member sees the request in their own **Collaborators** panel and accepts. After the owner's next approval, the project's public card lists them.
 
+## Notifications and Recent in the hall (V2-4, D-100)
+
+1. Supabase **SQL editor:** run `supabase/migrations/20261006000700_notifications.sql` (after the Missions one). Safe to run again. If you ever re-run an earlier migration that it changes (the Missions one), run this one again after it.
+2. Check: signed in, the top bar has a **bell**. Tag another member on a project: they see "… tagged you on …" in their bell. Reject a card in Admin with a note: that member's bell shows the note. As a visitor, the hall shows **Recent in the hall** under Missions.
+
 ## Missions and events (V2-3, D-099)
 
 1. Supabase **SQL editor:** run `supabase/migrations/20261006000600_missions_events.sql` (after the Passport one). Safe to run again.
