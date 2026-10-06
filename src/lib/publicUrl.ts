@@ -7,6 +7,11 @@ export function publicOrigin(): string {
   return typeof window !== 'undefined' ? window.location.origin : '';
 }
 
+/** The hall itself, for the Share the hall QR (D-088). */
+export function hallUrl(): string {
+  return `${publicOrigin()}/`;
+}
+
 export function memberPath(username: string): string {
   return `/member/${encodeURIComponent(username)}`;
 }
