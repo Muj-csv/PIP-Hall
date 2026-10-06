@@ -1,4 +1,58 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "rewrites": [{ "source": "/((?!assets/|.*\\.[a-z0-9]+$).*)", "destination": "/index.html" }]
+  "functions": {
+    "api/*.ts": {
+      "includeFiles": "{src/styles/theme.css,node_modules/@fontsource/jersey-10/files/*.woff,node_modules/@fontsource/atkinson-hyperlegible-next/files/*-normal.woff,node_modules/@fontsource/atkinson-hyperlegible-mono/files/*-400-normal.woff}"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/member/:username",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": ".*(facebookexternalhit|Facebot|Twitterbot|Slackbot|Discordbot|LinkedInBot|WhatsApp|TelegramBot|SkypeUriPreview|Pinterestbot|redditbot|Embedly|vkShare|Iframely|Mastodon).*"
+        }
+      ],
+      "destination": "/api/preview?path=/member/:username"
+    },
+    {
+      "source": "/museum/:id",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": ".*(facebookexternalhit|Facebot|Twitterbot|Slackbot|Discordbot|LinkedInBot|WhatsApp|TelegramBot|SkypeUriPreview|Pinterestbot|redditbot|Embedly|vkShare|Iframely|Mastodon).*"
+        }
+      ],
+      "destination": "/api/preview?path=/museum/:id"
+    },
+    {
+      "source": "/museum",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": ".*(facebookexternalhit|Facebot|Twitterbot|Slackbot|Discordbot|LinkedInBot|WhatsApp|TelegramBot|SkypeUriPreview|Pinterestbot|redditbot|Embedly|vkShare|Iframely|Mastodon).*"
+        }
+      ],
+      "destination": "/api/preview?path=/museum"
+    },
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": ".*(facebookexternalhit|Facebot|Twitterbot|Slackbot|Discordbot|LinkedInBot|WhatsApp|TelegramBot|SkypeUriPreview|Pinterestbot|redditbot|Embedly|vkShare|Iframely|Mastodon).*"
+        }
+      ],
+      "destination": "/api/preview?path=/"
+    },
+    {
+      "source": "/((?!assets/|api/|.*\\.[a-z0-9]+$).*)",
+      "destination": "/index.html"
+    }
+  ]
 }

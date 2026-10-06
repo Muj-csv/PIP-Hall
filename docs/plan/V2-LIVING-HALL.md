@@ -40,12 +40,12 @@ DISCOVER → INTERACT → COLLECT → UNDERSTAND → CONNECT → CONTRIBUTE → 
 
 Each phase ships on its own, behind a feature switch where it changes the hall, and states its loop and budget. Do one phase, then stop and report.
 
-### V2-0 · Foundations — this change
+### V2-0 · Foundations — done
 
 - No deadline (D-093). v2 product rules in `CLAUDE.md` (D-094). Vercel functions boundary (D-095). Loop before network (D-096). Guests play, members own (D-097).
 - "Do not build yet" becomes "Not yet justified".
 
-### V2-1 · Share: link previews and badge export (P0)
+### V2-1 · Share: link previews and badge export (P0) — done
 
 **Loop:** member shares a link or a PNG → a friend sees a real card in chat → taps → lands on the member in the hall → explores → maybe makes a card → shares theirs.
 
@@ -55,6 +55,12 @@ Each phase ships on its own, behind a feature switch where it changes the hall, 
 - **QR landing:** badge QRs carry `?via=qr`; opening one shows "You found *name*!" and stamps the Passport (once V2-2 lands).
 - Budget: no change to the app's JS; functions use cached published data; images ≤ 150 KB.
 - Tests: unit tests for crawler detection and tag building (escaping, missing member → hall card); renderer snapshot; e2e that the export button downloads a PNG.
+- As built:
+  - `vercel.json` routes crawlers by user agent to `api/preview`; images come from `api/og` (member, exhibit, hall) and `api/badge` (the download, 1080×1350, a portrait post).
+  - Rendering is `satori` (layout and text) plus `sharp` (PNG, and WebP photos to PNG). The sprites are the hall's own (`src/lib/spriteSvg.ts` turns them into SVG), coloured from `theme.css`.
+  - The **Save badge** button shows where the hall has its backend (Supabase data source); it exports the approved card. In the editor it reads "Save my badge (as approved)".
+  - QR landing: badge QRs (in the app and in the PNG) open `/member/<name>?via=qr`; the profile greets "You found …!" once and tidies the address. The Passport stamp arrives with V2-2.
+  - Evidence: `docs/build/evidence/share-previews/`.
 
 ### V2-2 · Passport and search as play (P0)
 
