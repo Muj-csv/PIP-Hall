@@ -28,6 +28,8 @@ export interface MockDb {
   /** Borders and badges designed in Admin → Rewards (D-087). */
   customItems?: Row[];
   customBadges?: Row[];
+  /** Project collaborators (D-089): {project_id, member_id, status}. */
+  collabs?: Row[];
 }
 
 export const MART_ITEMS = [
@@ -523,6 +525,61 @@ export async function handleDb(route: Route, db: MockDb, user: DbUser): Promise<
     const a = (db.affiliations ?? []).find((r) => r.key === p_key);
     if (a) a.frame_key = p_frame;
     return (await json(200, null)), true;
+  }
+
+  // ---- Project collaborators (D-089)
+  const COLLAB = ['my_collaborations', 'tag_collaborator', 'untag_collaborator', 'respond_collaboration', 'leave_collaboration'];
+  const cfn = url.pathname.replace('/rest/v1/rpc/', '');
+  if (COLLAB.includes(cfn)) {
+    if (!userId) return (await err(401, '42501', `permission denied for function ${cfn}`)), true;
+    const b = body() as Record<string, unknown>;
+    db.collabs ??= [];
+    const ownsProject = (pid: unknown) => db.projects.some((p) => p.id === pid && p.profile_id === userId);
+    if (cfn === 'my_collaborations') {
+      const incoming = db.collabs
+        .filter((r) => r.member_id === userId && r.status !== 'declined')
+        .map((r) => {
+          const pr = db.projects.find((p) => p.id === r.project_id)!;
+          const owner = db.profiles.find((p) => p.id === pr.profile_id)!;
+          return { project_id: r.project_id, title: pr.title, owner_username: owner.username, owner_name: owner.full_name, status: r.status };
+        });
+      const outgoing = db.collabs
+        .filter((r) => ownsProject(r.project_id))
+        .map((r) => {
+          const c = db.published.find((x) => x.profile_id === r.member_id);
+          return { project_id: r.project_id, member_id: r.member_id, username: c?.username ?? null, full_name: (c?.card as Row | undefined)?.full_name ?? null, status: r.status };
+        });
+      return (await json(200, { incoming, outgoing })), true;
+    }
+    if (cfn === 'tag_collaborator') {
+      if (!ownsProject(b.p_project)) return (await err(400, 'P0001', 'NOT_YOURS')), true;
+      const who = db.published.find((c) => c.username === String(b.p_username ?? '').trim().toLowerCase());
+      if (!who) return (await err(400, 'P0001', 'NOT_IN_HALL')), true;
+      if (who.profile_id === userId) return (await err(400, 'P0001', 'SELF')), true;
+      const existing = db.collabs.find((r) => r.project_id === b.p_project && r.member_id === who.profile_id);
+      if (existing?.status === 'declined') return (await err(400, 'P0001', 'DECLINED')), true;
+      if (!existing) {
+        if (db.collabs.filter((r) => r.project_id === b.p_project).length >= 8) return (await err(400, 'P0001', 'TOO_MANY')), true;
+        db.collabs.push({ project_id: b.p_project, member_id: who.profile_id, status: 'pending' });
+      }
+      return (await json(200, { member_id: who.profile_id, username: who.username, full_name: (who.card as Row).full_name, status: existing?.status ?? 'pending' })), true;
+    }
+    if (cfn === 'untag_collaborator') {
+      if (!ownsProject(b.p_project)) return (await err(400, 'P0001', 'NOT_YOURS')), true;
+      db.collabs = db.collabs.filter((r) => !(r.project_id === b.p_project && r.member_id === b.p_member && r.status !== 'declined'));
+      return (await json(200, null)), true;
+    }
+    const mineRow = db.collabs.find((r) => r.project_id === b.p_project && r.member_id === userId);
+    if (cfn === 'respond_collaboration') {
+      if (mineRow?.status !== 'pending') return (await err(400, 'P0001', 'NO_REQUEST')), true;
+      mineRow.status = b.p_accept ? 'accepted' : 'declined';
+      return (await json(200, null)), true;
+    }
+    if (cfn === 'leave_collaboration') {
+      if (mineRow?.status !== 'accepted') return (await err(400, 'P0001', 'NO_REQUEST')), true;
+      mineRow.status = 'declined';
+      return (await json(200, null)), true;
+    }
   }
 
   if (url.pathname === '/rest/v1/rpc/delete_my_account') {

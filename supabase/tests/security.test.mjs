@@ -374,6 +374,57 @@ try {
   await expectOk(c, '…its owners keep it', A, `select my_mart() as m`, [], (r) => r.rows[0].m.items.some((x) => x.key === 'aurora' && x.owned));
   await as(c, A, `select equip_frame(null)`);
 
+  console.log('project collaborators (D-089)');
+  const [P1, P2] = (await c.query(`select id from projects where profile_id=$1 order by sort_order, created_at`, [A])).rows.map((r) => r.id);
+  // A member edits (back to draft), resubmits, and an admin approves: a new public snapshot.
+  const reapprove = async () => {
+    await as(c, A, `update profiles set bio = coalesce(bio, '') || '.' where id=$1`, [A]);
+    await as(c, A, `select submit_for_review()`);
+    await as(c, ADMIN, `select approve_profile($1)`, [A]);
+  };
+  const collabsOf = (r, pid) => r.rows[0].card.projects.find((p) => p.id === pid)?.collaborators ?? null;
+  await expectErr(c, 'anon cannot tag collaborators', 'anon', `select tag_collaborator($1,'bee')`, [P1], /permission denied/);
+  await expectErr(c, 'only the owner can tag on a project', B, `select tag_collaborator($1,'pipm2')`, [P1], /NOT_YOURS/);
+  await expectErr(c, 'a member not in the hall cannot be tagged', A, `select tag_collaborator($1,'pipm1')`, [P1], /NOT_IN_HALL/);
+  const nameOf = async (id) => (await c.query(`select username from published_cards where profile_id=$1`, [id])).rows[0].username;
+  const nameA = await nameOf(A);
+  const nameB = await nameOf(B);
+  await expectErr(c, 'you cannot tag yourself', A, `select tag_collaborator($1,$2)`, [P1, nameA], /SELF/);
+  await expectOk(c, 'the owner tags a member of the hall (any case), pending', A, `select tag_collaborator($1,upper($2)) as t`, [P1, nameB], (r) => r.rows[0].t.status === 'pending' && r.rows[0].t.username === nameB);
+  await expectOk(c, 'tagging again changes nothing', A, `select tag_collaborator($1,$2) as t`, [P1, nameB], (r) => r.rows[0].t.status === 'pending');
+  await expectOk(c, 'the tagged member sees the request', B, `select status from project_collaborators where project_id=$1`, [P1], (r) => r.rowCount === 1 && r.rows[0].status === 'pending');
+  await expectOk(c, 'another member cannot see it', Ms[1], `select * from project_collaborators`, [], (r) => r.rowCount === 0);
+  await expectErr(c, 'visitors cannot read tags', 'anon', `select * from project_collaborators`, [], /permission denied/);
+  await expectErr(c, 'nobody writes tags directly', B, `update project_collaborators set status='accepted'`, [], /permission denied/);
+  await expectErr(c, '…nor inserts them', A, `insert into project_collaborators (project_id, member_id, status) values ($1,$2,'accepted')`, [P1, Ms[1]], /permission denied/);
+  await reapprove();
+  await expectOk(c, 'a pending tag is not on the public card', 'anon', `select card from published_cards where profile_id=$1`, [A], (r) => Array.isArray(collabsOf(r, P1)) && collabsOf(r, P1).length === 0);
+  await expectErr(c, 'only the tagged member can answer', Ms[1], `select respond_collaboration($1, true)`, [P1], /NO_REQUEST/);
+  await expectErr(c, '…not even the owner', A, `select respond_collaboration($1, true)`, [P1], /NO_REQUEST/);
+  await expectOk(c, 'the tagged member accepts', B, `select respond_collaboration($1, true)`, [P1]);
+  await expectOk(c, 'an accepted tag waits for the next approval', 'anon', `select card from published_cards where profile_id=$1`, [A], (r) => collabsOf(r, P1).length === 0);
+  await reapprove();
+  await expectOk(c, '…then visitors see the collaborator on the project', 'anon', `select card from published_cards where profile_id=$1`, [A], (r) => collabsOf(r, P1).length === 1 && collabsOf(r, P1)[0].username === nameB);
+  await expectOk(c, 'the collaborator sees it among their collaborations', B, `select my_collaborations() as m`, [], (r) => r.rows[0].m.incoming.some((x) => x.project_id === P1 && x.status === 'accepted' && x.owner_username === nameA));
+  await expectOk(c, 'the owner sees who accepted', A, `select my_collaborations() as m`, [], (r) => r.rows[0].m.outgoing.some((x) => x.project_id === P1 && x.username === nameB && x.status === 'accepted'));
+  await expectErr(c, 'anon cannot read collaborations', 'anon', `select my_collaborations()`, [], /permission denied/);
+  await expectErr(c, 'only the owner can untag', B, `select untag_collaborator($1,$2)`, [P1, B], /NOT_YOURS/);
+  await expectOk(c, 'the collaborator can leave the project', B, `select leave_collaboration($1)`, [P1]);
+  await expectErr(c, 'someone who left cannot be tagged again', A, `select tag_collaborator($1,$2)`, [P1, nameB], /DECLINED/);
+  await expectOk(c, 'the owner cannot wipe a decline', A, `select untag_collaborator($1,$2)`, [P1, B]);
+  await expectSu(c, '…it stays declined', `select status from project_collaborators where project_id=$1 and member_id=$2`, [P1, B], (r) => r.rows[0].status === 'declined');
+  await reapprove();
+  await expectOk(c, 'after leaving and approval, the collaborator is off the card', 'anon', `select card from published_cards where profile_id=$1`, [A], (r) => collabsOf(r, P1).length === 0);
+  for (const m of Ms.slice(1, 8)) await as(c, A, `select tag_collaborator($1, (select username from published_cards where profile_id=$2))`, [P1, m]);
+  await expectErr(c, 'a project has at most 8 tags', A, `select tag_collaborator($1, (select username from published_cards where profile_id=$2))`, [P1, Ms[8]], /TOO_MANY/);
+  await expectOk(c, 'the owner untags a pending tag', A, `select untag_collaborator($1,$2)`, [P1, Ms[1]]);
+  await expectSu(c, '…and it is gone', `select count(*)::int as n from project_collaborators where project_id=$1 and member_id=$2`, [P1, Ms[1]], (r) => r.rows[0].n === 0);
+  await expectOk(c, 'a member can decline a request', Ms[2], `select respond_collaboration($1, false)`, [P1]);
+  await expectErr(c, '…and a decline can’t be answered twice', Ms[2], `select respond_collaboration($1, true)`, [P1], /NO_REQUEST/);
+  await as(c, A, `select tag_collaborator($1,$2)`, [P2, await nameOf(Ms[3])]);
+  await expectOk(c, 'the owner can delete a tagged project', A, `delete from projects where id=$1`, [P2]);
+  await expectSu(c, '…and its tags go with it', `select count(*)::int as n from project_collaborators where project_id=$1`, [P2], (r) => r.rows[0].n === 0);
+
   console.log('account deletion');
   await expectErr(c, 'anon cannot call delete_my_account', 'anon', `select delete_my_account()`, [], /permission denied/);
   await expectOk(c, 'member deletes own account', B, `select delete_my_account()`, []);

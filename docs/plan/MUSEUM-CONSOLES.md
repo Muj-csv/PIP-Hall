@@ -22,7 +22,7 @@ Status: **planned** (2026-10-06). Decisions agreed with the user are marked ✔.
 
 ## Phases (each ships on its own)
 
-### Phase 1: collaborators (database + editor)
+### Phase 1: collaborators (database + editor) — done (D-089)
 
 - Migration `…_project_collaborators.sql`:
   - The `project_collaborators` table: `project_id` (references `projects`, cascade on delete), `member_id` (references `profiles`, cascade), `status` (`pending` / `accepted` / `declined`), timestamps.
@@ -38,6 +38,7 @@ Status: **planned** (2026-10-06). Decisions agreed with the user are marked ✔.
 - Editor:
   - Each project gets an **Add collaborator** search over hall members, with chips showing pending, accepted or declined.
   - The tagged member sees a **Collaboration requests** panel (Accept / Decline) in their editor and Settings.
+- As built: one **Collaborators** panel in the editor holds both sides (tagging on your projects, and requests from others); Settings doesn't repeat it.
 
 ### Phase 2: "Made by": the makers' badges on the exhibit page
 
