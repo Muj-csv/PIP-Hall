@@ -22,6 +22,8 @@ export interface MockDb {
   affiliations?: Row[];
   memberAffiliations?: Row[];
   museumEntries?: Row[];
+  /** Paths uploaded to the project-covers bucket (screen pictures, D-092). */
+  coverUploads?: string[];
   /** PIP MART (mirrors supabase/migrations/*_pip_mart.sql). */
   inventory?: Row[];
   appearance?: Row[];
@@ -615,11 +617,13 @@ export async function handleDb(route: Route, db: MockDb, user: DbUser): Promise<
     return (await json(200, prefixes.map((name) => ({ name })))), true;
   }
 
-  if (url.pathname.startsWith('/storage/v1/object/avatars/') && method === 'POST') {
-    const path = url.pathname.replace('/storage/v1/object/avatars/', '');
+  const upload = url.pathname.match(/^\/storage\/v1\/object\/(avatars|project-covers)\/(.+)$/);
+  if (upload && method === 'POST') {
+    const [, bucket, path] = upload as unknown as [string, string, string];
     if (!path.startsWith(`${userId}/`)) return (await err(403, '403', 'new row violates row-level security policy')), true;
-    db.uploads.push(path);
-    return (await json(200, { Key: `avatars/${path}`, Id: crypto.randomUUID() })), true;
+    if (bucket === 'avatars') db.uploads.push(path);
+    else (db.coverUploads ??= []).push(path);
+    return (await json(200, { Key: `${bucket}/${path}`, Id: crypto.randomUUID() })), true;
   }
 
   return false;

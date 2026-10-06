@@ -1,10 +1,12 @@
-// The picture of an exhibit, shown on the screen of an original PIXENDO console (D-091) as a
+// The picture of an exhibit (D-092: the uploaded screenshot, else GitHub's preview of the repo, else
+// the pixel cover; a picture that fails to load falls back to the pixel cover), shown on the screen of an original PIXENDO console (D-091) as a
 // diorama (D-083): the console tilts in 3D toward the pointer while the pixel cover's layers (sky,
 // hill, ground, emblem) shift by depth, under a hard-edged spotlight. An uploaded cover tilts as one
 // layer with a glint. The pointer only sets two CSS variables, so nothing re-renders while it moves.
 // The console boots (screen flicker, LED on) the first time it scrolls into view.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { previewFor } from '../../lib/preview';
 import { COVER_PALETTE, consoleArt, coverLayers, spriteSize, type ConsoleKind, type Rect } from '../../lib/sprites';
 import { publicImageUrl } from '../../services/storageService';
 import type { PublicProject } from '../../types/card';
@@ -54,7 +56,9 @@ interface Props {
 }
 
 export function ExhibitArt({ project, console: kind, eager = false, featured = false }: Props) {
-  const cover = publicImageUrl('project-covers', project.cover_path);
+  const preview = previewFor(project, publicImageUrl('project-covers', project.cover_path));
+  const [failed, setFailed] = useState<string | null>(null);
+  const picture = preview.kind !== 'pixel' && failed !== preview.src ? preview : null;
   const layers = useMemo(() => coverLayers(project.title), [project.title]);
   const art = consoleArt(kind);
   const { w, h } = spriteSize(art.sprite);
@@ -72,9 +76,16 @@ export function ExhibitArt({ project, console: kind, eager = false, featured = f
           style={{ ['--cw' as string]: w, ['--ch' as string]: h }}
         >
           <SpriteCanvas sprite={art.sprite} palette={art.palette} className="console-body" />
-          <div className="exhibit-stage" style={place(art.screen, w, h)}>
-            {cover ? (
-              <img src={cover} alt="" className="exhibit-art" loading={eager ? 'eager' : 'lazy'} />
+          <div className="exhibit-stage" data-preview={picture?.kind ?? 'pixel'} style={place(art.screen, w, h)}>
+            {picture ? (
+              <img
+                src={picture.src}
+                alt=""
+                className="exhibit-art"
+                loading={eager ? 'eager' : 'lazy'}
+                referrerPolicy="no-referrer"
+                onError={() => setFailed(picture.src)}
+              />
             ) : (
               <div className="exhibit-art exhibit-diorama">
                 {DEPTHS.map((d) => (

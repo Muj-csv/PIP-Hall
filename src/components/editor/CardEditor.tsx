@@ -11,6 +11,7 @@ import { describeAuthError } from '../../services/authErrors';
 import type { AuthUser } from '../../services/authService';
 import { githubService, refreshProject, repoToProject, type GithubRepo } from '../../services/githubService';
 import { profileService, saveErrorMessage } from '../../services/profileService';
+import { publicImageUrl } from '../../services/storageService';
 import type { CardForm, DraftProject, MyCard } from '../../types/draft';
 import { Lanyard } from '../cards/Lanyard';
 import { MemberCard } from '../cards/MemberCard';
@@ -41,6 +42,7 @@ export function CardEditor({ user, initial, onSignOut }: Props) {
   const [baseline, setBaseline] = useState(() => formFrom(initial, user));
   const [form, setFormState] = useState(baseline);
   const [newPhoto, setNewPhoto] = useState<Blob | null>(null);
+  const [newCovers, setNewCovers] = useState<Record<string, Blob>>({});
   const [errors, setErrors] = useState<FieldErrors>({});
   const [notice, setNotice] = useState<{ text: string; bad?: boolean } | null>(null);
   const [busy, setBusy] = useState<'save' | 'submit' | 'github' | null>(null);
@@ -48,7 +50,7 @@ export function CardEditor({ user, initial, onSignOut }: Props) {
   const [showQr, setShowQr] = useState(false);
   const formRef = useRef<HTMLDivElement>(null);
 
-  const dirty = newPhoto !== null || JSON.stringify(form) !== JSON.stringify(baseline);
+  const dirty = newPhoto !== null || Object.keys(newCovers).length > 0 || JSON.stringify(form) !== JSON.stringify(baseline);
   const locked = mine.profile?.username_locked ?? false;
   const handle = mine.profile?.github_username ?? user.githubHandle;
 
@@ -61,6 +63,24 @@ export function CardEditor({ user, initial, onSignOut }: Props) {
   // Preview of a picked-but-unsaved photo.
   const photoUrl = useMemo(() => (newPhoto ? URL.createObjectURL(newPhoto) : null), [newPhoto]);
   useEffect(() => () => (photoUrl ? URL.revokeObjectURL(photoUrl) : undefined), [photoUrl]);
+
+  // Screen pictures (D-092): a new pick shows from memory, a saved one from Storage.
+  const newCoverUrls = useMemo(() => Object.fromEntries(Object.entries(newCovers).map(([k, b]) => [k, URL.createObjectURL(b)])), [newCovers]);
+  useEffect(() => () => Object.values(newCoverUrls).forEach((u) => URL.revokeObjectURL(u)), [newCoverUrls]);
+  const coverUrls = useMemo(
+    () => Object.fromEntries(form.projects.map((p) => [p.key, newCoverUrls[p.key] ?? publicImageUrl('project-covers', p.cover_path)])),
+    [form.projects, newCoverUrls],
+  );
+  const setCover = (key: string, image: Blob | null) => {
+    setNewCovers((c) => {
+      const next = { ...c };
+      if (image) next[key] = image;
+      else delete next[key];
+      return next;
+    });
+    if (!image) setProjects((ps) => ps.map((p) => (p.key === key ? { ...p, cover_path: null } : p)));
+    setNotice(null);
+  };
 
   const card = useMemo(() => previewCard(form, mine, user), [form, mine, user]);
   const guide = setupSteps({
@@ -86,7 +106,8 @@ export function CardEditor({ user, initial, onSignOut }: Props) {
       return null;
     }
     try {
-      let saved = await profileService.save(user.id, form, mine, newPhoto);
+      const covers = Object.fromEntries(Object.entries(newCovers).filter(([k]) => form.projects.some((p) => p.key === k)));
+      let saved = await profileService.save(user.id, form, mine, newPhoto, covers);
       if (user.githubHandle && !saved.profile?.github_username) {
         await githubService.sync(); // copy the verified handle onto the new profile row
         saved = await profileService.getMine(user.id);
@@ -96,12 +117,13 @@ export function CardEditor({ user, initial, onSignOut }: Props) {
       setBaseline(next);
       setFormState(next);
       setNewPhoto(null);
+      setNewCovers({});
       return saved;
     } catch (err) {
       setNotice({ text: saveErrorMessage(err), bad: true });
       return null;
     }
-  }, [form, locked, mine, newPhoto, user]);
+  }, [form, locked, mine, newPhoto, newCovers, user]);
 
   const onSave = async () => {
     if (busy) return;
@@ -320,6 +342,8 @@ export function CardEditor({ user, initial, onSignOut }: Props) {
               })
             }
             onRemove={(key) => setProjects((ps) => ps.filter((p) => p.key !== key))}
+            coverUrls={coverUrls}
+            onCover={setCover}
           />
           <ManualProjectForm disabled={form.projects.length >= LIMITS.projects} onAdd={(p) => setProjects((ps) => [...ps, p])} />
         </Panel>

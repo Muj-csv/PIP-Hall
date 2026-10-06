@@ -3,6 +3,7 @@
 
 import { LIMITS } from '../../lib/validate';
 import type { DraftProject } from '../../types/draft';
+import { CoverField } from './CoverField';
 import { TextArea, TextField } from './fields';
 
 interface Props {
@@ -11,9 +12,12 @@ interface Props {
   onChange: (key: string, patch: Partial<DraftProject>) => void;
   onMove: (key: string, by: -1 | 1) => void;
   onRemove: (key: string) => void;
+  /** Screen picture to show for each project key (new pick or saved), D-092. */
+  coverUrls: Record<string, string | null>;
+  onCover: (key: string, image: Blob | null) => void;
 }
 
-export function ProjectList({ projects, errors, onChange, onMove, onRemove }: Props) {
+export function ProjectList({ projects, errors, onChange, onMove, onRemove, coverUrls, onCover }: Props) {
   if (projects.length === 0) {
     return <p className="m-0 text-text-secondary">No projects yet. Pick repos above or add one by hand. A card with none shows “No quests yet”.</p>;
   }
@@ -77,6 +81,7 @@ export function ProjectList({ projects, errors, onChange, onMove, onRemove }: Pr
                 )}
               </p>
             )}
+            <CoverField title={p.title} previewUrl={coverUrls[p.key] ?? null} onPicked={(img) => onCover(p.key, img)} onRemove={() => onCover(p.key, null)} />
           </li>
         );
       })}

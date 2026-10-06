@@ -2662,4 +2662,15 @@ textarea.pixel-input {
   height: 96px;
   image-rendering: pixelated;
 }
+/* Editor → a project's screen picture (D-092): a small 16:10 thumbnail like the console screen. */
+.cover-thumb {
+  display: block;
+  width: 96px;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  border: 3px solid var(--color-border);
+}
+.cover-thumb-empty {
+  background: repeating-linear-gradient(45deg, var(--color-surface) 0 6px, var(--color-surface-raised) 6px 12px);
+}
 

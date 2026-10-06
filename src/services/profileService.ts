@@ -106,11 +106,14 @@ export const profileService = {
     };
   },
 
-  /** Saves the whole card: photo (if new), profile row, then projects. Returns what's stored now. */
-  async save(userId: string, form: CardForm, current: MyCard, newPhoto: Blob | null): Promise<MyCard> {
+  /** Saves the whole card: photo and screen pictures (if new), profile row, then projects. Returns what's stored now. */
+  async save(userId: string, form: CardForm, current: MyCard, newPhoto: Blob | null, newCovers: Readonly<Record<string, Blob>> = {}): Promise<MyCard> {
     const sb = requireSupabase();
     const draft = { ...form };
     if (newPhoto) draft.avatar_path = await uploadImage('avatars', userId, newPhoto);
+    draft.projects = await Promise.all(
+      form.projects.map(async (p) => (newCovers[p.key] ? { ...p, cover_path: await uploadImage('project-covers', userId, newCovers[p.key]!) } : p)),
+    );
 
     if (!current.profile) {
       const { error } = await sb.from('profiles').insert({ id: userId, ...profileRow(draft, { includeUsername: true }) });
