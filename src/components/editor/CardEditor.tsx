@@ -21,6 +21,7 @@ import { TextArea, TextField, Toggle } from './fields';
 import { ManualProjectForm } from './ManualProjectForm';
 import { MuseumPanel } from './MuseumPanel';
 import { PhotoField } from './PhotoField';
+import { CollaboratorsPanel } from './CollaboratorsPanel';
 import { ProjectList } from './ProjectList';
 import { RepoPicker } from './RepoPicker';
 import { SkillsInput } from './SkillsInput';
@@ -322,6 +323,8 @@ export function CardEditor({ user, initial, onSignOut }: Props) {
           />
           <ManualProjectForm disabled={form.projects.length >= LIMITS.projects} onAdd={(p) => setProjects((ps) => [...ps, p])} />
         </Panel>
+
+        {mine.profile && <CollaboratorsPanel projects={form.projects} myId={user.id} />}
 
         {mine.hasLiveCard && <MuseumPanel />}
 

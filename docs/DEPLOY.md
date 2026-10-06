@@ -92,6 +92,11 @@ Both are safe to run again (they only add columns and replace functions).
 3. In the app: **Admin → Rewards**. **Borders**: design one from the presets, sold in the Mart or reward-only. **Badges**: pick a gem and colour, a PIP reward and, if you like, a border it gives. **Give a badge**: pick a member and a badge.
 4. Check: the member's profile lists the badge with its gem and their badge shows a pin by the clip; the border waits in their PIP MART, ready to wear.
 
+## Project collaborators (D-089)
+
+1. Supabase **SQL editor:** run `supabase/migrations/20261006000300_project_collaborators.sql`. Safe to run again.
+2. Check: a member opens **My card → Collaborators**, tags another member of the hall on a project; that member sees the request in their own **Collaborators** panel and accepts. After the owner's next approval, the project's public card lists them.
+
 ## MUSEUM and affiliations
 
 1. Supabase **SQL editor:** run `supabase/migrations/20261005000100_museum.sql` (after `…_pips_core.sql`). It also adds project ids to the cards already in the hall, so their projects can go in the Museum. Then run `…_museum_relink.sql` and `…_museum_follows_card.sql`, in that order. Together they give every project on an approved card an id (matching renamed projects by GitHub link, project link or title), and make the Museum follow the approved card: editing the draft never changes the Museum; the next approval does. Both are safe to run on a database that already has cards; `npm run test:db` proves it with an upgrade test.

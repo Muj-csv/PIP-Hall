@@ -16,6 +16,15 @@ export interface PublicProject {
   tech_stack: string[];
   source: ProjectSource;
   project_date: string | null;
+  /** Members who accepted a tag on this project, as of the approval (D-089). */
+  collaborators?: Collaborator[];
+}
+
+/** A member of the hall credited on someone else's project. */
+export interface Collaborator {
+  username: string;
+  full_name: string;
+  member_no: number;
 }
 
 export interface CardData {
