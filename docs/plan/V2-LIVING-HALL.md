@@ -1,6 +1,6 @@
 # PIP-Hall v2: the living hall
 
-Status: **in progress** (2026-10-06). No deadline (D-093). Decisions: D-093 to D-103. Rules: `CLAUDE.md` → Product rules.
+Status: **built** (2026-10-06); the map opens itself when the hall is dense enough. No deadline (D-093). Decisions: D-093 to D-105. Rules: `CLAUDE.md` → Product rules.
 
 ## The problem
 
@@ -146,9 +146,17 @@ Each phase ships on its own, behind a feature switch where it changes the hall, 
   - Nothing is scheduled by default: the first event and its dates are for the owner to set.
   - Evidence: `docs/build/evidence/events/`.
 
-### V2-8 · Network and lineage (density-gated, D-096)
+### V2-8 · Network and lineage (density-gated, D-096) — built, opens itself (D-105)
+
+**Loop:** make something with another member → the credit appears on both cards → the hall gets denser → the map opens → people find each other through what they made.
 
 - A constellation view of people ↔ projects ↔ skills, and **project lineage** (projects connected by shared makers), derived from published snapshots in the browser. Ships when the hall has enough verified relationships (about 30 members; judged by projects and collaborations).
+- Budget: a lazy page (no change to the hall's first load), no new requests (it reads the cards the hall already has), a one-off layout of a few hundred nodes.
+- As built:
+  - `/network`: the map plus "Who made what together" and "Project lineage" lists (the keyboard and screen-reader way through).
+  - **Gate:** 30 members with projects **and** 10 team-ups (pairs credited together on an approved card). Before that, the page says how close the hall is ("Right now: N members with projects and N team-ups") and links to tagging a teammate; the hall's **Map** button appears by Passport once it opens. Admins can preview early.
+  - No SQL.
+  - Evidence: `docs/build/evidence/network/`.
 
 ### Not yet justified
 

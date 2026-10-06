@@ -97,6 +97,10 @@ Both are safe to run again (they only add columns and replace functions).
 1. Supabase **SQL editor:** run `supabase/migrations/20261006000300_project_collaborators.sql`. Safe to run again.
 2. Check: a member opens **My card → Collaborators**, tags another member of the hall on a project; that member sees the request in their own **Collaborators** panel and accepts. After the owner's next approval, the project's public card lists them.
 
+## Map of the hall (V2-8, D-105)
+
+No SQL. After the deploy, `/network` says how close the hall is to opening the map (30 members with projects and 10 team-ups). As an admin you can open it now to preview. When the hall gets there, a **Map** button appears in the hall by Passport for everyone.
+
 ## Events (V2-7, D-103)
 
 1. Supabase **SQL editor:** run `supabase/migrations/20261006001000_seasons.sql` (after the wings one). Safe to run again. If you ever re-run the identity migration, run this one again after it (both define the PIP MART's shop functions).

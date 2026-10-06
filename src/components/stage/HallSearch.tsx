@@ -6,6 +6,7 @@ import { useId, useRef, useState } from 'react';
 import { hallUrl } from '../../lib/publicUrl';
 import { whyPicked, type Facet, type Filters } from '../../lib/search';
 import type { PublicCard } from '../../types/card';
+import { Link } from 'react-router';
 import { QrSheet } from '../cards/QrFullscreen';
 import { FilterChips } from '../explore/FilterChips';
 
@@ -27,9 +28,11 @@ interface Props {
   current?: PublicCard;
   /** Walks Pip to a result picked from the list. */
   onPick: (username: string) => void;
+  /** The map of the hall is open (V2-8: dense enough, or an admin previewing). */
+  mapOpen?: boolean;
 }
 
-export function HallSearch({ filters, onChange, onClear, onRandom, options, shown, total, ready, onPassport, stamps, results, current, onPick }: Props) {
+export function HallSearch({ filters, onChange, onClear, onRandom, options, shown, total, ready, onPassport, stamps, results, current, onPick, mapOpen = false }: Props) {
   const input = useRef<HTMLInputElement>(null);
   const panelId = useId();
   const picked = [filters.department, filters.skill, filters.featured || null].filter(Boolean).length;
@@ -73,6 +76,11 @@ export function HallSearch({ filters, onChange, onClear, onRandom, options, show
           <button type="button" className="pixel-btn" onClick={onPassport}>
             <span aria-hidden="true">▤ </span>Passport{stamps > 0 ? ` · ${stamps}` : ''}
           </button>
+          {mapOpen && (
+            <Link to="/network" className="pixel-btn">
+              <span aria-hidden="true">✶ </span>Map
+            </Link>
+          )}
         </div>
       </form>
 

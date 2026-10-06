@@ -18,6 +18,7 @@ const Museum = lazy(() => import('../pages/Museum'));
 const Exhibit = lazy(() => import('../pages/Exhibit'));
 const Mart = lazy(() => import('../pages/Mart'));
 const Settings = lazy(() => import('../pages/Settings'));
+const Network = lazy(() => import('../pages/Network'));
 /** /explore became the hall's search (D-072): old links and shared searches keep working. */
 function ExploreRedirect() {
   const { search } = useLocation();
@@ -42,6 +43,7 @@ export const router = createBrowserRouter([
       { path: '/museum', element: lazyPage(<Museum />) },
       { path: '/museum/:id', element: lazyPage(<Exhibit />) },
       { path: '/privacy', element: lazyPage(<Privacy />) },
+      { path: '/network', element: lazyPage(<Network />) },
       { path: '/edit', element: <RequireAuth>{lazyPage(<Edit />)}</RequireAuth> },
       { path: '/create', element: <Navigate to="/edit" replace /> },
       { path: '/mart', element: <RequireAuth>{lazyPage(<Mart />)}</RequireAuth> },
