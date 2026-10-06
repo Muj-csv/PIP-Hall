@@ -12,7 +12,7 @@ import type { AuthUser } from '../../services/authService';
 import { githubService, refreshProject, repoToProject, type GithubRepo } from '../../services/githubService';
 import { profileService, saveErrorMessage } from '../../services/profileService';
 import { publicImageUrl } from '../../services/storageService';
-import { badgePngUrl } from '../../lib/publicUrl';
+import { SaveBadgeButton } from '../cards/SaveBadgeButton';
 import type { CardForm, DraftProject, MyCard } from '../../types/draft';
 import { Lanyard } from '../cards/Lanyard';
 import { MemberCard } from '../cards/MemberCard';
@@ -244,11 +244,7 @@ export function CardEditor({ user, initial, onSignOut }: Props) {
         <button type="button" className="pixel-btn justify-self-center" onClick={() => setFlipped((f) => !f)} aria-pressed={flipped}>
           {flipped ? 'Show front' : 'Show Quest Log'}
         </button>
-        {mine.hasLiveCard && mine.profile && badgePngUrl(mine.profile.username) && (
-          <a className="pixel-btn justify-self-center" href={badgePngUrl(mine.profile.username)!} download={`pip-hall-${mine.profile.username}.png`}>
-            Save my badge (as approved)
-          </a>
-        )}
+        {mine.hasLiveCard && mine.profile && <SaveBadgeButton username={mine.profile.username} label="Save my badge (as approved)" />}
         <StatusBanner view={view} />
         <div className="editor-actions" data-at="side">
           {actionBar}
