@@ -3143,3 +3143,70 @@ textarea.pixel-input {
   max-width: 960px;
   scroll-margin-top: 16px;
 }
+
+/* ---------------------------------------------------------------- the map (V2-8, D-105)
+   Shapes, not colours, tell people, projects and skills apart (■ ◆ ▪), and the caption says so.
+   Lighting up a person dims what isn't linked to them; nothing moves on its own. */
+.net-map {
+  display: grid;
+  gap: 8px;
+}
+.net-svg {
+  width: 100%;
+  height: auto;
+  background: var(--color-card-sky);
+  box-shadow: inset 0 0 0 3px var(--color-border);
+}
+.net-edge {
+  stroke: var(--color-card-ink);
+  stroke-width: 1.5;
+  opacity: 0.45;
+}
+.net-edge[data-kind='skill'] {
+  stroke-dasharray: 4 4;
+}
+.net-edge[data-dim] {
+  opacity: 0.08;
+}
+.net-node[data-dim] {
+  opacity: 0.2;
+}
+.net-person {
+  fill: var(--color-card-band);
+  stroke: var(--color-card-ink);
+  stroke-width: 2;
+}
+.net-project {
+  fill: var(--color-card-coin);
+  stroke: var(--color-card-ink);
+  stroke-width: 2;
+}
+.net-skill {
+  fill: var(--color-card-hill);
+  stroke: var(--color-card-ink);
+  stroke-width: 1.5;
+}
+.net-label {
+  font-family: var(--font-body);
+  font-size: 11px;
+  fill: var(--color-card-ink);
+  paint-order: stroke;
+  stroke: var(--color-card-sky);
+  stroke-width: 3px;
+}
+a.net-node {
+  cursor: pointer;
+}
+a.net-node:focus-visible .net-person {
+  stroke-width: 4;
+}
+a.net-node:focus {
+  outline: none;
+}
+.net-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}

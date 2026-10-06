@@ -43,6 +43,8 @@ import {
 import { HallSearch } from './HallSearch';
 import { Hud } from './Hud';
 import { MissionsPanel } from './MissionsPanel';
+import { density } from '../../lib/network';
+import { useSession } from '../../app/sessionContext';
 import { SeasonPanel } from './SeasonPanel';
 import { recentAvailable, RecentStrip } from './RecentStrip';
 import { PassportScreen } from './PassportScreen';
@@ -69,6 +71,10 @@ interface HallProps {
 export function Hall({ profile = null, passport = false }: HallProps) {
   const cardsState = useCards();
   const all = useMemo(() => (cardsState.status === 'ready' ? cardsState.cards : []), [cardsState]);
+  // The map (V2-8) opens once the hall is dense enough; admins can preview it before (D-105).
+  const { session: mapSession } = useSession();
+  const dense = useMemo(() => density(all).ready, [all]);
+  const mapOpen = dense || (mapSession.status === 'signed-in' && mapSession.role === 'admin');
 
   // ---- search and filters (D-072)
   const [params, setParams] = useSearchParams();
@@ -630,6 +636,7 @@ export function Hall({ profile = null, passport = false }: HallProps) {
         results={cards}
         current={mode === 'level' ? current : undefined}
         onPick={pickResult}
+        mapOpen={mapOpen}
         options={options}
         shown={count}
         total={all.length}
