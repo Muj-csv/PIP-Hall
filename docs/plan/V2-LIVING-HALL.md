@@ -1,6 +1,6 @@
 # PIP-Hall v2: the living hall
 
-Status: **in progress** (2026-10-06). No deadline (D-093). Decisions: D-093 to D-101. Rules: `CLAUDE.md` → Product rules.
+Status: **in progress** (2026-10-06). No deadline (D-093). Decisions: D-093 to D-102. Rules: `CLAUDE.md` → Product rules.
 
 ## The problem
 
@@ -120,10 +120,18 @@ Each phase ships on its own, behind a feature switch where it changes the hall, 
   - Not built yet (later phase): Passport page styles, Pip emotes, badge decorations.
   - Evidence: `docs/build/evidence/identity/`.
 
-### V2-6 · The Museum as a place (P1)
+### V2-6 · The Museum as a place (P1) — done (D-102)
+
+**Loop:** enter the Museum → pick a door → a room of related work with the curator's note → an exhibit → its other wings → another room.
 
 - **Wings** built from real data: by language or skill (e.g. Web, Games, Data), a **Collab wing** for team projects, the Featured wing. Each with a short admin-written curator note and paths to related exhibits.
 - Wings are open to everyone; no wing is ever paywalled by PIPs.
+- Budget: ≤ 4 KB gzipped JS; one small public RPC (`museum_wings()`); no per-frame work.
+- As built:
+  - Doorways (a stepped pixel arch over each name, with how many exhibits are inside) at the top of `/museum`; each room at `/museum?wing=…` with its rule, its curator's note, Shuffle and its exhibits. Empty wings have no door.
+  - Exhibit pages list their wings and up to four other exhibits from them.
+  - **Admin → Wings**: rename, reorder, write notes, close or open; add tag wings (1–12 tags) or remove them. Only admins write notes (the open question, answered).
+  - Evidence: `docs/build/evidence/wings/`.
 
 ### V2-7 · Seasons and events (P1)
 
@@ -151,5 +159,4 @@ Booth mode (strong for events; revisit before the next fair) · rule-based "Ask 
 
 ## Open questions for later phases
 
-- V2-6: who writes curator notes (admins only?).
 - V2-7: first event and its dates.

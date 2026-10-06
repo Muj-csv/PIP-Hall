@@ -97,6 +97,12 @@ Both are safe to run again (they only add columns and replace functions).
 1. Supabase **SQL editor:** run `supabase/migrations/20261006000300_project_collaborators.sql`. Safe to run again.
 2. Check: a member opens **My card → Collaborators**, tags another member of the hall on a project; that member sees the request in their own **Collaborators** panel and accepts. After the owner's next approval, the project's public card lists them.
 
+## Museum wings (V2-6, D-102)
+
+1. Supabase **SQL editor:** run `supabase/migrations/20261006000900_museum_wings.sql` (after the identity one). Safe to run again; it never overwrites notes you wrote.
+2. In the app: **Admin → Wings**. Write a curator's note for each wing you want (up to 280 characters), rename or reorder them, add a tag wing (e.g. "Mobile Wing" with Kotlin, Swift, Flutter).
+3. Check: `/museum` shows a door for each wing with something on show; open one: its note is at the top. An exhibit page lists its wings.
+
 ## Identity and proof (V2-5, D-101)
 
 1. Supabase **SQL editor:** run `supabase/migrations/20261006000800_identity.sql` (after the notifications one). Safe to run again. If you ever re-run the Missions or admin-rewards migration, run this one again after it.

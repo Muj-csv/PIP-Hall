@@ -678,6 +678,37 @@ try {
   await c.query(readFileSync(join(here, '..', 'migrations', '20261006000800_identity.sql'), 'utf8'));
   await expectOk(c, 'the identity migration is safe to run twice', A, `select my_titles() as t, my_mart() as m`, [], (r) => r.rows[0].t.title === 'pioneer' && r.rows[0].m.items.filter((i) => i.kind === 'plate').length === 3);
 
+  console.log('museum wings (D-102)');
+  const wings = async (uid = 'anon') => (await as(c, uid, `select museum_wings() as w`)).rows[0].w;
+  await expectOk(c, 'anyone can walk the wings: featured, collab, then the tag wings', 'anon', `select museum_wings() as w`, [],
+    (r) => r.rows[0].w.map((w) => w.key).join() === 'featured,collab,web,games,data' && r.rows[0].w.every((w) => w.note === ''));
+  await expectErr(c, 'the wings table is not read directly', 'anon', `select * from museum_wings`, [], /permission denied/);
+  await expectErr(c, '…nor written by members', A, `update museum_wings set note='mine'`, [], /permission denied/);
+  await expectErr(c, 'members cannot curate', A, `select admin_save_wing('web','Web Wing','Mine',array['JavaScript'],10,true)`, [], /NOT_ADMIN/);
+  await expectErr(c, 'visitors cannot curate', 'anon', `select admin_save_wing('web','Web Wing','x',array['x'],10,true)`, [], /permission denied/);
+  await expectErr(c, 'members cannot list closed wings', A, `select admin_wings()`, [], /NOT_ADMIN/);
+  await expectOk(c, 'an admin writes a curator note', ADMIN, `select admin_save_wing('web','Web Wing','Things you can open in a browser.',array['JavaScript','TypeScript'],10,true)`, []);
+  await expectOk(c, '…and visitors read it', 'anon', `select museum_wings() as w`, [], (r) => r.rows[0].w.find((w) => w.key === 'web').note === 'Things you can open in a browser.');
+  await expectOk(c, 'an admin opens a new wing; tags are tidied (trimmed, no repeats)', ADMIN, `select admin_save_wing('mobile','Mobile Wing','',array[' Kotlin ','kotlin','Swift',''],20,true)`, []);
+  await expectSu(c, '…as a tag wing', `select kind, tags from museum_wings where key='mobile'`, [], (r) => r.rows[0].kind === 'tags' && r.rows[0].tags.join() === 'Kotlin,Swift');
+  await expectErr(c, 'a tag wing needs a tag', ADMIN, `select admin_save_wing('empty','Empty Wing','',array[]::text[],20,true)`, [], /BAD_TAGS/);
+  await expectErr(c, '…and at most 12', ADMIN, `select admin_save_wing('big','Big Wing','',(select array_agg('t' || g) from generate_series(1,13) g),20,true)`, [], /BAD_TAGS/);
+  await expectErr(c, 'a bad key is refused', ADMIN, `select admin_save_wing('Bad Key!','Wing','',array['x'],20,true)`, [], /BAD_KEY/);
+  await expectErr(c, 'a name must fit the sign', ADMIN, `select admin_save_wing('x1','X','',array['x'],20,true)`, [], /BAD_NAME/);
+  await expectErr(c, 'a note is short', ADMIN, `select admin_save_wing('web','Web Wing',repeat('n',281),array['x'],10,true)`, [], /BAD_NOTE/);
+  await expectOk(c, 'the featured wing keeps its rule when renamed', ADMIN, `select admin_save_wing('featured','Hall of Fame','Picked by the curators.',array['ignored'],0,true)`, []);
+  await expectSu(c, '…no tags, still featured', `select kind, tags, name from museum_wings where key='featured'`, [], (r) => r.rows[0].kind === 'featured' && r.rows[0].tags.length === 0 && r.rows[0].name === 'Hall of Fame');
+  await expectErr(c, 'the built-in wings cannot be removed', ADMIN, `select admin_delete_wing('collab')`, [], /BUILT_IN/);
+  await expectOk(c, '…but can be closed', ADMIN, `select admin_save_wing('collab','Collab Wing','',null,1,false)`, []);
+  await expectOk(c, 'a closed wing is gone for visitors', 'anon', `select museum_wings() as w`, [], (r) => !r.rows[0].w.some((w) => w.key === 'collab'));
+  await expectOk(c, '…and still listed for admins', ADMIN, `select admin_wings() as w`, [], (r) => r.rows[0].w.some((w) => w.key === 'collab' && w.active === false));
+  await expectOk(c, 'a tag wing can be removed', ADMIN, `select admin_delete_wing('mobile')`, []);
+  await expectErr(c, '…once', ADMIN, `select admin_delete_wing('mobile')`, [], /NO_SUCH_WING/);
+  await c.query(readFileSync(join(here, '..', 'migrations', '20261006000900_museum_wings.sql'), 'utf8'));
+  const after = await wings();
+  await expectSu(c, 'the wings migration is safe to run twice, and keeps the curators’ words', `select 1`, [], () =>
+    after.find((w) => w.key === 'web')?.note === 'Things you can open in a browser.' && after.find((w) => w.key === 'featured')?.name === 'Hall of Fame' && !after.some((w) => w.key === 'collab'));
+
   console.log('account deletion');
   await expectErr(c, 'anon cannot call delete_my_account', 'anon', `select delete_my_account()`, [], /permission denied/);
   await expectOk(c, 'member deletes own account', B, `select delete_my_account()`, []);
