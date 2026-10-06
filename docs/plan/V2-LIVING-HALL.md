@@ -1,6 +1,6 @@
 # PIP-Hall v2: the living hall
 
-Status: **planned** (2026-10-06). No deadline (D-093). Decisions: D-093 to D-097. Rules: `CLAUDE.md` → Product rules.
+Status: **in progress** (2026-10-06). No deadline (D-093). Decisions: D-093 to D-100. Rules: `CLAUDE.md` → Product rules.
 
 ## The problem
 
@@ -90,12 +90,19 @@ Each phase ships on its own, behind a feature switch where it changes the hall, 
   - Missions sit in a panel under the search, with TODAY and THIS WEEK. Members see "Claim" when a Mission is done; guests see it stamped.
   - Evidence: `docs/build/evidence/missions/`.
 
-### V2-4 · Feedback: notifications and "Recent in the hall" (P1)
+### V2-4 · Feedback: notifications and "Recent in the hall" (P1) — done (D-100)
 
 **Loop:** something real happens → the people it concerns hear about it in the app → they come back to act.
 
 - In-app **bell** for members: tagged on a project, collaboration accepted, card approved or needs changes, achievement unlocked, exhibit featured. Built on `hall_events` (owner-visible). Email stays "not yet justified".
 - **Recent in the hall** strip: public events only (approvals, new exhibits, accepted collaborations, achievements). Never discoveries (D-063), never counts or rankings.
+- Budget: ≤ 6 KB gzipped JS; one RPC per page view at most once a minute for members (the bell), one for the strip.
+- As built:
+  - Each event has a **recipient**; new events COLLAB_REQUESTED, CARD_REJECTED (private) and COLLAB_PUBLISHED (public, when an approval credits a collaborator).
+  - The bell sits in the top bar (pixel bell, count in numbers, NEW in words). Opening it marks everything seen; Esc closes it and returns focus. Each line goes where you act: a tag to **My card → Collaborators**, needs-changes to the editor, a credit to the owner's badge.
+  - The strip sits under Missions: "X joined the hall", "X added "P" to their Quest Log", ""P" by X is on show in the Museum", "X and Y made "P" together", "X unlocked Explorer", "X is featured". Each line opens the member or exhibit. Only events that are still true are shown.
+  - Before the database update, the app shows neither (no errors).
+  - Evidence: `docs/build/evidence/notifications/`.
 
 ### V2-5 · Identity and proof (P1)
 

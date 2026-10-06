@@ -36,6 +36,12 @@ export interface MockDb {
   /** Borders and badges designed in Admin → Rewards (D-087). */
   customItems?: Row[];
   customBadges?: Row[];
+  /** V2-4 (D-100): hall events addressed to members ({recipient, ...my_notifications item}), each
+   *  member's read marker, and the public "Recent in the hall" lines. Left undefined, the functions
+   *  answer as if the V2-4 database update hasn't run yet (PGRST202). */
+  notifications?: Row[];
+  notificationSeen?: Record<string, string>;
+  recentEvents?: Row[];
   /** Project collaborators (D-089): {project_id, member_id, status}. */
   collabs?: Row[];
 }
@@ -661,6 +667,28 @@ export async function handleDb(route: Route, db: MockDb, user: DbUser): Promise<
       mineRow.status = 'declined';
       return (await json(200, null)), true;
     }
+  }
+
+  const notYet = (name: string) => err(404, 'PGRST202', `Could not find the function public.${name} in the schema cache`);
+  if (url.pathname === '/rest/v1/rpc/my_notifications') {
+    if (!db.notifications) return (await notYet('my_notifications')), true;
+    if (!userId) return (await err(401, '42501', 'permission denied for function my_notifications')), true;
+    const items = db.notifications
+      .filter((r) => r.recipient === userId)
+      .sort((a, b) => Number(b.id) - Number(a.id))
+      .map((r) => Object.fromEntries(Object.entries(r).filter(([k]) => k !== 'recipient')));
+    return (await json(200, { seen_at: db.notificationSeen?.[userId] ?? null, items })), true;
+  }
+  if (url.pathname === '/rest/v1/rpc/mark_notifications_seen') {
+    if (!db.notifications) return (await notYet('mark_notifications_seen')), true;
+    const at = new Date().toISOString();
+    (db.notificationSeen ??= {})[userId] = at;
+    return (await json(200, at)), true;
+  }
+  if (url.pathname === '/rest/v1/rpc/recent_hall_events') {
+    if (!db.recentEvents) return (await notYet('recent_hall_events')), true;
+    const limit = Math.max(1, Math.min(Number(body()?.p_limit ?? 8), 20));
+    return (await json(200, db.recentEvents.slice(0, limit))), true;
   }
 
   if (url.pathname === '/rest/v1/rpc/delete_my_account') {

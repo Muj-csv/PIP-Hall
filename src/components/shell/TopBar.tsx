@@ -2,6 +2,7 @@ import { Link, useLocation } from 'react-router';
 import { useSession } from '../../app/sessionContext';
 import { pipsEnabled } from '../../lib/features';
 import { navSection } from '../../lib/nav';
+import { bellAvailable, NotificationBell } from './NotificationBell';
 import { CARD_PALETTE, SPR } from '../../lib/sprites';
 import { SpriteCanvas } from '../pixel/SpriteCanvas';
 import { ThemeToggle } from './ThemeToggle';
@@ -47,6 +48,7 @@ export function TopBar() {
               Admin
             </Link>
           )}
+          {bellAvailable && signedIn && <NotificationBell key={session.user.id} />}
           <Link to={signedIn ? '/edit' : '/login'} className="pixel-btn nav-btn" data-variant="primary" aria-current={current('card')}>
             {signedIn ? 'My card' : 'Make your card'}
           </Link>

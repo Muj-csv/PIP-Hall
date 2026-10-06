@@ -30,6 +30,12 @@ export function CollaboratorsPanel({ projects, myId }: { projects: DraftProject[
     };
   }, [attempt]);
 
+  // Arriving from the bell (/edit#collaborators): bring the panel into view once it has loaded.
+  const loaded = state !== null;
+  useEffect(() => {
+    if (loaded && window.location.hash === '#collaborators') document.getElementById('collaborators')?.scrollIntoView({ block: 'start' });
+  }, [loaded]);
+
   const run = async (id: string, move: () => Promise<unknown>, done: string) => {
     setBusy(id);
     setNotice(null);
@@ -51,7 +57,7 @@ export function CollaboratorsPanel({ projects, myId }: { projects: DraftProject[
   const pending = state?.incoming.filter((r) => r.status === 'pending') ?? [];
 
   return (
-    <Panel label="Collaborators">
+    <Panel label="Collaborators" id="collaborators">
       <h2 className="panel-title">
         Collaborators{pending.length > 0 ? ` · ${pending.length} new` : ''}
       </h2>

@@ -43,6 +43,7 @@ import {
 import { HallSearch } from './HallSearch';
 import { Hud } from './Hud';
 import { MissionsPanel } from './MissionsPanel';
+import { recentAvailable, RecentStrip } from './RecentStrip';
 import { PassportScreen } from './PassportScreen';
 import { MissingScreen, ProfileScreen } from './ProfileScreen';
 
@@ -656,6 +657,7 @@ export function Hall({ profile = null, passport = false }: HallProps) {
           onPips={pips.setBalance}
         />
       )}
+      {recentAvailable && cardsState.status === 'ready' && <RecentStrip />}
       {qrCard && <QrFullscreen card={qrCard} onClose={() => setQrCard(null)} />}
     </>
   );
