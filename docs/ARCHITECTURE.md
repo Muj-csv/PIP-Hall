@@ -21,7 +21,7 @@ flowchart LR
   CRON[GitHub Actions weekly ping] --> SB
 ```
 
-## 2. Requirements in scope (for 6 Oct)
+## 2. Requirements in scope (v1.0)
 
 | ID | Requirement | Source |
 |---|---|---|

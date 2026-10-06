@@ -410,12 +410,15 @@ PIP-Hall's look comes from two references: a pixel-art handheld scene (bezel, di
 - [x] Phase 6: production check (Gate 2), [`docs/build/PHASE-6-REPORT.md`](docs/build/PHASE-6-REPORT.md)
 - [x] After Gate 2: PIPs and PIP MART, the Museum, affiliations, art and world passes, admin-made badges, Share the hall, Museum v3 (collaborators, console frames, app previews). See the [launch report](docs/build/LAUNCH-REPORT.md)
 
-**After launch**
+**v2 · the living hall** (no deadline; plan in [`docs/plan/V2-LIVING-HALL.md`](docs/plan/V2-LIVING-HALL.md))
 
-- Rich link previews when profiles are shared in chat apps
-- Email notifications (opt-in is already stored)
-- Booth mode for org fairs, card export as an image
-- Reactions, sound effects, more card themes, multi-organization support
+- [ ] Share: link previews in chat apps, OG images, badge PNG export, QR "you found" landing
+- [ ] Passport for guests and members, "Why Pip picked", search that walks Pip to the result
+- [ ] Missions (daily and weekly) on a shared event layer
+- [ ] In-app notifications and "Recent in the hall"
+- [ ] Profile proof panel and earned titles
+- [ ] Museum wings, seasons and events
+- [ ] Network graph and project lineage, once the hall has enough connections
 
 ---
 
@@ -429,6 +432,7 @@ PIP-Hall's look comes from two references: a pixel-art handheld scene (bezel, di
 | [`docs/design/DESIGN_BRIEF.md`](docs/design/DESIGN_BRIEF.md) | Visual system and construction specs |
 | [`docs/build/`](docs/build) | Phase-by-phase build briefs, the Gate 2 report and the [launch report](docs/build/LAUNCH-REPORT.md) |
 | [`docs/DEPLOY.md`](docs/DEPLOY.md) | Deploying, step by step, with a check after each migration |
+| [`docs/plan/V2-LIVING-HALL.md`](docs/plan/V2-LIVING-HALL.md) | The v2 plan: the loop, who can do what, and the phases |
 | [`docs/plan/MUSEUM-CONSOLES.md`](docs/plan/MUSEUM-CONSOLES.md) | The Museum v3 plan: collaborators, Made by, console frames, app previews |
 | [`CLAUDE.md`](CLAUDE.md) | Rules for AI coding agents working in this repo |
 | [`docs/spec/`](docs/spec) | The original spec, written under the working title PIXEL PASS |
