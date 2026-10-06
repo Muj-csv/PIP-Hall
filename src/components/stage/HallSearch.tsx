@@ -3,7 +3,9 @@
 // The filters live in the address (?q=&dept=&skill=&featured=1), so a search can be shared.
 
 import { useId, useRef, useState } from 'react';
+import { hallUrl } from '../../lib/publicUrl';
 import type { Facet, Filters } from '../../lib/search';
+import { QrSheet } from '../cards/QrFullscreen';
 import { FilterChips } from '../explore/FilterChips';
 
 interface Props {
@@ -23,6 +25,7 @@ export function HallSearch({ filters, onChange, onClear, onRandom, options, show
   const panelId = useId();
   const picked = [filters.department, filters.skill, filters.featured || null].filter(Boolean).length;
   const [open, setOpen] = useState(picked > 0);
+  const [sharing, setSharing] = useState(false);
   const filtered = Boolean(filters.q.trim()) || picked > 0;
   const count = filtered ? `${shown} of ${total} ${total === 1 ? 'player' : 'players'} match` : `${total} ${total === 1 ? 'player' : 'players'} in the hall`;
 
@@ -78,6 +81,19 @@ export function HallSearch({ filters, onChange, onClear, onRandom, options, show
           <button type="button" className="pixel-btn" onClick={clear}>
             Clear all
           </button>
+        )}
+        {/* For events: show this on a laptop or projector and people scan their way in (D-088). */}
+        <button type="button" className="pixel-btn ml-auto" onClick={() => setSharing(true)}>
+          <span aria-hidden="true">▣ </span>Share the hall
+        </button>
+        {sharing && (
+          <QrSheet
+            url={hallUrl()}
+            heading="JOIN THE HALL"
+            lead="Scan to meet the members of PIP-Hall."
+            codeTitle="QR code for the PIP-Hall website"
+            onClose={() => setSharing(false)}
+          />
         )}
       </div>
     </section>
