@@ -3025,3 +3025,87 @@ textarea.pixel-input {
 .proof-sub {
   grid-column: 2;
 }
+
+/* ---------------------------------------------------------------- Museum wings (V2-6, D-102)
+   Doorways into the wings: a stepped pixel arch over each name. The current wing is pressed and
+   marked by aria-current (inverted colours plus the arch filled), never colour alone. */
+.wing-doors ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.wing-door {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  min-width: 96px;
+  min-height: 44px;
+  padding: 8px 12px 10px;
+  text-align: center;
+  text-decoration: none;
+  font-family: var(--font-display);
+  letter-spacing: 0.04em;
+  background: var(--color-surface);
+  box-shadow: inset 0 0 0 3px var(--color-border), 4px 4px 0 var(--color-border);
+}
+.wing-door:hover,
+.wing-door:focus-visible {
+  background: var(--color-surface-raised);
+}
+.wing-arch {
+  width: 28px;
+  height: 18px;
+  /* A doorway drawn in steps: the frame, then the dark opening. */
+  background:
+    linear-gradient(var(--color-text-primary), var(--color-text-primary)) 8px 0 / 12px 4px no-repeat,
+    linear-gradient(var(--color-text-primary), var(--color-text-primary)) 4px 4px / 4px 4px no-repeat,
+    linear-gradient(var(--color-text-primary), var(--color-text-primary)) 20px 4px / 4px 4px no-repeat,
+    linear-gradient(var(--color-text-primary), var(--color-text-primary)) 0 8px / 4px 10px no-repeat,
+    linear-gradient(var(--color-text-primary), var(--color-text-primary)) 24px 8px / 4px 10px no-repeat;
+}
+.wing-door[aria-current='page'] {
+  color: var(--color-surface);
+  background: var(--color-text-primary);
+  box-shadow: inset 0 0 0 3px var(--color-text-primary);
+  transform: translate(4px, 4px);
+}
+.wing-door[aria-current='page'] .wing-arch {
+  background-color: var(--color-surface);
+}
+.wing-door[aria-current='page'] .text-text-secondary {
+  color: var(--color-surface);
+}
+.wing-room {
+  display: grid;
+  gap: 12px;
+}
+.curator-note {
+  margin: 0;
+  padding: 12px 16px;
+  max-width: 64ch;
+  font-style: italic;
+  background: var(--color-surface-raised);
+  box-shadow: inset 4px 0 0 var(--color-text-primary), inset 0 0 0 2px var(--color-border);
+}
+.curator-note figcaption {
+  margin-top: 6px;
+  font-style: normal;
+  font-family: var(--font-display);
+  letter-spacing: 0.04em;
+}
+.wing-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .wing-door[aria-current='page'] {
+    transform: none;
+  }
+}

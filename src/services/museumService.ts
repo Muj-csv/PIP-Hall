@@ -2,6 +2,7 @@
 // the fixture shows every sample project so the gallery can be built and tested without a backend.
 
 import type { ConsoleKind } from '../lib/sprites';
+import { DEFAULT_WINGS, parseWings, type Wing } from '../lib/wings';
 import type { PublishedCardRow } from '../types/card';
 import type { Affiliation, Exhibit, MuseumSummaryRow, MyMuseum } from '../types/museum';
 import { requireSupabase } from './supabase';
@@ -31,6 +32,18 @@ export const museumService = {
     return (data ?? []) as Exhibit[];
   },
 
+  /** The open wings, in order (V2-6). Without a database, or before the wings update, the
+   *  default wings (no curator notes). */
+  async wings(): Promise<Wing[]> {
+    if (!useSupabase) return [...DEFAULT_WINGS];
+    const { data, error } = await requireSupabase().rpc('museum_wings');
+    if (error) {
+      if (error.code === 'PGRST202' || /museum_wings/.test(error.message ?? '')) return [...DEFAULT_WINGS];
+      throw error;
+    }
+    return parseWings(data);
+  },
+
   async mine(): Promise<MyMuseum> {
     const { data, error } = await requireSupabase().rpc('my_museum');
     if (error) throw error;
@@ -57,6 +70,41 @@ export const museumService = {
     return Boolean(data);
   },
 };
+
+export interface AdminWing extends Wing {
+  sort: number;
+  active: boolean;
+}
+
+/** Admin → Museum wings (D-102). The database checks is_admin() and every field. */
+export const wingService = {
+  async list(): Promise<AdminWing[]> {
+    const { data, error } = await requireSupabase().rpc('admin_wings');
+    if (error) throw error;
+    return (data ?? []) as AdminWing[];
+  },
+
+  async save(w: { key: string; name: string; note: string; tags: string[]; sort: number; active: boolean }): Promise<void> {
+    const { error } = await requireSupabase().rpc('admin_save_wing', { p_key: w.key, p_name: w.name, p_note: w.note, p_tags: w.tags, p_sort: w.sort, p_active: w.active });
+    if (error) throw error;
+  },
+
+  async remove(key: string): Promise<void> {
+    const { error } = await requireSupabase().rpc('admin_delete_wing', { p_key: key });
+    if (error) throw error;
+  },
+};
+
+export function wingErrorMessage(e: unknown): string {
+  const msg = (e as { message?: string })?.message ?? '';
+  if (/BAD_TAGS/.test(msg)) return 'A wing needs 1 to 12 tags, each up to 30 characters.';
+  if (/BAD_NAME/.test(msg)) return 'A wing’s name is 2 to 30 characters.';
+  if (/BAD_NOTE/.test(msg)) return 'Keep the curator’s note to 280 characters.';
+  if (/BAD_KEY/.test(msg)) return 'Use letters and numbers for the wing’s name.';
+  if (/BUILT_IN/.test(msg)) return 'The Featured and Collab wings can be closed, not removed.';
+  if (/NOT_ADMIN/.test(msg)) return 'Only admins can curate wings.';
+  return 'That didn’t work. Try again.';
+}
 
 export const affiliationService = {
   async list(): Promise<Affiliation[]> {

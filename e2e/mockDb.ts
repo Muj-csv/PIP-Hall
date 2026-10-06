@@ -49,7 +49,19 @@ export interface MockDb {
   identity?: boolean;
   earned?: Record<string, string[]>;
   rerolls?: Row[];
+  /** V2-6 (D-102): Museum wings ({key, kind, name, note, tags, sort, active}). Left undefined,
+   *  museum_wings() answers as if the wings update hasn't run yet (PGRST202). */
+  wings?: Row[];
 }
+
+/** The wings the wings migration seeds (no notes: the curators write those). */
+export const SEED_WINGS: Row[] = [
+  { key: 'featured', kind: 'featured', name: 'Featured Wing', note: '', tags: [], sort: 0, active: true },
+  { key: 'collab', kind: 'collab', name: 'Collab Wing', note: '', tags: [], sort: 1, active: true },
+  { key: 'web', kind: 'tags', name: 'Web Wing', note: '', tags: ['JavaScript', 'TypeScript', 'HTML', 'CSS', 'React', 'Vue', 'Svelte', 'Next.js', 'PWA', 'Node.js'], sort: 10, active: true },
+  { key: 'games', kind: 'tags', name: 'Games Wing', note: '', tags: ['Unity', 'Godot', 'C#', 'Phaser', 'Pygame', 'Game', 'Lua', 'GDScript'], sort: 11, active: true },
+  { key: 'data', kind: 'tags', name: 'Data Wing', note: '', tags: ['Python', 'SQL', 'Postgres', 'Pandas', 'Jupyter', 'R', 'Machine Learning', 'Data'], sort: 12, active: true },
+];
 
 export const MART_ITEMS = [
   { key: 'meadow', kind: 'frame', name: 'Meadow Frame', description: 'Hill green with little flowers in bloom.', price: 200, sort: 1 },
@@ -489,6 +501,42 @@ export async function handleDb(route: Route, db: MockDb, user: DbUser): Promise<
     }));
     return (await json(200, rows)), true;
   }
+  // ---- V2-6 wings (mirrors 20261006000900_museum_wings.sql).
+  const wingOrder = (a: Row, b: Row) => Number(a.sort) - Number(b.sort) || String(a.name).localeCompare(String(b.name));
+  if (url.pathname === '/rest/v1/rpc/museum_wings') {
+    if (!db.wings) return (await err(404, 'PGRST202', 'Could not find the function public.museum_wings in the schema cache')), true;
+    return (await json(200, db.wings.filter((w) => w.active).sort(wingOrder).map(({ key, kind, name, note, tags }) => ({ key, kind, name, note, tags })))), true;
+  }
+  if (url.pathname === '/rest/v1/rpc/admin_wings') {
+    if (!admin) return (await err(403, '42501', 'NOT_ADMIN')), true;
+    return (await json(200, [...(db.wings ?? [])].sort(wingOrder))), true;
+  }
+  if (url.pathname === '/rest/v1/rpc/admin_save_wing') {
+    if (!admin) return (await err(403, '42501', 'NOT_ADMIN')), true;
+    const b = body() as { p_key: string; p_name: string; p_note: string; p_tags: string[] | null; p_sort: number; p_active: boolean };
+    if (!/^[a-z0-9][a-z0-9-]{1,23}$/.test(b.p_key)) return (await err(400, 'P0001', 'BAD_KEY')), true;
+    if (b.p_name.trim().length < 2 || b.p_name.trim().length > 30) return (await err(400, 'P0001', 'BAD_NAME')), true;
+    if ((b.p_note ?? '').trim().length > 280) return (await err(400, 'P0001', 'BAD_NOTE')), true;
+    db.wings ??= [];
+    const row = db.wings.find((w) => w.key === b.p_key);
+    const kind = (row?.kind as string) ?? 'tags';
+    const tags = kind === 'tags' ? [...new Map((b.p_tags ?? []).map((t) => t.trim()).filter(Boolean).map((t) => [t.toLowerCase(), t])).values()] : [];
+    if (kind === 'tags' && (tags.length === 0 || tags.length > 12)) return (await err(400, 'P0001', 'BAD_TAGS')), true;
+    const next = { key: b.p_key, kind, name: b.p_name.trim(), note: (b.p_note ?? '').trim(), tags, sort: b.p_sort ?? 100, active: b.p_active ?? true };
+    if (row) Object.assign(row, next);
+    else db.wings.push(next);
+    return (await json(200, null)), true;
+  }
+  if (url.pathname === '/rest/v1/rpc/admin_delete_wing') {
+    if (!admin) return (await err(403, '42501', 'NOT_ADMIN')), true;
+    const { p_key } = body() as { p_key: string };
+    const row = (db.wings ?? []).find((w) => w.key === p_key);
+    if (row && row.kind !== 'tags') return (await err(400, 'P0001', 'BUILT_IN')), true;
+    if (!row) return (await err(400, 'P0001', 'NO_SUCH_WING')), true;
+    db.wings = db.wings!.filter((w) => w.key !== p_key);
+    return (await json(200, null)), true;
+  }
+
   if (url.pathname === '/rest/v1/rpc/museum_exhibits') {
     const out = (db.museumEntries ?? []).flatMap((e) => {
       const c = db.published.find((r) => r.profile_id === e.member_id);

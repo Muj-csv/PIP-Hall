@@ -1,5 +1,6 @@
 // /museum/:id — one exhibit on its own page (D-073): the framed project as approved, its plaque,
 // its links, its maker, a Share button, and the neighbouring exhibits. Shareable like a badge.
+// Since V2-6 (D-102) it also says which wings it hangs in and leads on to others in them.
 
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router';
@@ -15,6 +16,7 @@ import { CONSOLE_NAMES } from '../lib/sprites';
 import { useCards } from '../lib/useCards';
 import { usePassport } from '../lib/usePassport';
 import type { PublicCard } from '../types/card';
+import { DEFAULT_WINGS, relatedTo, wingPath, type Wing } from '../lib/wings';
 import { museumService } from '../services/museumService';
 import type { Exhibit as ExhibitRow } from '../types/museum';
 
@@ -26,6 +28,7 @@ export default function Exhibit() {
   const [attempt, setAttempt] = useState(0);
   const [shared, setShared] = useState<string | null>(null);
   const [qrCard, setQrCard] = useState<PublicCard | null>(null);
+  const [wings, setWings] = useState<Wing[]>([]);
   const cards = useCards();
 
   useEffect(() => {
@@ -34,6 +37,10 @@ export default function Exhibit() {
       .exhibits()
       .then((exhibits) => on && setLoad({ status: 'ready', exhibits }))
       .catch(() => on && setLoad({ status: 'error' }));
+    museumService
+      .wings()
+      .then((w) => on && setWings(w))
+      .catch(() => on && setWings([...DEFAULT_WINGS]));
     return () => {
       on = false;
     };
@@ -57,6 +64,7 @@ export default function Exhibit() {
   const makers = exhibit && cards.status === 'ready' ? makersOf(exhibit.username, exhibit.project, cards.cards) : [];
   const withNames = (exhibit?.project.collaborators ?? []).map((c) => c.full_name);
   const kind = exhibit ? consoleFor(exhibit.project_id, exhibit.console) : null;
+  const around = useMemo(() => (exhibit ? relatedTo(exhibit, wings, ordered) : { wings: [], related: [] }), [exhibit, wings, ordered]);
 
   const share = async () => {
     if (!exhibit) return;
@@ -157,6 +165,39 @@ export default function Exhibit() {
               </li>
             ))}
           </ul>
+        </section>
+      )}
+
+      {exhibit && around.wings.length > 0 && (
+        <section className="menu-panel" aria-labelledby="exhibit-wings">
+          <h2 id="exhibit-wings" className="panel-title">
+            In the Museum’s wings
+          </h2>
+          <ul className="wing-chips" aria-label="Wings this exhibit hangs in">
+            {around.wings.map((w) => (
+              <li key={w.key}>
+                <Link to={wingPath(w.key)} className="pixel-btn">
+                  <span aria-hidden="true">▥ </span>
+                  {w.name}
+                </Link>
+              </li>
+            ))}
+          </ul>
+          {around.related.length > 0 && (
+            <>
+              <p className="m-0 font-display tracking-[0.04em]">More in these wings</p>
+              <ul className="grid gap-space-2 m-0 p-0 list-none" aria-label="More in these wings">
+                {around.related.map((r) => (
+                  <li key={r.project_id}>
+                    <Link to={exhibitPath(r.project_id)} className="underline decoration-2">
+                      {r.project.title}
+                    </Link>{' '}
+                    <span className="text-caption text-text-secondary">by {r.full_name}</span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
         </section>
       )}
 
