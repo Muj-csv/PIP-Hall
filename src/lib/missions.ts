@@ -86,7 +86,15 @@ function make(scope: MissionScope, label: string, kind: MissionKind, param: stri
  * Today's Missions and this week's, from the hall as it is. A Mission is only offered when the
  * hall can really complete it (product rule 7). `me` (a member's profile id) is left out of the pool.
  */
-export function pickMissions(day: string, week: string, cards: readonly PublicCard[], exhibits: readonly Exhibit[], me: string | null = null): { daily: Mission[]; weekly: Mission | null } {
+export function pickMissions(
+  day: string,
+  week: string,
+  cards: readonly PublicCard[],
+  exhibits: readonly Exhibit[],
+  me: string | null = null,
+  /** A member's rerolls today (V2-5, D-101): each one seeds a fresh daily set. */
+  rerolls = 0,
+): { daily: Mission[]; weekly: Mission | null } {
   const others = cards.filter((c) => c.profile_id !== me);
   const meName = cards.find((c) => c.profile_id === me)?.username;
   const showing = exhibits.filter((e) => e.username !== meName).length;
@@ -95,7 +103,7 @@ export function pickMissions(day: string, week: string, cards: readonly PublicCa
   const tech = uniq(others.flatMap((c) => c.card.projects.flatMap((p) => [p.language ?? '', ...p.tech_stack])));
   const teams = teamProjects(cards).some((t) => t.makers.some((m) => m.profile_id !== me));
 
-  const r = seeded(`daily:${day}`);
+  const r = seeded(rerolls > 0 ? `daily:${day}:r${rerolls}` : `daily:${day}`);
   const pool: Mission[] = [];
   if (skills.length) pool.push(make('daily', day, 'skill', pick(skills, r)!, 1));
   if (depts.length) pool.push(make('daily', day, 'department', pick(depts, r)!, 1));
@@ -142,6 +150,9 @@ export function missionMet(m: Mission, passport: PassportData, cards: readonly P
       return new Set(met.map((c) => (c.card.department ?? '').trim().toLowerCase()).filter(Boolean)).size >= m.n;
   }
 }
+
+/** What a reroll costs a member, and how many a day (pip_rules() in SQL). */
+export const REROLL = { price: 15, perDay: 1 } as const;
 
 /** PIPs a Mission pays a member (pip_rules() in SQL). */
 export const MISSION_PIPS: Readonly<Record<MissionScope, number>> = { daily: 10, weekly: 40 };

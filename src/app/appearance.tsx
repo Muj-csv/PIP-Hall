@@ -1,9 +1,10 @@
 // What every badge wears (E2): loaded once from card_appearances() when PIPs are on, so the hall,
 // profiles and the editor preview all show members' frames, plus the admin-made badges pinned on
-// them (card_pins(), D-087). Off, or on failure: plain badges.
+// them (card_pins(), D-087) and their titles (hall_titles(), D-101). Off, or on failure: plain badges.
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { pipsEnabled } from '../lib/features';
+import type { HallTitle } from '../lib/titles';
 import { martService } from '../services/martService';
 import type { Appearance, Pin } from '../types/mart';
 import { AppearanceContext } from './appearanceContext';
@@ -11,6 +12,7 @@ import { AppearanceContext } from './appearanceContext';
 export function AppearanceProvider({ children }: { children: ReactNode }) {
   const [map, setMap] = useState<ReadonlyMap<string, Appearance>>(() => new Map());
   const [pins, setPins] = useState<ReadonlyMap<string, Pin[]>>(() => new Map());
+  const [titles, setTitles] = useState<ReadonlyMap<string, HallTitle>>(() => new Map());
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
@@ -24,6 +26,10 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
       .pins()
       .then((p) => on && setPins(p))
       .catch(() => undefined); // nor for badges (or before the admin-rewards update is run)
+    martService
+      .titles()
+      .then((t) => on && setTitles(t))
+      .catch(() => undefined); // nor for titles (or before the identity update is run)
     return () => {
       on = false;
     };
@@ -31,8 +37,13 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
 
   const refresh = useCallback(() => setAttempt((a) => a + 1), []);
   const value = useMemo(
-    () => ({ of: (profileId: string) => map.get(profileId) ?? null, pinsOf: (profileId: string) => pins.get(profileId) ?? [], refresh }),
-    [map, pins, refresh],
+    () => ({
+      of: (profileId: string) => map.get(profileId) ?? null,
+      pinsOf: (profileId: string) => pins.get(profileId) ?? [],
+      titleOf: (profileId: string) => titles.get(profileId) ?? null,
+      refresh,
+    }),
+    [map, pins, titles, refresh],
   );
   return <AppearanceContext.Provider value={value}>{children}</AppearanceContext.Provider>;
 }

@@ -1,18 +1,20 @@
 // PIP MART v1 (docs/plan/PIP-PROGRESSION-E2.md), with admin-made borders (D-087).
 
 import type { FrameStyle, Gem, GemTone } from '../lib/rewards';
+import type { PlateStyle } from '../lib/titles';
 
 export interface MartItem {
   key: string;
-  kind: 'frame';
+  /** A badge frame, or a title plate (V2-5, D-101). */
+  kind: 'frame' | 'plate';
   name: string;
   description: string;
   price: number;
   owned: boolean;
   /** False for reward-only borders: given with a badge, never sold. */
   for_sale?: boolean;
-  /** A border designed in /admin; null or absent for the frames drawn in code. */
-  style?: FrameStyle | null;
+  /** A border designed in /admin (null or absent for the frames drawn in code), or a plate's look. */
+  style?: FrameStyle | PlateStyle | null;
 }
 
 /** Admin → Rewards: every border, with whether it is still offered. */
@@ -47,7 +49,7 @@ export interface MyMart {
   balance: number;
   items: MartItem[];
   perks: Perk[];
-  equipped: { frame: string | null; affiliation: string | null };
+  equipped: { frame: string | null; affiliation: string | null; title?: string | null; plate?: string | null };
 }
 
 /** What a badge wears: a frame key and, for perk frames, its printed label. */

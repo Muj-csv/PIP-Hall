@@ -3,9 +3,17 @@
 
 import type { AdminMartItem, Appearance, MyMart, Pin } from '../types/mart';
 import type { FrameStyle } from '../lib/rewards';
+import { parseHallTitle, type HallTitle, type TitleKey } from '../lib/titles';
 import { requireSupabase } from './supabase';
 
 const useSupabase = import.meta.env.VITE_DATA_SOURCE === 'supabase';
+
+export interface MyTitles {
+  eligible: boolean;
+  title: TitleKey | null;
+  plate: string | null;
+  earned: TitleKey[];
+}
 
 export const martService = {
   async mine(): Promise<MyMart> {
@@ -24,6 +32,35 @@ export const martService = {
   /** null takes the frame off; 'member' with an affiliation key wears that perk frame. */
   async equip(frame: string | null, affiliation: string | null = null): Promise<void> {
     const { error } = await requireSupabase().rpc('equip_frame', { p_frame: frame, p_affiliation: affiliation });
+    if (error) throw error;
+  },
+
+  /** Earned titles, the one worn and its plate, for every member in the hall (public, D-101). Empty
+   *  without a database or before the identity update. */
+  async titles(): Promise<Map<string, HallTitle>> {
+    if (!useSupabase) return new Map();
+    const { data, error } = await requireSupabase().rpc('hall_titles');
+    if (error) throw error;
+    return new Map(((data ?? []) as { profile_id: string; earned?: unknown; title?: unknown; plate_style?: unknown }[]).map((r) => [r.profile_id, parseHallTitle(r)]));
+  },
+
+  /** The member's own titles: which are earned, which is worn, which plate. */
+  async myTitles(): Promise<MyTitles> {
+    const { data, error } = await requireSupabase().rpc('my_titles');
+    if (error) throw error;
+    const r = data as { eligible: boolean; title: TitleKey | null; plate: string | null; titles: { key: TitleKey; earned: boolean }[] };
+    return { eligible: Boolean(r.eligible), title: r.title ?? null, plate: r.plate ?? null, earned: (r.titles ?? []).filter((t) => t.earned).map((t) => t.key) };
+  },
+
+  /** Wears an earned title (null wears none). The database checks it is earned. */
+  async equipTitle(title: TitleKey | null): Promise<void> {
+    const { error } = await requireSupabase().rpc('equip_title', { p_title: title });
+    if (error) throw error;
+  },
+
+  /** Puts the title on an owned plate (null: the plain plate). */
+  async equipPlate(plate: string | null): Promise<void> {
+    const { error } = await requireSupabase().rpc('equip_plate', { p_plate: plate });
     if (error) throw error;
   },
 

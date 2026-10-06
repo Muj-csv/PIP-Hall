@@ -27,6 +27,13 @@ describe('missions (V2-3)', () => {
   it('picks the same Missions for the same day, and only ones the hall can complete', () => {
     const a = pickMissions('2026-10-07', '2026-W41', cards, exhibits);
     expect(pickMissions('2026-10-07', '2026-W41', cards, exhibits)).toEqual(a);
+    // A member's reroll (V2-5) seeds a fresh daily set, the same for that reroll every time; the
+    // weekly Mission doesn't change.
+    const keys = (x: typeof a) => x.daily.map((m) => m.key).join();
+    const r1 = pickMissions('2026-10-07', '2026-W41', cards, exhibits, null, 1);
+    expect(keys(r1)).not.toBe(keys(a));
+    expect(pickMissions('2026-10-07', '2026-W41', cards, exhibits, null, 1)).toEqual(r1);
+    expect(r1.weekly).toEqual(a.weekly);
     expect(a.daily).toHaveLength(3);
     expect(new Set(a.daily.map((m) => m.kind)).size).toBe(3);
     const skills = new Set(cards.flatMap((c) => (c.card.skills ?? []).map((s) => s.toLowerCase())));

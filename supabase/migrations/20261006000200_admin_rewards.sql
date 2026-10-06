@@ -32,8 +32,13 @@ $$;
 -- ---------------------------------------------------------------- borders: custom frames in the Mart
 alter table public.mart_items add column if not exists style jsonb;
 alter table public.mart_items add column if not exists for_sale boolean not null default true;
-alter table public.mart_items drop constraint if exists mart_items_style_check;
-alter table public.mart_items add constraint mart_items_style_check check (style is null or public.valid_frame_style(style));
+-- Added only if missing, so running this file again never narrows a check a later migration widened.
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'mart_items_style_check') then
+    alter table public.mart_items add constraint mart_items_style_check check (style is null or public.valid_frame_style(style));
+  end if;
+end $$;
 
 -- ---------------------------------------------------------------- badges: custom achievements
 alter table public.achievements add column if not exists custom boolean not null default false;

@@ -2971,3 +2971,57 @@ textarea.pixel-input {
 .recent-mark {
   font-family: var(--font-display);
 }
+
+/* ---------------------------------------------------------------- title plates (V2-5, D-101)
+   An earned title on a small riveted plate under the name. The plain plate is cream; a bought one
+   swaps in two card tones (--plate, --plate-ink). The title is words, so it never relies on colour. */
+.badge-title {
+  justify-self: start;
+  display: inline-block;
+  margin-top: 3px;
+  padding: 1px 8px;
+  font-family: var(--font-display);
+  font-size: 10.5px;
+  line-height: 1.5;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--plate-ink, var(--color-card-ink));
+  background:
+    linear-gradient(var(--color-card-ink), var(--color-card-ink)) 2px 50% / 2px 2px no-repeat,
+    linear-gradient(var(--color-card-ink), var(--color-card-ink)) calc(100% - 2px) 50% / 2px 2px no-repeat,
+    var(--plate, var(--color-card-cream));
+  box-shadow: inset 0 0 0 2px var(--color-card-ink);
+}
+.title-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.title-list .mart-row[data-locked] b {
+  color: var(--color-text-secondary);
+}
+
+/* ---------------------------------------------------------------- the Proof panel (V2-5)
+   Facts a visitor can check, each with where it comes from. Marks are words or glyphs plus words. */
+.proof-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.proof-list > li {
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  gap: 2px 8px;
+  align-items: baseline;
+}
+.proof-mark {
+  font-family: var(--font-display);
+}
+.proof-sub {
+  grid-column: 2;
+}

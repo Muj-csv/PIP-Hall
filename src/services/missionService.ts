@@ -12,6 +12,8 @@ export interface MyMissions {
   day: string;
   week: string;
   done: string[];
+  /** Today's rerolls (V2-5): 0 before the identity update. */
+  rerolls: number;
 }
 
 export const missionService = {
@@ -37,8 +39,15 @@ export const missionService = {
   async mine(): Promise<MyMissions> {
     const { data, error } = await requireSupabase().rpc('my_missions');
     if (error) throw error;
-    const r = data as { eligible: boolean; day: string; week: string; done: { key: string }[] };
-    return { eligible: Boolean(r.eligible), day: r.day, week: r.week, done: (r.done ?? []).map((d) => d.key) };
+    const r = data as { eligible: boolean; day: string; week: string; done: { key: string }[]; rerolls?: number };
+    return { eligible: Boolean(r.eligible), day: r.day, week: r.week, done: (r.done ?? []).map((d) => d.key), rerolls: r.rerolls ?? 0 };
+  },
+
+  /** Swaps today's Missions for a new set (members, once a day, for PIPs). */
+  async reroll(): Promise<{ rerolls: number; balance: number }> {
+    const { data, error } = await requireSupabase().rpc('reroll_missions');
+    if (error) throw error;
+    return data as { rerolls: number; balance: number };
   },
 
   async complete(m: Mission): Promise<{ key: string; amount: number; balance: number }> {
@@ -53,6 +62,8 @@ export function missionErrorMessage(e: unknown): string {
   if (/NOT_DONE/.test(msg)) return 'Pip hasn’t seen that yet. Open their profile (or the exhibit) first, then claim.';
   if (/MISSION_LIMIT/.test(msg)) return 'You’ve claimed every Mission for now. New ones come at midnight (Manila time).';
   if (/ALREADY_DONE/.test(msg)) return 'Already claimed.';
+  if (/REROLL_LIMIT/.test(msg)) return 'You’ve had today’s new set. Fresh Missions come at midnight (Manila time).';
+  if (/NOT_ENOUGH_PIPS/.test(msg)) return 'Not enough PIPs for a new set yet.';
   if (/NOT_ELIGIBLE/.test(msg)) return 'Missions pay PIPs once your card is approved.';
   if (/Failed to fetch|NetworkError|network/i.test(msg)) return 'Can’t reach the hall right now. Try again.';
   return 'That didn’t work. Try again.';

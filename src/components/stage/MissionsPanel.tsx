@@ -7,7 +7,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { useSession } from '../../app/sessionContext';
 import { pipsEnabled } from '../../lib/features';
-import { MISSION_PIPS, missionMet, missionPeriod, pickMissions, type Mission } from '../../lib/missions';
+import { MISSION_PIPS, missionMet, missionPeriod, pickMissions, REROLL, type Mission } from '../../lib/missions';
 import { usePassport } from '../../lib/usePassport';
 import { missionErrorMessage, missionService, type MyMissions } from '../../services/missionService';
 import { museumService } from '../../services/museumService';
@@ -62,7 +62,7 @@ export function MissionsPanel({ cards, onSearch, onRandom, onPips }: Props) {
   const member = Boolean(account) && passport.mode === 'account';
   const day = account?.day ?? missionPeriod('daily', now).label;
   const week = account?.week ?? missionPeriod('weekly', now).label;
-  const { daily, weekly } = useMemo(() => pickMissions(day, week, cards, exhibits ?? [], member ? me : null), [day, week, cards, exhibits, member, me]);
+  const { daily, weekly } = useMemo(() => pickMissions(day, week, cards, exhibits ?? [], member ? me : null, member ? (account?.rerolls ?? 0) : 0), [day, week, cards, exhibits, member, me, account?.rerolls]);
   const all = weekly ? [...daily, weekly] : daily;
   const since = { daily: missionPeriod('daily', now).starts, weekly: missionPeriod('weekly', now).starts };
   const met = (m: Mission) => missionMet(m, passport.data, cards, since[m.scope]);
@@ -94,6 +94,22 @@ export function MissionsPanel({ cards, onSearch, onRandom, onPips }: Props) {
       setBusy(null);
     }
   };
+
+  const reroll = async () => {
+    setBusy('reroll');
+    setNotice(null);
+    try {
+      const r = await missionService.reroll();
+      setAccount((a) => (a ? { ...a, rerolls: r.rerolls } : a));
+      onPips(r.balance);
+      setNotice({ text: `New Missions for today! −${REROLL.price} PIPs.` });
+    } catch (e) {
+      setNotice({ text: missionErrorMessage(e), bad: true });
+    } finally {
+      setBusy(null);
+    }
+  };
+  const canReroll = member && (account?.rerolls ?? 0) < REROLL.perDay && daily.some((m) => !done.has(m.key));
 
   const row = (m: Mission) => {
     const finished = done.has(m.key);
@@ -150,6 +166,11 @@ export function MissionsPanel({ cards, onSearch, onRandom, onPips }: Props) {
       <ul className="mission-list" aria-label="Today’s Missions">
         {daily.map(row)}
       </ul>
+      {canReroll && (
+        <button type="button" className="pixel-btn justify-self-start" disabled={busy === 'reroll'} onClick={() => void reroll()}>
+          New set for today · {REROLL.price} PIPs
+        </button>
+      )}
       {weekly && (
         <>
           <p className="m-0 font-display tracking-[0.04em]" aria-hidden="true">

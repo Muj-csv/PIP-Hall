@@ -4,7 +4,9 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
+import { useAppearance } from '../../app/appearanceContext';
 import { collaborationsOf } from '../../lib/collab';
+import { proofOf } from '../../lib/proof';
 import { badgePngUrl, memberPath, serialFor } from '../../lib/publicUrl';
 import { rankOf } from '../../lib/rank';
 import { GEM_SPRITES, GEM_TONE_PALETTES } from '../../lib/sprites';
@@ -33,6 +35,8 @@ export function ProfileScreen({ card, onBack, onShowQr, reward = null, hall = []
   const affiliations = useAffiliations(card.profile_id);
   const rank = rankOf(c.projects.length);
   const collabs = useMemo(() => collaborationsOf(card.username, hall), [card.username, hall]);
+  const titles = useAppearance().titleOf(card.profile_id);
+  const proof = useMemo(() => proofOf(card, hall, titles), [card, hall, titles]);
   useEffect(() => back.current?.focus(), []);
   // Opened from a badge's QR (?via=qr): greet the finder once, then tidy the address (V2-1).
   const [params, setParams] = useSearchParams();
@@ -155,6 +159,23 @@ export function ProfileScreen({ card, onBack, onShowQr, reward = null, hall = []
                 ))}
               </ol>
             )}
+          </section>
+
+          <section className="menu-panel" aria-labelledby="profile-proof">
+            <h3 id="profile-proof" className="panel-title">
+              Proof
+            </h3>
+            <ul className="proof-list">
+              {proof.map((l) => (
+                <li key={l.text}>
+                  <span className="proof-mark" aria-hidden="true">
+                    {l.mark}
+                  </span>
+                  <span>{l.text}</span>
+                  {l.sub && <span className="proof-sub text-caption text-text-secondary">{l.sub}</span>}
+                </li>
+              ))}
+            </ul>
           </section>
 
           {collabs.length > 0 && (

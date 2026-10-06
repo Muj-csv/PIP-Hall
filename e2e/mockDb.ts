@@ -44,6 +44,11 @@ export interface MockDb {
   recentEvents?: Row[];
   /** Project collaborators (D-089): {project_id, member_id, status}. */
   collabs?: Row[];
+  /** V2-5 (D-101): the identity update has run (plates, titles, rerolls); `earned` holds each
+   *  member's earned title keys (the database works them out; tests set them). */
+  identity?: boolean;
+  earned?: Record<string, string[]>;
+  rerolls?: Row[];
 }
 
 export const MART_ITEMS = [
@@ -52,6 +57,13 @@ export const MART_ITEMS = [
   { key: 'pearl', kind: 'frame', name: 'Pearl Frame', description: 'Soft cream with polished pearls.', price: 700, sort: 3 },
   { key: 'gold', kind: 'frame', name: 'Gold Frame', description: "Block gold with coins. For the hall's finest.", price: 1000, sort: 4 },
 ];
+
+export const PLATE_ITEMS = [
+  { key: 'plate-brass', kind: 'plate', name: 'Brass Plate', description: 'Your title on polished brass.', price: 150, sort: 50, style: { plate: 'gold', ink: 'ink' } },
+  { key: 'plate-silver', kind: 'plate', name: 'Silver Plate', description: 'Your title on bright silver.', price: 300, sort: 51, style: { plate: 'metal-hi', ink: 'ink' } },
+  { key: 'plate-plum', kind: 'plate', name: 'Plum Enamel Plate', description: 'Your title in cream on plum enamel.', price: 450, sort: 52, style: { plate: 'plum', ink: 'cream' } },
+];
+const TITLE_KEYS = ['card_holder', 'pioneer', 'explorer', 'connector', 'curator', 'pathfinder'];
 
 const perkLabel = (name: string) => (/(^| )MEMBER$/.test(name.trim().toUpperCase()) ? name.trim().toUpperCase() : `${name.trim().toUpperCase()} MEMBER`);
 
@@ -341,7 +353,8 @@ export async function handleDb(route: Route, db: MockDb, user: DbUser): Promise<
     const day = missionPeriod('daily').label;
     const week = missionPeriod('weekly').label;
     const done = (db.missionCompletions ?? []).filter((r) => r.member_id === userId && (r.period === day || r.period === week)).map((r) => ({ key: r.key }));
-    return (await json(200, { eligible: inHall(userId), day, week, done })), true;
+    const rerolls = (db.rerolls ?? []).filter((r) => r.member_id === userId && r.period === day).length;
+    return (await json(200, { eligible: inHall(userId), day, week, done, ...(db.identity ? { rerolls } : {}) })), true;
   }
   if (url.pathname === '/rest/v1/rpc/complete_mission') {
     if (!inHall(userId)) return (await err(400, 'P0001', 'NOT_ELIGIBLE')), true;
@@ -488,7 +501,11 @@ export async function handleDb(route: Route, db: MockDb, user: DbUser): Promise<
   }
 
   // ---- PIP MART (with admin-made borders, D-087)
-  const allItems = (): Row[] => [...MART_ITEMS.map((m) => ({ ...m, for_sale: true, active: true, style: null })), ...(db.customItems ?? [])];
+  const allItems = (): Row[] => [
+    ...MART_ITEMS.map((m) => ({ ...m, for_sale: true, active: true, style: null })),
+    ...(db.identity ? PLATE_ITEMS.map((m) => ({ ...m, for_sale: true, active: true })) : []),
+    ...(db.customItems ?? []),
+  ];
   const owns = (id: string, key: string) => (db.inventory ?? []).some((r) => r.member_id === id && r.item_key === key);
   const perksOf = (id: string) =>
     (db.memberAffiliations ?? [])
@@ -514,10 +531,68 @@ export async function handleDb(route: Route, db: MockDb, user: DbUser): Promise<
       balance: balanceOf(db, userId),
       items: allItems()
         .filter((m) => (m.active && m.for_sale) || owns(userId, String(m.key)))
-        .map((m) => ({ key: m.key, kind: 'frame', name: m.name, description: m.description, price: m.price, for_sale: m.for_sale, style: m.style, owned: owns(userId, String(m.key)) })),
+        .map((m) => ({ key: m.key, kind: m.kind ?? 'frame', name: m.name, description: m.description, price: m.price, for_sale: m.for_sale, style: m.style, owned: owns(userId, String(m.key)) })),
       perks: perksOf(userId),
-      equipped: { frame: a?.frame ?? null, affiliation: a?.frame_affiliation ?? null },
+      equipped: { frame: a?.frame ?? null, affiliation: a?.frame_affiliation ?? null, title: a?.title ?? null, plate: a?.plate ?? null },
     })), true;
+  }
+  // ---- V2-5 titles and plates (mirrors 20261006000800_identity.sql).
+  const notYetId = (name: string) => err(404, 'PGRST202', `Could not find the function public.${name} in the schema cache`);
+  const earnedOf = (id: string) => (inHall(id) ? ['card_holder', ...(db.earned?.[id] ?? []).filter((k) => k !== 'card_holder')] : []).filter((k) => TITLE_KEYS.includes(k));
+  const look = (id: string) => (db.appearance ?? []).find((r) => r.member_id === id);
+  const setLook = (id: string, patch: Row) => {
+    const row = look(id);
+    if (row) Object.assign(row, patch);
+    else (db.appearance ??= []).push({ member_id: id, frame: null, frame_affiliation: null, ...patch });
+  };
+  if (url.pathname === '/rest/v1/rpc/hall_titles') {
+    if (!db.identity) return (await notYetId('hall_titles')), true;
+    const out = db.published.map((c) => {
+      const id = String(c.profile_id);
+      const e = earnedOf(id);
+      const a = look(id);
+      const plate = PLATE_ITEMS.find((p) => p.key === a?.plate && owns(id, p.key));
+      return { profile_id: id, earned: e, title: a?.title && e.includes(String(a.title)) ? a.title : null, plate_style: plate?.style ?? null };
+    });
+    return (await json(200, out)), true;
+  }
+  if (url.pathname === '/rest/v1/rpc/my_titles') {
+    if (!db.identity) return (await notYetId('my_titles')), true;
+    const e = earnedOf(userId);
+    const a = look(userId);
+    return (await json(200, {
+      eligible: inHall(userId),
+      title: a?.title && e.includes(String(a.title)) ? a.title : null,
+      plate: a?.plate ?? null,
+      titles: TITLE_KEYS.map((key) => ({ key, earned: e.includes(key) })),
+    })), true;
+  }
+  if (url.pathname === '/rest/v1/rpc/equip_title') {
+    const { p_title } = body() as { p_title: string | null };
+    if (!inHall(userId)) return (await err(400, 'P0001', 'NOT_ELIGIBLE')), true;
+    if (p_title && !earnedOf(userId).includes(p_title)) return (await err(400, 'P0001', 'NOT_EARNED')), true;
+    setLook(userId, { title: p_title });
+    return (await json(200, null)), true;
+  }
+  if (url.pathname === '/rest/v1/rpc/equip_plate') {
+    const { p_plate } = body() as { p_plate: string | null };
+    if (!inHall(userId)) return (await err(400, 'P0001', 'NOT_ELIGIBLE')), true;
+    if (p_plate && !(PLATE_ITEMS.some((p) => p.key === p_plate) && owns(userId, p_plate))) return (await err(400, 'P0001', 'NOT_OWNED')), true;
+    setLook(userId, { plate: p_plate });
+    return (await json(200, null)), true;
+  }
+  if (url.pathname === '/rest/v1/rpc/reroll_missions') {
+    if (!db.identity) return (await notYetId('reroll_missions')), true;
+    if (!inHall(userId)) return (await err(400, 'P0001', 'NOT_ELIGIBLE')), true;
+    const day = missionPeriod('daily').label;
+    const used = (db.rerolls ?? []).filter((r) => r.member_id === userId && r.period === day).length;
+    if (used >= 1) return (await err(400, 'P0001', 'REROLL_LIMIT')), true;
+    const bal = balanceOf(db, userId);
+    if (bal < 15) return (await err(400, 'P0001', 'NOT_ENOUGH_PIPS')), true;
+    db.ledger ??= [];
+    db.ledger.push({ id: db.ledger.length + 1, member_id: userId, amount: -15, reason: 'purchase', ref: `reroll:${day}:${used + 1}`, created_at: new Date().toISOString() });
+    (db.rerolls ??= []).push({ member_id: userId, period: day });
+    return (await json(200, { rerolls: used + 1, balance: bal - 15 })), true;
   }
   if (url.pathname === '/rest/v1/rpc/buy_item') {
     const { p_key } = body() as { p_key: string };

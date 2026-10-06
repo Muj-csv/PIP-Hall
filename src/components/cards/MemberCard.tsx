@@ -27,6 +27,7 @@ import { memberQrUrl, serialFor } from "../../lib/publicUrl";
 import type { PublicCard } from "../../types/card";
 import type { Appearance } from "../../types/mart";
 import { SpriteCanvas } from "../pixel/SpriteCanvas";
+import { plateVars, titleOf, type HallTitle } from "../../lib/titles";
 import { BadgeScene } from "./BadgeScene";
 import { PixelAvatar } from "./PixelAvatar";
 import { QrCode } from "./QrCode";
@@ -48,6 +49,8 @@ interface Props {
   photoUrl?: string | null;
   /** The frame to show instead of the member's own (PIP MART previews). null = plain badge. */
   appearance?: Appearance | null;
+  /** The title and plate to show instead of the member's own (PIP MART previews, D-101). */
+  title?: HallTitle | null;
 }
 
 /** The frame the badge wears (E2), read by the holder on both faces. */
@@ -64,6 +67,7 @@ export function MemberCard({
   onShowQr,
   photoUrl,
   appearance,
+  title,
 }: Props) {
   const name = card.card.full_name;
   const tab = focusable ? 0 : -1;
@@ -71,6 +75,7 @@ export function MemberCard({
   const worn = appearances.of(card.profile_id);
   const look = appearance === undefined ? worn : appearance;
   const pins = appearances.pinsOf(card.profile_id);
+  const titled = title === undefined ? appearances.titleOf(card.profile_id) : title;
   // A border designed in /admin (D-087) draws as 'custom' with its tones as CSS variables.
   const designed = look?.style && isFrameStyle(look.style) ? look.style : null;
   const rank = rankOf(card.card.projects.length);
@@ -111,6 +116,7 @@ export function MemberCard({
             tab={tab}
             onShowQr={onShowQr}
             photoUrl={photoUrl}
+            title={titled}
           />
         </div>
         <div className="badge-face" data-side="back" inert={!flipped}>
@@ -284,11 +290,13 @@ function CardFront({
   tab,
   onShowQr,
   photoUrl,
+  title,
 }: {
   card: PublicCard;
   tab: number;
   onShowQr: () => void;
   photoUrl?: string | null;
+  title?: HallTitle | null;
 }) {
   const c = card.card;
   const stickers = useMemo(() => placeStickers(c), [c]);
@@ -348,6 +356,13 @@ function CardFront({
             </h2>
             <div className="badge-handle">@{c.username}</div>
             {c.role && <div className="badge-role">{c.role}</div>}
+            {title?.title && (
+              // An earned title on its plate (D-101): plain, or a plate bought in the PIP MART.
+              <div className="badge-title" style={plateVars(title.plateStyle)} data-plate={title.plateStyle ? "bought" : undefined}>
+                <span className="sr-only">Title: </span>
+                {titleOf(title.title)?.name}
+              </div>
+            )}
           </div>
           <div className="stats">
             <div className="stat" aria-label={`${c.projects.length} projects`}>
