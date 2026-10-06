@@ -1,3 +1,5 @@
+import type { Gem, GemTone } from '../lib/rewards';
+
 // PIP Progression E1 (docs/plan/PIP-PROGRESSION-E1.md).
 
 export type PipReason = 'first_approval' | 'project_live' | 'discover' | 'achievement' | 'purchase';
@@ -30,4 +32,10 @@ export interface Achievement {
   name: string;
   description: string;
   reward: number;
+  /** Admin-made badge (D-087); the automatic achievements are not. */
+  custom?: boolean;
+  gem?: Gem;
+  tone?: GemTone;
+  /** A border the badge gives (a mart_items key). */
+  reward_frame?: string | null;
 }

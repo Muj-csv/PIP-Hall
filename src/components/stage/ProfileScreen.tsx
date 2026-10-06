@@ -5,6 +5,8 @@
 import { useEffect, useRef } from 'react';
 import { serialFor } from '../../lib/publicUrl';
 import { rankOf } from '../../lib/rank';
+import { GEM_SPRITES, GEM_TONE_PALETTES } from '../../lib/sprites';
+import { SpriteCanvas } from '../pixel/SpriteCanvas';
 import { useAchievements } from '../../lib/useAchievements';
 import { useAffiliations } from '../../lib/useAffiliations';
 import { publicImageUrl } from '../../services/storageService';
@@ -67,8 +69,8 @@ export function ProfileScreen({ card, onBack, onShowQr, reward = null }: Props) 
         {achievements.length > 0 && (
           <ul className="powerup-list" aria-label="Achievements">
             {achievements.map((a) => (
-              <li key={a.key} title={a.description}>
-                <span aria-hidden="true">★ </span>
+              <li key={a.key} title={a.description} data-custom={a.custom || undefined}>
+                <SpriteCanvas sprite={GEM_SPRITES[a.gem ?? 'star'] ?? GEM_SPRITES.star!} palette={GEM_TONE_PALETTES[a.tone ?? 'gold'] ?? GEM_TONE_PALETTES.gold!} className="achievement-gem" />
                 {a.name}
               </li>
             ))}

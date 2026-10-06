@@ -85,7 +85,8 @@ export default function Mart() {
       const p = mart?.perks.find((x) => x.key === e.affiliation);
       return p ? perkLook(p) : null;
     }
-    return mart?.items.some((i) => i.key === e.frame && i.owned) ? { frame: e.frame, label: null } : null;
+    const item = mart?.items.find((i) => i.key === e.frame && i.owned);
+    return item ? { frame: e.frame, label: null, style: item.style ?? null } : null;
   })();
   const shown = trying === undefined ? wearing : trying;
 
@@ -177,7 +178,7 @@ export default function Mart() {
                         wearing={same(wearing, { frame: item.key, label: null })}
                         confirming={confirm === item.key}
                         busy={busy}
-                        onTry={() => setTrying({ frame: item.key, label: null })}
+                        onTry={() => setTrying({ frame: item.key, label: null, style: item.style ?? null })}
                         onAsk={() => setConfirm(item.key)}
                         onCancel={() => setConfirm(null)}
                         onBuy={() => void run(() => martService.buy(item.key), `${item.name} is yours! Wear it whenever you like.`, () => setUnboxed(item))}
@@ -263,7 +264,7 @@ interface ItemProps {
 
 function ItemRow({ item, balance, wearing, confirming, busy, onTry, onAsk, onCancel, onBuy, onWear }: ItemProps) {
   const short = item.price - balance;
-  const status = wearing ? 'Wearing' : item.owned ? 'Owned' : `${formatPips(item.price)} PIPs`;
+  const status = wearing ? 'Wearing' : item.owned ? (item.for_sale === false ? 'Reward' : 'Owned') : `${formatPips(item.price)} PIPs`;
   return (
     <Row name={item.name} detail={item.description} status={status}>
       <button type="button" className="pixel-btn" onClick={onTry}>

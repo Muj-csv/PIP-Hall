@@ -1,7 +1,7 @@
 // Every sprite is a clean rectangle and every pixel has a colour from the theme (D-079).
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { coverLayers, coverSprite, CARD_PALETTE, CLIP_PALETTE, DOODLE_PALETTE, FRAME_DOODLES, RANK_GEMS, SPR, WORLD_OVERRIDES, WORLD_PALETTE, type Palette, type SpriteMap } from './sprites';
+import { coverLayers, coverSprite, GEM_SPRITES, GEM_TONE_PALETTES, CARD_PALETTE, CLIP_PALETTE, DOODLE_PALETTE, FRAME_DOODLES, RANK_GEMS, SPR, WORLD_OVERRIDES, WORLD_PALETTE, type Palette, type SpriteMap } from './sprites';
 
 const theme = readFileSync(new URL('../styles/theme.css', import.meta.url), 'utf8');
 const CARD_SPRITES = new Set(['clip', 'flower', 'grass', 'iconCode', 'iconCase', 'iconGlobe', 'block']);
@@ -31,12 +31,18 @@ describe('sprites', () => {
     for (const [name, f] of Object.entries(FRAME_DOODLES)) check(`frame:${name}`, f.sprite, f.palette);
   });
 
+  it('badge gems are rectangles in every tone, one per shape the database allows', () => {
+    expect(Object.keys(GEM_SPRITES).sort()).toEqual(['bolt', 'circle', 'crown', 'diamond', 'heart', 'leaf', 'shield', 'star']);
+    expect(Object.keys(GEM_TONE_PALETTES).sort()).toEqual(['gold', 'green', 'plum', 'red', 'silver', 'sky']);
+    for (const [name, g] of Object.entries(GEM_SPRITES)) for (const [tone, p] of Object.entries(GEM_TONE_PALETTES)) check(`gem:${name}:${tone}`, g, p);
+  });
+
   it('rank gems are rectangles with their own palette', () => {
     for (const [name, g] of Object.entries(RANK_GEMS)) check(`gem:${name}`, g.sprite, g.palette);
   });
 
   it('every palette colour is a theme token', () => {
-    const palettes = [WORLD_PALETTE, CARD_PALETTE, DOODLE_PALETTE, CLIP_PALETTE, ...Object.values(WORLD_OVERRIDES), ...Object.values(FRAME_DOODLES).map((f) => f.palette), ...Object.values(RANK_GEMS).map((g) => g.palette)];
+    const palettes = [WORLD_PALETTE, CARD_PALETTE, DOODLE_PALETTE, CLIP_PALETTE, ...Object.values(WORLD_OVERRIDES), ...Object.values(FRAME_DOODLES).map((f) => f.palette), ...Object.values(RANK_GEMS).map((g) => g.palette), ...Object.values(GEM_TONE_PALETTES)];
     for (const p of palettes) for (const v of Object.values(p ?? {})) expect(theme, `${v} is in theme.css`).toContain(`${v}:`);
   });
 

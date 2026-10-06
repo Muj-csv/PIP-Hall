@@ -14,9 +14,13 @@ import {
   CARD_PALETTE,
   DOODLE_PALETTE,
   FRAME_DOODLES,
+  GEM_SPRITES,
+  GEM_TONE_PALETTES,
   RANK_GEMS,
   SPR,
 } from "../../lib/sprites";
+import { frameStyleVars, isFrameStyle } from "../../lib/rewards";
+import type { Pin } from "../../types/mart";
 import { rankOf, type Rank } from "../../lib/rank";
 import { placeStickers } from "../../lib/stickers";
 import { memberUrl, serialFor } from "../../lib/publicUrl";
@@ -48,6 +52,8 @@ interface Props {
 
 /** The frame the badge wears (E2), read by the holder on both faces. */
 const FrameContext = createContext<Appearance | null>(null);
+/** Admin-made badges pinned on the band (D-087). */
+const PinsContext = createContext<Pin[]>([]);
 
 export function MemberCard({
   card,
@@ -61,8 +67,12 @@ export function MemberCard({
 }: Props) {
   const name = card.card.full_name;
   const tab = focusable ? 0 : -1;
-  const worn = useAppearance().of(card.profile_id);
+  const appearances = useAppearance();
+  const worn = appearances.of(card.profile_id);
   const look = appearance === undefined ? worn : appearance;
+  const pins = appearances.pinsOf(card.profile_id);
+  // A border designed in /admin (D-087) draws as 'custom' with its tones as CSS variables.
+  const designed = look?.style && isFrameStyle(look.style) ? look.style : null;
   const rank = rankOf(card.card.projects.length);
   // Foil (D-080): framed and Legend badges catch a banded shine that follows the pointer here,
   // and the swing in the hall (--gx). Written straight to the element, so nothing re-renders.
@@ -74,10 +84,13 @@ export function MemberCard({
   };
   return (
     <FrameContext.Provider value={look}>
+      <PinsContext.Provider value={pins}>
       <div
         className="badge"
         data-flipped={flipped}
-        data-frame={look?.frame}
+        data-frame={designed ? "custom" : look?.frame}
+        data-motion={designed?.motion}
+        style={designed ? frameStyleVars(designed) : undefined}
         data-rank={rank.key}
         data-foil={foil || undefined}
         onPointerMove={foil ? tilt : undefined}
@@ -114,18 +127,32 @@ export function MemberCard({
           <CardBack card={card} tab={tab} onOpen={onOpen} />
         </div>
       </div>
+      </PinsContext.Provider>
     </FrameContext.Provider>
   );
 }
 
 function Holder({ children }: { children: React.ReactNode }) {
   const look = useContext(FrameContext);
-  const ornament = look ? FRAME_DOODLES[look.frame] : undefined;
+  const pins = useContext(PinsContext);
+  const designedDoodle = look?.style && isFrameStyle(look.style) ? look.style.doodle : null;
+  const ornament = designedDoodle ? (designedDoodle === "none" ? undefined : FRAME_DOODLES[designedDoodle]) : look ? FRAME_DOODLES[look.frame] : undefined;
   // A perk frame prints its affiliation (e.g. ACM MEMBER) where the holder says PIXENDO.
   const print = look?.label ?? "PIXENDO";
   return (
     <div className="holder">
       <span className="hole" />
+      {pins.length > 0 && (
+        // Admin-made badges (D-087) ride the holder's top strip like enamel pins beside the clip.
+        <span className="holder-pins" role="list" aria-label="Badges">
+          {pins.map((p) => (
+            <span key={p.key} role="listitem" title={p.name}>
+              <SpriteCanvas sprite={GEM_SPRITES[p.gem] ?? GEM_SPRITES.star!} palette={GEM_TONE_PALETTES[p.tone] ?? GEM_TONE_PALETTES.gold!} className="pin-gem" />
+              <span className="sr-only">{p.name}</span>
+            </span>
+          ))}
+        </span>
+      )}
       <span
         className="holder-print"
         data-label={look?.label ? "perk" : undefined}

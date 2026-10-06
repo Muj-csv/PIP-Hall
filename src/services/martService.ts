@@ -1,7 +1,8 @@
 // PIP MART (E2). Buying and equipping happen in the database (supabase/migrations/*_pip_mart.sql);
 // this only asks. Prices and balances are never computed here.
 
-import type { Appearance, MyMart } from '../types/mart';
+import type { AdminMartItem, Appearance, MyMart, Pin } from '../types/mart';
+import type { FrameStyle } from '../lib/rewards';
 import { requireSupabase } from './supabase';
 
 const useSupabase = import.meta.env.VITE_DATA_SOURCE === 'supabase';
@@ -31,7 +32,55 @@ export const martService = {
     if (!useSupabase) return new Map();
     const { data, error } = await requireSupabase().rpc('card_appearances');
     if (error) throw error;
-    return new Map(((data ?? []) as (Appearance & { profile_id: string })[]).map((a) => [a.profile_id, { frame: a.frame, label: a.label }]));
+    return new Map(((data ?? []) as (Appearance & { profile_id: string })[]).map((a) => [a.profile_id, { frame: a.frame, label: a.label, style: a.style ?? null }]));
+  },
+
+  /** Every member's admin-made badges, keyed by profile id (public, D-087). Empty without a database
+   *  or before the admin-rewards update. */
+  async pins(): Promise<Map<string, Pin[]>> {
+    if (!useSupabase) return new Map();
+    const { data, error } = await requireSupabase().rpc('card_pins');
+    if (error) throw error;
+    return new Map(((data ?? []) as { profile_id: string; pins: Pin[] }[]).map((r) => [r.profile_id, r.pins]));
+  },
+
+  // ---- Admin → Rewards (D-087). The database checks is_admin() and every preset.
+  async adminItems(): Promise<AdminMartItem[]> {
+    const { data, error } = await requireSupabase().rpc('admin_mart_items');
+    if (error) throw error;
+    return (data ?? []) as AdminMartItem[];
+  },
+
+  async saveFrame(f: { key: string; name: string; description: string; price: number; forSale: boolean; style: FrameStyle }): Promise<void> {
+    const { error } = await requireSupabase().rpc('admin_save_frame', {
+      p_key: f.key, p_name: f.name, p_description: f.description, p_price: f.price, p_for_sale: f.forSale, p_style: f.style,
+    });
+    if (error) throw error;
+  },
+
+  async setItemActive(key: string, active: boolean): Promise<void> {
+    const { error } = await requireSupabase().rpc('admin_set_item_active', { p_key: key, p_active: active });
+    if (error) throw error;
+  },
+
+  async saveBadge(b: { key: string; name: string; description: string; reward: number; gem: string; tone: string; frame: string | null }): Promise<void> {
+    const { error } = await requireSupabase().rpc('admin_save_badge', {
+      p_key: b.key, p_name: b.name, p_description: b.description, p_reward: b.reward, p_gem: b.gem, p_tone: b.tone, p_frame: b.frame,
+    });
+    if (error) throw error;
+  },
+
+  /** True if the member didn't have it yet (and so got its PIPs and border). */
+  async grantBadge(memberId: string, key: string): Promise<boolean> {
+    const { data, error } = await requireSupabase().rpc('admin_grant_badge', { p_member: memberId, p_key: key });
+    if (error) throw error;
+    return Boolean(data);
+  },
+
+  async revokeBadge(memberId: string, key: string): Promise<boolean> {
+    const { data, error } = await requireSupabase().rpc('admin_revoke_badge', { p_member: memberId, p_key: key });
+    if (error) throw error;
+    return Boolean(data);
   },
 
   /** Admins: make an affiliation give its members the member frame, or stop. */
@@ -60,6 +109,15 @@ export function martErrorMessage(e: unknown): string {
   if (/NOT_OWNED/.test(msg)) return 'Buy that frame first to wear it.';
   if (/NO_SUCH_PERK/.test(msg)) return 'That frame comes with an affiliation you don’t have.';
   if (/NOT_ADMIN/.test(msg)) return 'Only hall admins can do that.';
+  if (/BAD_STYLE/.test(msg)) return 'That border mixes options the hall doesn’t allow. Pick from the lists.';
+  if (/BAD_KEY/.test(msg)) return 'Give it a name of at least two letters or numbers.';
+  if (/BAD_NAME/.test(msg)) return 'Names are 2 to 40 characters.';
+  if (/BAD_DESCRIPTION/.test(msg)) return 'Descriptions are 2 to 120 characters.';
+  if (/BAD_PRICE/.test(msg)) return 'Prices are 1 to 100,000 PIPs.';
+  if (/BAD_REWARD/.test(msg)) return 'PIP rewards are 0 to 5,000.';
+  if (/BUILT_IN/.test(msg)) return 'That name belongs to one of the hall’s built-in items. Pick another.';
+  if (/NO_SUCH_BADGE/.test(msg)) return 'That badge doesn’t exist anymore.';
+  if (/NOT_PUBLISHED/.test(msg)) return 'Badges go to members whose card is in the hall.';
   if (/Failed to fetch|NetworkError|network/i.test(msg)) return 'Can’t reach the hall right now. Try again.';
   return msg || 'That didn’t work. Try again.';
 }
