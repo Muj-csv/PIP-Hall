@@ -121,3 +121,35 @@ export function filtersToParams(f: Filters): URLSearchParams {
 export function isFiltered(f: Filters): boolean {
   return Boolean(f.q.trim() || f.department || f.skill || f.featured);
 }
+
+/**
+ * Why a card matched (V2-2 "Why Pip picked"): one plain line per reason, from the card's own
+ * published data. Empty when nothing is filtered. No scores, no guesses.
+ */
+export function whyPicked(card: PublicCard, f: Filters): string[] {
+  const c = card.card;
+  const reasons: string[] = [];
+  const add = (r: string) => {
+    if (!reasons.includes(r)) reasons.push(r);
+  };
+  const has = (text: string | null | undefined, w: string) => Boolean(text && normalize(text).includes(w));
+  for (const w of normalize(f.q).split(' ').filter(Boolean)) {
+    const skill = (c.skills ?? []).find((s) => has(s, w));
+    const titled = c.projects.find((p) => has(p.title, w));
+    const built = c.projects.find((p) => has(p.language, w) || p.tech_stack.some((t) => has(t, w)));
+    if (has(c.full_name, w) || has(c.username, w) || has(c.github_username, w)) add(`Name or handle matches “${w}”`);
+    else if (skill) add(`Lists ${skill} in their skills`);
+    else if (titled) add(`Made ${titled.title}`);
+    else if (built) add(`Built ${built.title} with ${[built.language, ...built.tech_stack].find((t) => has(t, w)) ?? w}`);
+    else if (has(c.role, w) || has(c.org_position, w)) add(`Role: ${[c.role, c.org_position].filter(Boolean).join(' · ')}`);
+    else if (has(c.department, w)) add(`In ${c.department}`);
+    else if (has(c.tagline, w)) add(`Tagline mentions “${w}”`);
+    else if (c.projects.some((p) => has(p.description, w))) add(`A project mentions “${w}”`);
+    else if (has(c.bio, w)) add(`Bio mentions “${w}”`);
+  }
+  if (f.skill) add(`Lists ${(c.skills ?? []).find((s) => normalize(s) === normalize(f.skill!)) ?? f.skill} in their skills`);
+  if (f.department) add(`In ${c.department ?? f.department}`);
+  if (f.featured) add('Featured by the hall');
+  if (reasons.length && c.github_username && c.projects.some((p) => p.source === 'github')) add('Projects verified on GitHub');
+  return reasons;
+}

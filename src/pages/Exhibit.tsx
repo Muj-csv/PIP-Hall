@@ -13,6 +13,7 @@ import { exhibitPath, exhibitUrl, memberPath } from '../lib/publicUrl';
 import { consoleFor } from '../lib/museum';
 import { CONSOLE_NAMES } from '../lib/sprites';
 import { useCards } from '../lib/useCards';
+import { usePassport } from '../lib/usePassport';
 import type { PublicCard } from '../types/card';
 import { museumService } from '../services/museumService';
 import type { Exhibit as ExhibitRow } from '../types/museum';
@@ -47,6 +48,12 @@ export default function Exhibit() {
 
   const title = exhibit ? `${exhibit.project.title} · Museum` : load.status === 'ready' ? 'Not on show' : 'Museum';
   // The owner, then the collaborators who accepted, as approved (D-090).
+  // Visiting an exhibit stamps the Passport (V2-2).
+  const { stampExhibit } = usePassport();
+  const exhibitId = exhibit?.project_id;
+  useEffect(() => {
+    if (exhibitId) stampExhibit(exhibitId);
+  }, [exhibitId, stampExhibit]);
   const makers = exhibit && cards.status === 'ready' ? makersOf(exhibit.username, exhibit.project, cards.cards) : [];
   const withNames = (exhibit?.project.collaborators ?? []).map((c) => c.full_name);
   const kind = exhibit ? consoleFor(exhibit.project_id, exhibit.console) : null;

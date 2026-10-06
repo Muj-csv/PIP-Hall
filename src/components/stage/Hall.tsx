@@ -12,6 +12,7 @@ import { stepHeld } from '../../lib/grab';
 import { stepSwing, type SwingState } from '../../lib/swing';
 import { useCards } from '../../lib/useCards';
 import { useReducedMotion } from '../../lib/useReducedMotion';
+import { usePassport } from '../../lib/usePassport';
 import { usePips } from '../../lib/usePips';
 import { discoverLine } from '../../lib/pips';
 import { facets, filtersFromParams, filtersToParams, indexCards, isFiltered, NO_FILTERS, randomCard, search, type Filters } from '../../lib/search';
@@ -41,6 +42,7 @@ import {
 } from '../world/world';
 import { HallSearch } from './HallSearch';
 import { Hud } from './Hud';
+import { PassportScreen } from './PassportScreen';
 import { MissingScreen, ProfileScreen } from './ProfileScreen';
 
 const BADGE_HALF_W = 28; // units
@@ -57,9 +59,11 @@ function titleCase(s: string) {
 interface HallProps {
   /** Username from /member/:username: that member's profile is open inside the device. */
   profile?: string | null;
+  /** /passport: the Passport is open inside the device (V2-2). */
+  passport?: boolean;
 }
 
-export function Hall({ profile = null }: HallProps) {
+export function Hall({ profile = null, passport = false }: HallProps) {
   const cardsState = useCards();
   const all = useMemo(() => (cardsState.status === 'ready' ? cardsState.cards : []), [cardsState]);
 
@@ -88,15 +92,16 @@ export function Hall({ profile = null }: HallProps) {
   const [flipped, setFlipped] = useState<ReadonlySet<string>>(() => new Set());
   const [coins, setCoins] = useState(0);
   const pips = usePips();
+  const stamps = usePassport();
   /** Pip's line on the profile screen after a discovery reward (E1). */
   const [reward, setReward] = useState<{ for: string; text: string } | null>(null);
-  const [mode, setMode] = useState<'level' | 'profile' | 'missing'>('level');
+  const [mode, setMode] = useState<'level' | 'profile' | 'missing' | 'passport'>('level');
   const navigate = useNavigate();
   /** Opened from inside the hall (so BACK can step back in history) rather than from a link. */
   const openedHere = useRef(false);
   /** The hall has been on screen: later profile changes play the iris; a cold /member link doesn't. */
   const shownOnce = useRef(false);
-  const startedOnProfile = useRef(Boolean(profile));
+  const startedOnProfile = useRef(Boolean(profile) || passport);
   const [qrCard, setQrCard] = useState<PublicCard | null>(null);
   const [ledBlink, setLedBlink] = useState(false);
 
@@ -233,6 +238,30 @@ export function Hall({ profile = null }: HallProps) {
     }
   }, [cards, go, indexRef, camRef]);
 
+  // The Passport opens inside the device like a profile (V2-2).
+  const openPassport = useCallback(() => {
+    if (live.current.mode === 'passport') return;
+    openedHere.current = true;
+    navigate({ pathname: '/passport', search: location.search });
+  }, [navigate, location.search]);
+
+  // A search result picked from the list: Pip walks there and the block above the badge bumps,
+  // so the hall itself shows where the result is (V2-2, product rule 8).
+  const pickResult = useCallback(
+    (username: string) => {
+      const l = live.current;
+      const i = l.cards.findIndex((c) => c.username === username);
+      const c = l.cards[i];
+      if (!c) return;
+      if (l.mode !== 'level') navigate({ pathname: '/', search: location.search });
+      go(i);
+      if (!l.reduce) bumps.current.set(i, 6);
+      setLine({ text: `Pip found ${titleCase(c.card.full_name)}! Tap to flip, or OPEN for the profile.` });
+      screenRef.current?.focus({ preventScroll: true });
+    },
+    [go, navigate, location.search],
+  );
+
   const randomPlayer = useCallback(() => {
     const l = live.current;
     if (l.mode !== 'level' || l.cards.length === 0) return;
@@ -253,6 +282,14 @@ export function Hall({ profile = null }: HallProps) {
     const cold = !shownOnce.current;
     shownOnce.current = true;
     const now = live.current.mode;
+    if (passport) {
+      if (now !== 'passport') {
+        if (cold) setMode('passport');
+        else runIris(() => setMode('passport'));
+      }
+      setLine({ text: 'Your Passport. BACK or Esc returns to the hall.' });
+      return;
+    }
     if (want) {
       const i = cards.findIndex((c) => c.username === want);
       const next = i < 0 ? 'missing' : 'profile';
@@ -273,7 +310,7 @@ export function Hall({ profile = null }: HallProps) {
       });
       setLine({ text: 'Back in the hall.' });
     }
-  }, [profile, cardsState.status, cards, go, runIris, indexRef, camRef]);
+  }, [profile, passport, cardsState.status, cards, go, runIris, indexRef, camRef]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   const onActivate = (i: number) => {
@@ -506,8 +543,10 @@ export function Hall({ profile = null }: HallProps) {
   // Opening someone's profile is a discovery (E1, FR-E1-02). Pays once; Pip says so on the screen.
   const profileId = mode === 'profile' ? current?.profile_id : undefined;
   const { discover, achievements: catalog } = pips;
+  const { stampPerson } = stamps;
   useEffect(() => {
     if (!profileId) return;
+    stampPerson(profileId); // the Passport (V2-2); members' accounts record it through the discovery below
     let on = true;
     void discover(profileId).then((r) => {
       const text = r && discoverLine(r, catalog);
@@ -518,10 +557,10 @@ export function Hall({ profile = null }: HallProps) {
     return () => {
       on = false;
     };
-  }, [profileId, discover, catalog, indexRef]);
+  }, [profileId, discover, catalog, indexRef, stampPerson]);
   const profileName = mode === 'profile' ? current?.card.full_name : null;
   useEffect(() => {
-    document.title = profileName ? `${profileName} · PIP-Hall` : mode === 'missing' ? 'No card here · PIP-Hall' : HALL_TITLE;
+    document.title = profileName ? `${profileName} · PIP-Hall` : mode === 'missing' ? 'No card here · PIP-Hall' : mode === 'passport' ? 'Passport · PIP-Hall' : HALL_TITLE;
   }, [profileName, mode]);
   const screen = (
     <div
@@ -571,6 +610,7 @@ export function Hall({ profile = null }: HallProps) {
         />
       )}
       {mode === 'missing' && <MissingScreen username={profile ?? ''} onBack={closeProfile} />}
+      {mode === 'passport' && <PassportScreen hall={all} onBack={closeProfile} />}
       <canvas ref={overlayRef} className="overlay-canvas pixelated" hidden aria-hidden="true" />
     </div>
   );
@@ -582,6 +622,11 @@ export function Hall({ profile = null }: HallProps) {
         onChange={setFilters}
         onClear={clearFilters}
         onRandom={randomPlayer}
+        onPassport={openPassport}
+        stamps={stamps.data.people.length + stamps.data.exhibits.length}
+        results={cards}
+        current={mode === 'level' ? current : undefined}
+        onPick={pickResult}
         options={options}
         shown={count}
         total={all.length}

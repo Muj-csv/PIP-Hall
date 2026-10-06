@@ -4,7 +4,8 @@
 
 import { useId, useRef, useState } from 'react';
 import { hallUrl } from '../../lib/publicUrl';
-import type { Facet, Filters } from '../../lib/search';
+import { whyPicked, type Facet, type Filters } from '../../lib/search';
+import type { PublicCard } from '../../types/card';
 import { QrSheet } from '../cards/QrFullscreen';
 import { FilterChips } from '../explore/FilterChips';
 
@@ -18,14 +19,24 @@ interface Props {
   shown: number;
   total: number;
   ready: boolean;
+  /** Opens the Passport (V2-2), with how many stamps it holds. */
+  onPassport: () => void;
+  stamps: number;
+  /** The matching players, and the one in front of Pip now (for "Why Pip picked"). */
+  results: readonly PublicCard[];
+  current?: PublicCard;
+  /** Walks Pip to a result picked from the list. */
+  onPick: (username: string) => void;
 }
 
-export function HallSearch({ filters, onChange, onClear, onRandom, options, shown, total, ready }: Props) {
+export function HallSearch({ filters, onChange, onClear, onRandom, options, shown, total, ready, onPassport, stamps, results, current, onPick }: Props) {
   const input = useRef<HTMLInputElement>(null);
   const panelId = useId();
   const picked = [filters.department, filters.skill, filters.featured || null].filter(Boolean).length;
   const [open, setOpen] = useState(picked > 0);
   const [sharing, setSharing] = useState(false);
+  const [listing, setListing] = useState(false);
+  const listId = useId();
   const filtered = Boolean(filters.q.trim()) || picked > 0;
   const count = filtered ? `${shown} of ${total} ${total === 1 ? 'player' : 'players'} match` : `${total} ${total === 1 ? 'player' : 'players'} in the hall`;
 
@@ -59,6 +70,9 @@ export function HallSearch({ filters, onChange, onClear, onRandom, options, show
           <button type="button" className="pixel-btn" data-variant="primary" onClick={onRandom} disabled={!ready || shown === 0}>
             <span aria-hidden="true">? </span>Random player
           </button>
+          <button type="button" className="pixel-btn" onClick={onPassport}>
+            <span aria-hidden="true">▤ </span>Passport{stamps > 0 ? ` · ${stamps}` : ''}
+          </button>
         </div>
       </form>
 
@@ -73,6 +87,31 @@ export function HallSearch({ filters, onChange, onClear, onRandom, options, show
         </div>
       </div>
 
+      {filtered && current && (
+        <div className="why-picked" aria-live="polite">
+          <p className="m-0 font-display tracking-[0.04em]">Why Pip picked {current.card.full_name}</p>
+          <ul aria-label={`Why ${current.card.full_name} matches`}>
+            {whyPicked(current, filters).map((r) => (
+              <li key={r}>
+                <span aria-hidden="true">✓ </span>
+                {r}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {filtered && listing && shown > 0 && (
+        <ol id={listId} className="result-list" aria-label="Matching players">
+          {results.map((c) => (
+            <li key={c.username}>
+              <button type="button" className="result-pick" aria-current={current?.username === c.username || undefined} onClick={() => onPick(c.username)}>
+                <b>{c.card.full_name}</b> <span className="font-mono text-caption">@{c.username}</span>
+                <span className="text-caption text-text-secondary">{whyPicked(c, filters)[0]}</span>
+              </button>
+            </li>
+          ))}
+        </ol>
+      )}
       <div className="flex flex-wrap items-center gap-space-3">
         <p className="m-0 font-display tracking-[0.04em]" role="status" aria-live="polite">
           {ready ? count : 'Loading players…'}
@@ -80,6 +119,12 @@ export function HallSearch({ filters, onChange, onClear, onRandom, options, show
         {filtered && (
           <button type="button" className="pixel-btn" onClick={clear}>
             Clear all
+          </button>
+        )}
+        {filtered && shown > 0 && (
+          <button type="button" className="pixel-btn" aria-expanded={listing} aria-controls={listId} onClick={() => setListing((o) => !o)}>
+            <span aria-hidden="true">{listing ? '▾ ' : '▸ '}</span>
+            List results
           </button>
         )}
         {/* For events: show this on a laptop or projector and people scan their way in (D-088). */}

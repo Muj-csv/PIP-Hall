@@ -1,12 +1,14 @@
-import { Link, useParams } from 'react-router';
+import { Link, useMatch, useParams } from 'react-router';
 import { TopBar } from '../components/shell/TopBar';
 import { Hall } from '../components/stage/Hall';
 import { InstallPrompt } from '../components/install/InstallPrompt';
 
 // `/` and `/member/:username` are the same screen: the hall, with that member's profile open inside
-// the device when the address names one (the Hall sets the page title).
+// the device when the address names one (the Hall sets the page title). `/passport` opens the
+// Passport inside the device the same way (V2-2).
 export default function Home() {
   const { username = null } = useParams();
+  const passport = Boolean(useMatch('/passport'));
   return (
     <div className="mx-auto max-w-[1080px] px-space-4 pb-space-8">
       <TopBar />
@@ -18,7 +20,7 @@ export default function Home() {
           </h1>
           <p className="m-0 text-text-secondary">Meet the members of the hall: flip a badge to see what they build.</p>
         </div>
-        <Hall profile={username} />
+        <Hall profile={username} passport={passport} />
       </main>
       <footer className="mt-space-6 grid justify-items-center gap-space-2 text-center text-caption text-text-secondary">
         <InstallPrompt compact />

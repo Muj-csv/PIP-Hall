@@ -93,7 +93,7 @@ export function ProfileScreen({ card, onBack, onShowQr, reward = null, hall = []
         )}
       </header>
 
-      {scanned && <DialogueBox text={`You found ${c.full_name.split(' ')[0]}! You scanned their badge.`} emote="approved" />}
+      {scanned && <DialogueBox text={`You found ${c.full_name.split(' ')[0]}! You scanned their badge. They’re stamped in your Passport.`} emote="approved" />}
       {reward && <DialogueBox text={reward} emote="approved" />}
 
       <div className="profile-layout">
