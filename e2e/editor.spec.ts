@@ -55,7 +55,7 @@ test('full path: pick 3 repos, add a manual project, add a photo, submit → pen
   await expect(page.getByRole('list', { name: 'Projects on your card' }).getByRole('listitem')).toHaveCount(4);
 
   // Photo: cropped and resized in the browser, previewed on the badge before upload.
-  await page.locator('input[type=file]').setInputFiles({ name: 'me.png', mimeType: 'image/png', buffer: TINY_PNG });
+  await page.locator('[data-field="photo"] input[type=file]').setInputFiles({ name: 'me.png', mimeType: 'image/png', buffer: TINY_PNG });
   await page.getByRole('button', { name: 'Use this photo' }).click();
   await expect(page.locator('.preview-stage img.photo')).toHaveAttribute('src', /^blob:/);
 
@@ -166,7 +166,7 @@ test('a full card of 6 can swap a project (removals are saved first)', async ({ 
 test('phone photos: the picker offers gallery and camera, and files with no type still work', async ({ page }) => {
   await mockSupabase(page, { user: USER, db: emptyDb('octocat'), githubRepos: REPOS });
   await page.goto('/edit');
-  const input = page.locator('input[type=file]');
+  const input = page.locator('[data-field="photo"] input[type=file]');
   await expect(input).toHaveAttribute('accept', 'image/*');
   await expect(input).not.toHaveAttribute('capture');
 
@@ -192,7 +192,7 @@ test('Safari can’t save WebP: the photo is saved as JPEG instead', async ({ pa
   await mockSupabase(page, { user: USER, db, githubRepos: REPOS });
   const upload = page.waitForRequest((r) => r.url().includes('/storage/v1/object/avatars/') && r.method() === 'POST');
   await page.goto('/edit');
-  await page.locator('input[type=file]').setInputFiles({ name: 'me.png', mimeType: 'image/png', buffer: TINY_PNG });
+  await page.locator('[data-field="photo"] input[type=file]').setInputFiles({ name: 'me.png', mimeType: 'image/png', buffer: TINY_PNG });
   await page.getByRole('button', { name: 'Use this photo' }).click();
   await expect(page.locator('.preview-stage img.photo')).toHaveAttribute('src', /^blob:/);
   await expect(page.getByRole('alert')).toHaveCount(0);
@@ -222,7 +222,7 @@ test('the member crops the photo: drag, keyboard and zoom pick what shows on the
     return c.toDataURL('image/png').split(',')[1]!;
   });
   const pick = async () => {
-    await page.locator('input[type=file]').setInputFiles({ name: 'split.png', mimeType: 'image/png', buffer: Buffer.from(photo, 'base64') });
+    await page.locator('[data-field="photo"] input[type=file]').setInputFiles({ name: 'split.png', mimeType: 'image/png', buffer: Buffer.from(photo, 'base64') });
     await expect(page.getByRole('application', { name: /Photo crop/ })).toBeFocused();
     await page.getByLabel('Zoom', { exact: true }).fill('2');
   };
@@ -268,7 +268,7 @@ test('the member crops the photo: drag, keyboard and zoom pick what shows on the
   expect(await saved()).toMatchObject({ colour: 'red' });
 
   // Cancel keeps the photo that was there.
-  await page.locator('input[type=file]').setInputFiles({ name: 'split.png', mimeType: 'image/png', buffer: Buffer.from(photo, 'base64') });
+  await page.locator('[data-field="photo"] input[type=file]').setInputFiles({ name: 'split.png', mimeType: 'image/png', buffer: Buffer.from(photo, 'base64') });
   await page.getByRole('button', { name: 'Cancel' }).click();
   expect(await saved()).toMatchObject({ colour: 'red' });
 });

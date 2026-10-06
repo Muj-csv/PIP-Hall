@@ -1,6 +1,6 @@
 # Museum v3: console frames, app previews, makers' cards, collaborators
 
-Status: **planned** (2026-10-06). Decisions agreed with the user are marked ✔.
+Status: **done** (2026-10-06): all four phases shipped (D-089 to D-092). Decisions agreed with the user are marked ✔.
 
 ## What changes for people
 
@@ -61,7 +61,7 @@ Status: **planned** (2026-10-06). Decisions agreed with the user are marked ✔.
   - The power LED is a separate light that switches on when the console boots.
   - The exhibit page says which console it's on ("On show on a PIXENDO Arcade").
 
-### Phase 4: app previews
+### Phase 4: app previews — done (D-092)
 
 - `previewFor(project)`:
   1. `cover_path` (Storage).
@@ -69,6 +69,9 @@ Status: **planned** (2026-10-06). Decisions agreed with the user are marked ✔.
   3. Otherwise the pixel cover.
 - The image is cropped to the console's screen shape. If it fails to load, it falls back to the pixel cover, so the screen is never blank.
 - The editor hints: "Upload a screenshot to show your app on the console screen."
+- As built:
+  - The cover upload didn't exist in the editor yet, so each project in **My card → Projects** gets a **Screen picture** field (upload, change, remove). It saves with the card and goes public with the next approval.
+  - GitHub's image loads with no referrer; the privacy page says so.
 
 ## Tests and evidence
 

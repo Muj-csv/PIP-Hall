@@ -85,7 +85,8 @@ export default function Privacy() {
       <Section title="Who handles your data">
         <p className="m-0">
           PIP-Hall runs on Supabase (database, sign-in and photo storage) and Vercel (hosting the site). Google and GitHub handle signing
-          in. Your data isn’t sold or shared with anyone else.
+          in. Your data isn’t sold or shared with anyone else. In the Museum, a project that links a public GitHub repo and has no
+          screenshot shows GitHub’s preview image of that repo, loaded from GitHub (no referrer is sent).
         </p>
       </Section>
 
