@@ -85,7 +85,7 @@ export default function Exhibit() {
 
       {exhibit && (
         <article className="exhibit-page" aria-labelledby="exhibit-maker">
-          <ExhibitArt project={exhibit.project} eager />
+          <ExhibitArt project={exhibit.project} featured={exhibit.featured} eager />
           <div className="exhibit-plaque">
             {exhibit.project.description && <p className="m-0">{exhibit.project.description}</p>}
             <Facts exhibit={exhibit} />

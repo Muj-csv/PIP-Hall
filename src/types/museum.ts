@@ -17,6 +17,8 @@ export interface Exhibit {
   full_name: string;
   avatar_path: string | null;
   member_no: number;
+  /** The maker is featured by an admin: their exhibits are pinned on top (D-083). */
+  featured?: boolean;
   project: PublicProject;
 }
 

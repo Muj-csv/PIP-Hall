@@ -1,12 +1,13 @@
 // /museum (D-069): a walk through members' projects, shuffled on every visit. Members with
 // Museum access choose which of their approved projects hang here; exhibits show them as approved.
+// Featured makers' exhibits are pinned in their own row on top; Shuffle never moves them (D-083).
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { DialogueBox } from '../components/dialogue/DialogueBox';
 import { MenuPage } from '../components/shell/MenuPage';
 import { exhibitPath, memberPath } from '../lib/publicUrl';
-import { shuffle } from '../lib/shuffle';
+import { arrangeMuseum } from '../lib/museum';
 import { museumService } from '../services/museumService';
 import { ExhibitArt } from '../components/museum/ExhibitArt';
 import type { Exhibit } from '../types/museum';
@@ -30,9 +31,9 @@ export default function Museum() {
   }, [attempt]);
 
   const exhibits = load.status === 'ready' ? load.exhibits : null;
-  // A new order on every visit and every Shuffle (round is the trigger).
+  // A new order on every visit and every Shuffle (round is the trigger); featured stay pinned.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const order = useMemo(() => (exhibits ? shuffle(exhibits) : []), [exhibits, round]);
+  const { featured, rest } = useMemo(() => arrangeMuseum(exhibits ?? []), [exhibits, round]);
   const retry = useCallback(() => {
     setLoad({ status: 'loading' });
     setAttempt((a) => a + 1);
@@ -53,7 +54,7 @@ export default function Museum() {
       )}
       {exhibits && exhibits.length > 0 && (
         <>
-          <DialogueBox text="Welcome to the Museum: projects from members of the hall, in a new order every visit." />
+          <DialogueBox text={featured.length > 0 ? 'Welcome to the Museum! Featured makers hang up top; the rest are in a new order every visit.' : 'Welcome to the Museum: projects from members of the hall, in a new order every visit.'} />
           <div className="flex flex-wrap items-center gap-space-3">
             <button type="button" className="pixel-btn" data-variant="primary" onClick={() => setRound((r) => r + 1)}>
               <span aria-hidden="true">⟳ </span>Shuffle
@@ -62,13 +63,29 @@ export default function Museum() {
               {exhibits.length} {exhibits.length === 1 ? 'exhibit' : 'exhibits'}
             </p>
           </div>
-          <ul className="museum-grid" aria-label="Exhibits">
-            {order.map((e) => (
-              <li key={e.project_id}>
-                <ExhibitFrame exhibit={e} />
-              </li>
-            ))}
-          </ul>
+          {featured.length > 0 && (
+            <section className="museum-featured" aria-labelledby="museum-featured-title">
+              <h2 id="museum-featured-title" className="panel-title">
+                Featured
+              </h2>
+              <ul className="museum-grid" aria-label="Featured exhibits">
+                {featured.map((e) => (
+                  <li key={e.project_id}>
+                    <ExhibitFrame exhibit={e} />
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+          {rest.length > 0 && (
+            <ul className="museum-grid" aria-label={featured.length > 0 ? 'More exhibits' : 'Exhibits'}>
+              {rest.map((e) => (
+                <li key={e.project_id}>
+                  <ExhibitFrame exhibit={e} />
+                </li>
+              ))}
+            </ul>
+          )}
         </>
       )}
     </MenuPage>
@@ -81,7 +98,7 @@ function ExhibitFrame({ exhibit: e }: { exhibit: Exhibit }) {
   return (
     <article className="exhibit" aria-labelledby={`ex-${e.project_id}`}>
       <Link to={exhibitPath(e.project_id)} className="exhibit-art-link" tabIndex={-1} aria-hidden="true">
-        <ExhibitArt project={p} />
+        <ExhibitArt project={p} featured={e.featured} />
       </Link>
       <div className="exhibit-plaque">
         <h2 id={`ex-${e.project_id}`} className="m-0 font-display text-h3 font-normal">

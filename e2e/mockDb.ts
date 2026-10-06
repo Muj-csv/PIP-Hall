@@ -390,7 +390,7 @@ export async function handleDb(route: Route, db: MockDb, user: DbUser): Promise<
       const card = c?.card as Row | undefined;
       const project = ((card?.projects as Row[] | undefined) ?? []).find((p) => p.id === e.project_id);
       if (!c || !project || !hasMuseum(String(e.member_id))) return [];
-      return [{ project_id: e.project_id, username: c.username, full_name: card!.full_name, avatar_path: card!.avatar_path ?? null, member_no: c.member_no, project }];
+      return [{ project_id: e.project_id, username: c.username, full_name: card!.full_name, avatar_path: card!.avatar_path ?? null, member_no: c.member_no, featured: Boolean(c.is_featured), project }];
     });
     return (await json(200, out)), true;
   }

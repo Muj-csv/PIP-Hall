@@ -1,7 +1,7 @@
 // Every sprite is a clean rectangle and every pixel has a colour from the theme (D-079).
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { CARD_PALETTE, CLIP_PALETTE, DOODLE_PALETTE, FRAME_DOODLES, RANK_GEMS, SPR, WORLD_OVERRIDES, WORLD_PALETTE, type Palette, type SpriteMap } from './sprites';
+import { coverLayers, coverSprite, CARD_PALETTE, CLIP_PALETTE, DOODLE_PALETTE, FRAME_DOODLES, RANK_GEMS, SPR, WORLD_OVERRIDES, WORLD_PALETTE, type Palette, type SpriteMap } from './sprites';
 
 const theme = readFileSync(new URL('../styles/theme.css', import.meta.url), 'utf8');
 const CARD_SPRITES = new Set(['clip', 'flower', 'grass', 'iconCode', 'iconCase', 'iconGlobe', 'block']);
@@ -38,5 +38,18 @@ describe('sprites', () => {
   it('every palette colour is a theme token', () => {
     const palettes = [WORLD_PALETTE, CARD_PALETTE, DOODLE_PALETTE, CLIP_PALETTE, ...Object.values(WORLD_OVERRIDES), ...Object.values(FRAME_DOODLES).map((f) => f.palette), ...Object.values(RANK_GEMS).map((g) => g.palette)];
     for (const p of palettes) for (const v of Object.values(p ?? {})) expect(theme, `${v} is in theme.css`).toContain(`${v}:`);
+  });
+
+  it('the Museum diorama layers rebuild the cover exactly, each pixel on one layer', () => {
+    for (const seed of ['Pixel Garden', 'API', 'a much longer project title here']) {
+      const full = coverSprite(seed);
+      const l = coverLayers(seed);
+      full.forEach((row, y) =>
+        [...row].forEach((ch, x) => {
+          const on = [l.sky, l.hills, l.ground, l.emblem].map((m) => m[y]![x]).filter((c) => c !== '.');
+          expect(on).toEqual([ch]);
+        }),
+      );
+    }
   });
 });

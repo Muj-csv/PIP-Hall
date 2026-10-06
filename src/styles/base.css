@@ -1706,6 +1706,15 @@ textarea.pixel-input {
 }
 
 /* ---------------------------------------------------------------- museum (D-069) */
+/* Featured makers (D-083): their own row on top, on a raised plinth so it reads as a separate wing. */
+.museum-featured {
+  display: grid;
+  gap: 16px;
+  padding: 16px;
+  background: var(--color-surface-raised);
+  border: 3px solid var(--color-border);
+  box-shadow: var(--shadow-hard);
+}
 .museum-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
@@ -1720,8 +1729,16 @@ textarea.pixel-input {
   height: 100%;
   align-content: start;
 }
-/* A gilded pixel frame around the art; the frame look is the same in DAY and NIGHT. */
+/* A gilded pixel frame around the art; the frame look is the same in DAY and NIGHT.
+   Diorama (D-083): the view holds the perspective and takes the pointer (so the hit area never
+   tilts away), the frame tilts, and the cover's layers shift by depth inside it. */
+.exhibit-view {
+  perspective: 900px;
+  --tx: 0;
+  --ty: 0;
+}
 .exhibit-frame {
+  position: relative;
   padding: 12px;
   background: var(--color-card-gold);
   box-shadow:
@@ -1729,13 +1746,100 @@ textarea.pixel-input {
     inset 6px 6px 0 0 var(--color-card-block-hi),
     inset -6px -6px 0 0 var(--color-card-block-shade),
     4px 4px 0 0 var(--color-card-ink);
+  transform: rotateX(calc(var(--ty) * -7deg)) rotateY(calc(var(--tx) * 9deg));
+  transform-style: preserve-3d;
+  transition: transform 160ms steps(4);
+}
+.exhibit-stage {
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 0 0 3px var(--color-card-ink);
 }
 .exhibit-art {
   display: block;
   width: 100%;
   aspect-ratio: 16 / 10;
   object-fit: cover;
-  box-shadow: 0 0 0 3px var(--color-card-ink);
+}
+.exhibit-diorama {
+  position: relative;
+  overflow: hidden;
+}
+/* Each layer is a little larger than the window so its edges never show as it shifts. Deeper
+   layers (higher --depth) move further, against the pointer. */
+.diorama-layer {
+  position: absolute;
+  left: -5%;
+  top: -5%;
+  width: 110%;
+  height: 110%;
+  image-rendering: pixelated;
+  transform: translate(calc(var(--tx) * var(--depth) * -4px), calc(var(--ty) * var(--depth) * -3px));
+  transition: transform 160ms steps(4);
+}
+/* The sky drifts a few pixels on its own, so a still gallery is never frozen. */
+.diorama-layer:first-child {
+  animation: sky-drift 9s steps(9) infinite alternate;
+}
+@keyframes sky-drift {
+  from { translate: -3px 0; }
+  to { translate: 3px 0; }
+}
+/* A hard-edged glint across the glass, sliding with the pointer. */
+.exhibit-glint {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(115deg, transparent 0 30%, color-mix(in srgb, var(--color-card-cream) 35%, transparent) 30% 36%, transparent 36% 40%, color-mix(in srgb, var(--color-card-cream) 20%, transparent) 40% 42%, transparent 42%);
+  transform: translateX(calc(var(--tx) * 18%));
+  transition: transform 160ms steps(4);
+}
+/* A gallery spotlight from above: a stepped cone, no blur. */
+.exhibit-spot {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: color-mix(in srgb, var(--color-card-cream) 16%, transparent);
+  clip-path: polygon(42% 0, 58% 0, 84% 100%, 16% 100%);
+  transform: translateX(calc(var(--tx) * -6px));
+}
+/* Featured frames: a bright band runs around the gold now and then. */
+.exhibit-frame[data-featured]::before {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  pointer-events: none;
+  background: linear-gradient(110deg, transparent 0 44%, var(--color-card-coin-hi) 44% 50%, transparent 50%) 0 0 / 300% 100%;
+  mix-blend-mode: screen;
+  animation: frame-gleam 4.5s steps(18) infinite;
+}
+@keyframes frame-gleam {
+  0% { background-position: 100% 0; }
+  40%, 100% { background-position: 0% 0; }
+}
+/* Phones have no pointer to follow: the frames sway gently instead. */
+@media (hover: none) {
+  .exhibit-frame {
+    animation: frame-sway 7s steps(14) infinite alternate;
+  }
+}
+@keyframes frame-sway {
+  from { transform: rotateY(-6deg) rotateX(2deg); }
+  to { transform: rotateY(6deg) rotateX(-2deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .exhibit-frame,
+  .diorama-layer,
+  .exhibit-glint,
+  .exhibit-spot {
+    transform: none;
+    transition: none;
+    animation: none;
+  }
+  .diorama-layer,
+  .exhibit-frame[data-featured]::before {
+    animation: none;
+  }
 }
 .exhibit-art-blank {
   display: grid;
