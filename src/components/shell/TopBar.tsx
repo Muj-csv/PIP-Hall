@@ -3,6 +3,7 @@ import { useSession } from '../../app/sessionContext';
 import { pipsEnabled } from '../../lib/features';
 import { navSection } from '../../lib/nav';
 import { bellAvailable, NotificationBell } from './NotificationBell';
+import { SeasonBanner } from './SeasonBanner';
 import { CARD_PALETTE, SPR } from '../../lib/sprites';
 import { SpriteCanvas } from '../pixel/SpriteCanvas';
 import { ThemeToggle } from './ThemeToggle';
@@ -54,6 +55,7 @@ export function TopBar() {
           </Link>
         </nav>
       </header>
+      {bellAvailable && <SeasonBanner />}
     </>
   );
 }

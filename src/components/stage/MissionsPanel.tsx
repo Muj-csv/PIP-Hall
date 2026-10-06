@@ -65,7 +65,9 @@ export function MissionsPanel({ cards, onSearch, onRandom, onPips }: Props) {
   const { daily, weekly } = useMemo(() => pickMissions(day, week, cards, exhibits ?? [], member ? me : null, member ? (account?.rerolls ?? 0) : 0), [day, week, cards, exhibits, member, me, account?.rerolls]);
   const all = weekly ? [...daily, weekly] : daily;
   const since = { daily: missionPeriod('daily', now).starts, weekly: missionPeriod('weekly', now).starts };
-  const met = (m: Mission) => missionMet(m, passport.data, cards, since[m.scope]);
+  // This panel holds the daily and weekly Missions; an event's Mission lives in the event panel.
+  const period = (m: Mission) => (m.scope === 'weekly' ? 'weekly' : 'daily');
+  const met = (m: Mission) => missionMet(m, passport.data, cards, since[period(m)]);
   // Guests: a Mission is done the moment the Passport shows it, and stays stamped on this device.
   const guestDone = member ? [] : all.filter((m) => stored.includes(m.key) || met(m)).map((m) => m.key);
   const guestKey = guestDone.join();
@@ -124,7 +126,7 @@ export function MissionsPanel({ cards, onSearch, onRandom, onPips }: Props) {
           <span className="sr-only">{finished ? ' (done)' : ready ? ' (ready to claim)' : ''}</span>
           <span className="text-caption text-text-secondary">
             {' '}
-            · {member ? `+${MISSION_PIPS[m.scope]} PIPs` : 'stamp'}
+            · {member ? `+${MISSION_PIPS[period(m)]} PIPs` : 'stamp'}
           </span>
         </span>
         {ready && member ? (

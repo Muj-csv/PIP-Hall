@@ -9,7 +9,8 @@ import type { Exhibit } from '../types/museum';
 import type { PassportData, Stamp } from './passport';
 import { teamProjects } from './passport';
 
-export type MissionScope = 'daily' | 'weekly';
+/** 'season' is an event's own Mission (V2-7, D-103): one per event, its reward set by the event. */
+export type MissionScope = 'daily' | 'weekly' | 'season';
 export type MissionKind = 'skill' | 'department' | 'tech' | 'team' | 'people' | 'exhibits' | 'departments';
 
 export interface Mission {
@@ -62,7 +63,7 @@ function seeded(seed: string): () => number {
 const pick = <T,>(list: readonly T[], r: () => number): T | undefined => list[Math.floor(r() * list.length)];
 const uniq = (xs: string[]) => [...new Map(xs.filter((x) => x.trim()).map((x) => [x.trim().toLowerCase(), x.trim()])).values()].sort();
 
-function make(scope: MissionScope, label: string, kind: MissionKind, param: string | null, n: number): Mission {
+export function makeMission(scope: MissionScope, label: string, kind: MissionKind, param: string | null, n: number): Mission {
   const key = missionKey(scope, label, kind, param, n);
   switch (kind) {
     case 'skill':
@@ -105,12 +106,12 @@ export function pickMissions(
 
   const r = seeded(rerolls > 0 ? `daily:${day}:r${rerolls}` : `daily:${day}`);
   const pool: Mission[] = [];
-  if (skills.length) pool.push(make('daily', day, 'skill', pick(skills, r)!, 1));
-  if (depts.length) pool.push(make('daily', day, 'department', pick(depts, r)!, 1));
-  if (tech.length) pool.push(make('daily', day, 'tech', pick(tech, r)!, 1));
-  if (teams) pool.push(make('daily', day, 'team', null, 1));
-  if (others.length >= 3) pool.push(make('daily', day, 'people', null, 3));
-  if (showing >= 2) pool.push(make('daily', day, 'exhibits', null, 2));
+  if (skills.length) pool.push(makeMission('daily', day, 'skill', pick(skills, r)!, 1));
+  if (depts.length) pool.push(makeMission('daily', day, 'department', pick(depts, r)!, 1));
+  if (tech.length) pool.push(makeMission('daily', day, 'tech', pick(tech, r)!, 1));
+  if (teams) pool.push(makeMission('daily', day, 'team', null, 1));
+  if (others.length >= 3) pool.push(makeMission('daily', day, 'people', null, 3));
+  if (showing >= 2) pool.push(makeMission('daily', day, 'exhibits', null, 2));
   for (let i = pool.length - 1; i > 0; i--) {
     const j = Math.floor(r() * (i + 1));
     [pool[i], pool[j]] = [pool[j]!, pool[i]!];
@@ -118,9 +119,9 @@ export function pickMissions(
 
   const w = seeded(`weekly:${week}`);
   const weekly: Mission[] = [];
-  if (others.length >= 8) weekly.push(make('weekly', week, 'people', null, 8));
-  if (showing >= 5) weekly.push(make('weekly', week, 'exhibits', null, 5));
-  if (depts.length >= 3) weekly.push(make('weekly', week, 'departments', null, 3));
+  if (others.length >= 8) weekly.push(makeMission('weekly', week, 'people', null, 8));
+  if (showing >= 5) weekly.push(makeMission('weekly', week, 'exhibits', null, 5));
+  if (depts.length >= 3) weekly.push(makeMission('weekly', week, 'departments', null, 3));
   return { daily: pool.slice(0, 3), weekly: pick(weekly, w) ?? null };
 }
 
@@ -155,4 +156,4 @@ export function missionMet(m: Mission, passport: PassportData, cards: readonly P
 export const REROLL = { price: 15, perDay: 1 } as const;
 
 /** PIPs a Mission pays a member (pip_rules() in SQL). */
-export const MISSION_PIPS: Readonly<Record<MissionScope, number>> = { daily: 10, weekly: 40 };
+export const MISSION_PIPS: Readonly<Record<Exclude<MissionScope, 'season'>, number>> = { daily: 10, weekly: 40 };

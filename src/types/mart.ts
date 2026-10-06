@@ -15,6 +15,8 @@ export interface MartItem {
   for_sale?: boolean;
   /** A border designed in /admin (null or absent for the frames drawn in code), or a plate's look. */
   style?: FrameStyle | PlateStyle | null;
+  /** An event's limited frame: the event's last day (YYYY-MM-DD) while it's on sale (D-103). */
+  limited_until?: string | null;
 }
 
 /** Admin → Rewards: every border, with whether it is still offered. */

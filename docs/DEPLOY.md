@@ -97,6 +97,12 @@ Both are safe to run again (they only add columns and replace functions).
 1. Supabase **SQL editor:** run `supabase/migrations/20261006000300_project_collaborators.sql`. Safe to run again.
 2. Check: a member opens **My card → Collaborators**, tags another member of the hall on a project; that member sees the request in their own **Collaborators** panel and accepts. After the owner's next approval, the project's public card lists them.
 
+## Events (V2-7, D-103)
+
+1. Supabase **SQL editor:** run `supabase/migrations/20261006001000_seasons.sql` (after the wings one). Safe to run again. If you ever re-run the identity migration, run this one again after it (both define the PIP MART's shop functions).
+2. In the app: **Admin → Events**. Schedule the first event: name (e.g. Build Week), first and last day, a banner line, an event Mission (e.g. "Meet N people", 3, 30 PIPs) and, if you like, a limited frame.
+3. Check: on its first day every page shows the banner; the hall shows the event panel with real counts; the limited frame is in the PIP MART until the last day.
+
 ## Museum wings (V2-6, D-102)
 
 1. Supabase **SQL editor:** run `supabase/migrations/20261006000900_museum_wings.sql` (after the identity one). Safe to run again; it never overwrites notes you wrote.

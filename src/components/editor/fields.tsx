@@ -50,7 +50,7 @@ export function TextField({
 }: Base & {
   value: string;
   onChange: (v: string) => void;
-  type?: 'text' | 'email' | 'url';
+  type?: 'text' | 'email' | 'url' | 'date' | 'number';
   readOnly?: boolean;
   placeholder?: string;
   autoComplete?: string;

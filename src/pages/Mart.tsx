@@ -14,6 +14,7 @@ import { Unbox } from '../components/mart/Unbox';
 import { MenuPage } from '../components/shell/MenuPage';
 import { pipsEnabled } from '../lib/features';
 import { formatPips } from '../lib/pips';
+import { dateRange } from '../lib/seasons';
 import { isPlateStyle, TITLES, type HallTitle, type PlateStyle, type TitleKey } from '../lib/titles';
 import { useCards } from '../lib/useCards';
 import { martErrorMessage, martNotSetUp, martService, type MyTitles } from '../services/martService';
@@ -377,8 +378,10 @@ interface ItemProps {
 function ItemRow({ item, balance, wearing, confirming, busy, onTry, onAsk, onCancel, onBuy, onWear }: ItemProps) {
   const short = item.price - balance;
   const status = wearing ? 'Wearing' : item.owned ? (item.for_sale === false ? 'Reward' : 'Owned') : `${formatPips(item.price)} PIPs`;
+  // An event's limited frame says until when (D-103), in words.
+  const detail = item.limited_until && !item.owned ? `${item.description} Limited: on sale until ${dateRange(item.limited_until, item.limited_until)}.` : item.description;
   return (
-    <Row name={item.name} detail={item.description} status={status}>
+    <Row name={item.name} detail={detail} status={status}>
       <button type="button" className="pixel-btn" onClick={onTry}>
         Try on
       </button>
