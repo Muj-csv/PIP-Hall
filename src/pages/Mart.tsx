@@ -1,5 +1,6 @@
 // /mart — the PIP MART (E2, D-074…D-076): members in the hall spend PIPs on badge frames and wear
-// them, or wear an affiliation's free perk frame. Every price check and payment is in the database.
+// them, or wear an affiliation's free perk frame. Since V2-5 (D-101) it is also where a member picks
+// which earned title their badge shows, and the plate it sits on. Every check is in the database.
 
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router';
@@ -13,8 +14,9 @@ import { Unbox } from '../components/mart/Unbox';
 import { MenuPage } from '../components/shell/MenuPage';
 import { pipsEnabled } from '../lib/features';
 import { formatPips } from '../lib/pips';
+import { isPlateStyle, TITLES, type HallTitle, type PlateStyle, type TitleKey } from '../lib/titles';
 import { useCards } from '../lib/useCards';
-import { martErrorMessage, martNotSetUp, martService } from '../services/martService';
+import { martErrorMessage, martNotSetUp, martService, type MyTitles } from '../services/martService';
 import type { Appearance, MartItem, MyMart, Perk } from '../types/mart';
 
 type Load = { status: 'loading' } | { status: 'error'; notSetUp: boolean } | { status: 'ready'; mart: MyMart };
@@ -35,6 +37,8 @@ export default function Mart() {
   const [flipped, setFlipped] = useState(false);
   const [qr, setQr] = useState(false);
   const [unboxed, setUnboxed] = useState<MartItem | null>(null);
+  const [titles, setTitles] = useState<MyTitles | null>(null);
+  const [tryPlate, setTryPlate] = useState<PlateStyle | null | undefined>(undefined);
 
   useEffect(() => {
     if (!pipsEnabled || !userId) return;
@@ -43,6 +47,18 @@ export default function Mart() {
       .mine()
       .then((mart) => on && setLoad({ status: 'ready', mart }))
       .catch((e: unknown) => on && setLoad({ status: 'error', notSetUp: martNotSetUp(e) }));
+    return () => {
+      on = false;
+    };
+  }, [userId, attempt]);
+
+  useEffect(() => {
+    if (!pipsEnabled || !userId) return;
+    let on = true;
+    martService
+      .myTitles()
+      .then((t) => on && setTitles(t))
+      .catch(() => on && setTitles(null)); // before the identity update: no titles panel
     return () => {
       on = false;
     };
@@ -86,9 +102,22 @@ export default function Mart() {
       return p ? perkLook(p) : null;
     }
     const item = mart?.items.find((i) => i.key === e.frame && i.owned);
-    return item ? { frame: e.frame, label: null, style: item.style ?? null } : null;
+    return item ? { frame: e.frame, label: null, style: isPlateStyle(item.style) ? null : (item.style ?? null) } : null;
   })();
   const shown = trying === undefined ? wearing : trying;
+  const frames = mart?.items.filter((i) => i.kind !== 'plate') ?? [];
+  const plates = mart?.items.filter((i) => i.kind === 'plate') ?? [];
+  const wornPlate = plates.find((p) => p.owned && p.key === (titles?.plate ?? mart?.equipped.plate)) ?? null;
+  const plateOf = (i: MartItem | null) => (i && isPlateStyle(i.style) ? i.style : null);
+  // The badge preview shows the worn title (or Card Holder, so a plate can be tried on) on the
+  // plate being tried, else the one worn.
+  const previewTitle: HallTitle | null | undefined = titles
+    ? {
+        earned: titles.earned,
+        title: titles.title ?? (tryPlate !== undefined ? 'card_holder' : null),
+        plateStyle: tryPlate === undefined ? plateOf(wornPlate) : tryPlate,
+      }
+    : undefined;
 
   return (
     <MenuPage title="PIP MART" wide>
@@ -142,10 +171,17 @@ export default function Mart() {
             {mine && (
               <div className="grid gap-space-2 content-start">
                 <BadgeStage label={trying === undefined ? 'Your badge' : 'Trying on'}>
-                  <MemberCard card={mine} flipped={flipped} focusable onActivate={() => setFlipped((f) => !f)} onShowQr={() => setQr(true)} appearance={shown} />
+                  <MemberCard card={mine} flipped={flipped} focusable onActivate={() => setFlipped((f) => !f)} onShowQr={() => setQr(true)} appearance={shown} title={previewTitle} />
                 </BadgeStage>
-                {trying !== undefined && (
-                  <button type="button" className="pixel-btn justify-self-center" onClick={() => setTrying(undefined)}>
+                {(trying !== undefined || tryPlate !== undefined) && (
+                  <button
+                    type="button"
+                    className="pixel-btn justify-self-center"
+                    onClick={() => {
+                      setTrying(undefined);
+                      setTryPlate(undefined);
+                    }}
+                  >
                     Stop trying on
                   </button>
                 )}
@@ -170,7 +206,7 @@ export default function Mart() {
                       )}
                     </Row>
                   </li>
-                  {mart.items.map((item) => (
+                  {frames.map((item) => (
                     <li key={item.key}>
                       <ItemRow
                         item={item}
@@ -178,7 +214,7 @@ export default function Mart() {
                         wearing={same(wearing, { frame: item.key, label: null })}
                         confirming={confirm === item.key}
                         busy={busy}
-                        onTry={() => setTrying({ frame: item.key, label: null, style: item.style ?? null })}
+                        onTry={() => setTrying({ frame: item.key, label: null, style: isPlateStyle(item.style) ? null : (item.style ?? null) })}
                         onAsk={() => setConfirm(item.key)}
                         onCancel={() => setConfirm(null)}
                         onBuy={() => void run(() => martService.buy(item.key), `${item.name} is yours! Wear it whenever you like.`, () => setUnboxed(item))}
@@ -188,6 +224,80 @@ export default function Mart() {
                   ))}
                 </ul>
               </section>
+
+              {titles?.eligible && (
+                <section className="menu-panel" aria-labelledby="mart-titles">
+                  <h2 id="mart-titles" className="panel-title">
+                    Your title
+                  </h2>
+                  <p className="m-0 field-hint">Titles are earned, never bought: each comes from something you did in the hall. Pick the one your badge shows.</p>
+                  <ul className="title-list">
+                    <li>
+                      <Row name="No title" detail="Your badge shows no title." status={!titles.title ? 'Wearing' : null}>
+                        {titles.title && (
+                          <button type="button" className="pixel-btn" disabled={busy} onClick={() => void run(() => martService.equipTitle(null), 'Your badge shows no title now.')}>
+                            Wear none
+                          </button>
+                        )}
+                      </Row>
+                    </li>
+                    {TITLES.map((t) => {
+                      const earned = titles.earned.includes(t.key);
+                      return (
+                        <li key={t.key}>
+                          <TitleRow
+                            name={t.name}
+                            rule={t.rule}
+                            earned={earned}
+                            wearing={titles.title === t.key}
+                            busy={busy}
+                            onWear={() => void run(() => martService.equipTitle(t.key as TitleKey), `Your badge now says ${t.name}.`)}
+                          />
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </section>
+              )}
+
+              {titles?.eligible && plates.length > 0 && (
+                <section className="menu-panel" aria-labelledby="mart-plates">
+                  <h2 id="mart-plates" className="panel-title">
+                    Title plates
+                  </h2>
+                  <p className="m-0 field-hint">The plate your title sits on. Cosmetic only: it never changes who sees you.</p>
+                  <ul className="mart-list">
+                    <li>
+                      <Row name="Plain plate" detail="Cream with ink, like the badge." status={!wornPlate ? 'Wearing' : null}>
+                        <button type="button" className="pixel-btn" onClick={() => setTryPlate(null)}>
+                          Try on
+                        </button>
+                        {wornPlate && (
+                          <button type="button" className="pixel-btn" disabled={busy} onClick={() => void run(() => martService.equipPlate(null), 'Back to the plain plate.')}>
+                            Wear plain
+                          </button>
+                        )}
+                      </Row>
+                    </li>
+                    {plates.map((item) => (
+                      <li key={item.key}>
+                        <ItemRow
+                          item={item}
+                          balance={mart.balance}
+                          wearing={wornPlate?.key === item.key}
+                          confirming={confirm === item.key}
+                          busy={busy}
+                          onTry={() => setTryPlate(plateOf(item))}
+                          onAsk={() => setConfirm(item.key)}
+                          onCancel={() => setConfirm(null)}
+                          onBuy={() => void run(() => martService.buy(item.key), `${item.name} is yours! Wear it whenever you like.`, () => setUnboxed(item))}
+                          onWear={() => void run(() => martService.equipPlate(item.key), `Your title is on the ${item.name} now.`)}
+                        />
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
 
               {mart.perks.length > 0 && (
                 <section className="menu-panel" aria-labelledby="mart-perks">
@@ -228,7 +338,9 @@ export default function Mart() {
             const item = unboxed;
             setUnboxed(null);
             setTrying(undefined);
-            void run(() => martService.equip(item.key), `Wearing the ${item.name}.`);
+            setTryPlate(undefined);
+            if (item.kind === 'plate') void run(() => martService.equipPlate(item.key), `Your title is on the ${item.name} now.`);
+            else void run(() => martService.equip(item.key), `Wearing the ${item.name}.`);
           }}
         />
       )}
@@ -293,5 +405,24 @@ function ItemRow({ item, balance, wearing, confirming, busy, onTry, onAsk, onCan
         </button>
       )}
     </Row>
+  );
+}
+
+function TitleRow({ name, rule, earned, wearing, busy, onWear }: { name: string; rule: string; earned: boolean; wearing: boolean; busy: boolean; onWear: () => void }) {
+  return (
+    <div className="mart-row" data-locked={earned ? undefined : true}>
+      <div className="grid gap-[2px]">
+        <b>{name}</b>
+        <span className="text-caption text-text-secondary">{rule}</span>
+        <span className="mart-status">{wearing ? '✓ Wearing' : earned ? 'Earned' : '○ Not earned yet'}</span>
+      </div>
+      <div className="flex flex-wrap gap-space-2">
+        {earned && !wearing && (
+          <button type="button" className="pixel-btn" data-variant="primary" disabled={busy} onClick={onWear}>
+            Wear<span className="sr-only"> {name}</span>
+          </button>
+        )}
+      </div>
+    </div>
   );
 }

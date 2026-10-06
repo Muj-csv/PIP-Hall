@@ -97,6 +97,11 @@ Both are safe to run again (they only add columns and replace functions).
 1. Supabase **SQL editor:** run `supabase/migrations/20261006000300_project_collaborators.sql`. Safe to run again.
 2. Check: a member opens **My card → Collaborators**, tags another member of the hall on a project; that member sees the request in their own **Collaborators** panel and accepts. After the owner's next approval, the project's public card lists them.
 
+## Identity and proof (V2-5, D-101)
+
+1. Supabase **SQL editor:** run `supabase/migrations/20261006000800_identity.sql` (after the notifications one). Safe to run again. If you ever re-run the Missions or admin-rewards migration, run this one again after it.
+2. Check: as an approved member (PIPs on), open **PIP MART**: "Your title" lists the six titles, earned ones can be worn, and the badge shows the title on a plate. Buy a plate and wear it. Open your profile: the **Proof** panel lists your titles. In the hall, **New set for today · 15 PIPs** swaps today's Missions once.
+
 ## Notifications and Recent in the hall (V2-4, D-100)
 
 1. Supabase **SQL editor:** run `supabase/migrations/20261006000700_notifications.sql` (after the Missions one). Safe to run again. If you ever re-run an earlier migration that it changes (the Missions one), run this one again after it.

@@ -1,6 +1,6 @@
 # PIP-Hall v2: the living hall
 
-Status: **in progress** (2026-10-06). No deadline (D-093). Decisions: D-093 to D-100. Rules: `CLAUDE.md` → Product rules.
+Status: **in progress** (2026-10-06). No deadline (D-093). Decisions: D-093 to D-101. Rules: `CLAUDE.md` → Product rules.
 
 ## The problem
 
@@ -104,11 +104,21 @@ Each phase ships on its own, behind a feature switch where it changes the hall, 
   - Before the database update, the app shows neither (no errors).
   - Evidence: `docs/build/evidence/notifications/`.
 
-### V2-5 · Identity and proof (P1)
+### V2-5 · Identity and proof (P1) — done (D-101)
+
+**Loop:** do something real in the hall → a title is earned → wear it (on a plate bought with PIPs) → others see it, and the Proof panel shows why.
 
 - **Proof** panel on profiles: GitHub verified, projects (and their sources), accepted collaborations, skills, last synced.
 - **Titles** earned from behavior (Card Holder, Explorer, Builder, Connector, Curator, Pioneer…), each traceable to events. A member chooses which earned title shows.
 - More **PIP sinks** that respect rule 6: Passport page styles, Pip emotes, badge decorations, Mission rerolls, title plates.
+- Budget: ≤ 6 KB gzipped JS; one more public RPC with the badges (`hall_titles()`), loaded with frames and pins.
+- As built:
+  - Six titles: Card Holder, Pioneer, Explorer, Connector, Curator, Pathfinder. Worked out live by the database from the records that prove them, so one that loses its proof stops showing. Builder stays the rank on the badge (D-080).
+  - The badge shows the chosen title on a plate under the name. Members pick it in the PIP MART ("Your title"), next to the new **Title plates** shelf (Brass, Silver, Plum Enamel), with try-on.
+  - **Mission rerolls**: "New set for today · 15 PIPs", once a day, members only.
+  - The **Proof** panel is on every profile (also in sample-data halls, where it shows no titles).
+  - Not built yet (later phase): Passport page styles, Pip emotes, badge decorations.
+  - Evidence: `docs/build/evidence/identity/`.
 
 ### V2-6 · The Museum as a place (P1)
 
