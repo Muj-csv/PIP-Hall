@@ -1450,6 +1450,7 @@ a.item-slot:focus-visible,
    bottom and right, drawn with hard-edged backgrounds and inset shadows (no images, no blur). */
 .menu-panel {
   --rivet: linear-gradient(var(--color-border), var(--color-border));
+  position: relative;
   display: grid;
   gap: 12px;
   padding: 18px;
@@ -1489,6 +1490,49 @@ a.item-slot:focus-visible,
   letter-spacing: 0.04em;
   /* A dashed pixel rule under the window title. */
   background: linear-gradient(90deg, var(--color-border) 0 6px, transparent 6px 10px) left bottom / 10px 3px repeat-x;
+}
+/* Panels v2 (D-085). Stepped pixel corners: the page colour notches each outer corner by one
+   border width, so the window reads as pixel art rather than a web box. */
+.menu-panel::before {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  pointer-events: none;
+  --notch: linear-gradient(var(--color-bg), var(--color-bg));
+  background:
+    var(--notch) top left / 3px 3px no-repeat,
+    var(--notch) top right / 3px 3px no-repeat,
+    var(--notch) bottom left / 3px 3px no-repeat;
+}
+/* A panel that opens with its title gets a real window title bar, with three window lights. */
+.menu-panel > .panel-title:first-child {
+  margin: -18px -18px 0;
+  padding: 10px 64px 10px 18px;
+  background: var(--color-surface-raised);
+  border-bottom: 3px solid var(--color-border);
+  position: relative;
+}
+.menu-panel > .panel-title:first-child::after {
+  content: '';
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  width: 34px;
+  height: 8px;
+  transform: translateY(-50%);
+  --light: linear-gradient(var(--color-border), var(--color-border));
+  background:
+    var(--light) 0 0 / 8px 8px no-repeat,
+    var(--light) 13px 0 / 8px 8px no-repeat,
+    linear-gradient(var(--color-accent), var(--color-accent)) 26px 0 / 8px 8px no-repeat;
+}
+/* Windows open like a console screen: a short stepped wipe from the middle. */
+.menu-panel {
+  animation: panel-open 240ms steps(4); /* no fill: once open, nothing stays clipped */
+}
+@keyframes panel-open {
+  from { clip-path: inset(48% 0 48% 0); }
+  to { clip-path: inset(-12px); }
 }
 /* The title's marker: a small block in the accent colour with an ink outline. */
 .panel-title::before {
@@ -1793,18 +1837,26 @@ textarea.pixel-input {
     align-items: start;
   }
 }
+/* The Mart shelf (D-085): every item is a tile, two to a row where there is room. */
 .mart-list {
   display: grid;
-  gap: 0;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
+.mart-list > li {
+  display: grid;
+}
 .mart-row {
   display: grid;
-  gap: 8px;
-  padding: 12px 0;
-  border-bottom: 2px dashed var(--color-border);
+  gap: 10px;
+  align-content: space-between;
+  padding: 12px;
+  background: var(--color-surface);
+  border: 3px solid var(--color-border);
+  box-shadow: inset -3px -3px 0 0 var(--color-surface-raised);
 }
 .mart-status {
   font-family: var(--font-display);
@@ -2228,6 +2280,7 @@ textarea.pixel-input {
   .sparkle { display: none; }
   .badge[data-frame] .holder::before, .badge[data-frame] .holder::after { animation: none; }
   .page-dissolve { display: none; }
+  .menu-panel { animation: none; }
   .unbox-flash, .unbox-doodle, .unbox-pip { animation: none; }
   .unbox-flash { display: none; }
   .star-badge[data-twinkle='true'],
