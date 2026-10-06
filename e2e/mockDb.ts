@@ -52,6 +52,9 @@ export interface MockDb {
   /** V2-6 (D-102): Museum wings ({key, kind, name, note, tags, sort, active}). Left undefined,
    *  museum_wings() answers as if the wings update hasn't run yet (PGRST202). */
   wings?: Row[];
+  /** V2-7 (D-103): scheduled events ({key, name, blurb, starts_on, ends_on, mission, frame,
+   *  counts}). Left undefined, current_season() answers as if the events update hasn't run. */
+  seasons?: Row[];
 }
 
 /** The wings the wings migration seeds (no notes: the curators write those). */
@@ -501,6 +504,59 @@ export async function handleDb(route: Route, db: MockDb, user: DbUser): Promise<
     }));
     return (await json(200, rows)), true;
   }
+  // ---- V2-7 events (mirrors 20261006001000_seasons.sql). Dates are compared on the hall's calendar.
+  const manilaToday = () => new Date(Date.now() + 8 * 3600_000).toISOString().slice(0, 10);
+  const liveSeason = () => (db.seasons ?? []).find((x) => String(x.starts_on) <= manilaToday() && manilaToday() <= String(x.ends_on));
+  if (url.pathname === '/rest/v1/rpc/current_season') {
+    if (!db.seasons) return (await err(404, 'PGRST202', 'Could not find the function public.current_season in the schema cache')), true;
+    const live = liveSeason();
+    const next = db.seasons.filter((x) => String(x.starts_on) > manilaToday()).sort((a, b) => String(a.starts_on).localeCompare(String(b.starts_on)))[0];
+    return (await json(200, { live: live ?? null, next: next ? { ...next, counts: null } : null })), true;
+  }
+  if (url.pathname === '/rest/v1/rpc/my_season') {
+    const live = liveSeason();
+    return (await json(200, { eligible: inHall(userId), done: Boolean(live && (db.missionCompletions ?? []).some((r) => r.member_id === userId && r.key === `season:${live.key}`)) })), true;
+  }
+  if (url.pathname === '/rest/v1/rpc/complete_season_mission') {
+    if (!inHall(userId)) return (await err(400, 'P0001', 'NOT_ELIGIBLE')), true;
+    const live = liveSeason();
+    const m = live?.mission as { kind: string; n: number; reward: number } | null | undefined;
+    if (!live || !m) return (await err(400, 'P0001', 'NO_EVENT_MISSION')), true;
+    const key = `season:${live.key}`;
+    if ((db.missionCompletions ?? []).some((r) => r.member_id === userId && r.key === key)) return (await err(400, 'P0001', 'ALREADY_DONE')), true;
+    // The mock checks "meet N people" from discoveries made since the event began (the real check is in SQL).
+    const since = new Date(`${String(live.starts_on)}T00:00:00+08:00`).getTime();
+    const met = (db.discoveries ?? []).filter((r) => r.member_id === userId && Date.parse(String(r.created_at)) >= since).length;
+    if (m.kind !== 'people' || met < m.n) return (await err(400, 'P0001', 'NOT_DONE')), true;
+    (db.missionCompletions ??= []).push({ member_id: userId, key, scope: 'season', period: live.key });
+    grant(db, userId, m.reward, 'mission', `mission:${key}`);
+    return (await json(200, { key, amount: m.reward, balance: balanceOf(db, userId) })), true;
+  }
+  if (url.pathname === '/rest/v1/rpc/admin_seasons') {
+    if (!admin) return (await err(403, '42501', 'NOT_ADMIN')), true;
+    const t = manilaToday();
+    return (await json(200, (db.seasons ?? []).map((x) => ({ ...x, counts: null, state: String(x.ends_on) < t ? 'over' : String(x.starts_on) > t ? 'upcoming' : 'live' })))), true;
+  }
+  if (url.pathname === '/rest/v1/rpc/admin_save_season') {
+    if (!admin) return (await err(403, '42501', 'NOT_ADMIN')), true;
+    const b = body() as { p_key: string; p_name: string; p_blurb: string; p_starts: string; p_ends: string; p_kind: string | null; p_param: string | null; p_n: number | null; p_reward: number | null; p_frame: string | null };
+    if (!b.p_starts || !b.p_ends || b.p_ends < b.p_starts) return (await err(400, 'P0001', 'BAD_DATES')), true;
+    db.seasons ??= [];
+    if (db.seasons.some((x) => x.key !== b.p_key && !(String(x.ends_on) < b.p_starts || String(x.starts_on) > b.p_ends))) return (await err(400, 'P0001', 'OVERLAP')), true;
+    if (b.p_kind && (b.p_reward == null || b.p_reward < 5 || b.p_reward > 200)) return (await err(400, 'P0001', 'BAD_REWARD')), true;
+    const frame = b.p_frame ? MART_ITEMS.find((m) => m.key === b.p_frame) ?? (db.customItems ?? []).find((m) => m.key === b.p_frame) : null;
+    const next = {
+      key: b.p_key, name: b.p_name, blurb: b.p_blurb, starts_on: b.p_starts, ends_on: b.p_ends,
+      mission: b.p_kind ? { kind: b.p_kind, param: b.p_param, n: b.p_n ?? 1, reward: b.p_reward } : null,
+      frame: frame ? { key: frame.key, name: frame.name, price: frame.price } : null,
+      counts: { joined: 0, projects: 0, exhibits: 0, teamups: 0 },
+    };
+    const row = db.seasons.find((x) => x.key === b.p_key);
+    if (row) Object.assign(row, next);
+    else db.seasons.push(next);
+    return (await json(200, null)), true;
+  }
+
   // ---- V2-6 wings (mirrors 20261006000900_museum_wings.sql).
   const wingOrder = (a: Row, b: Row) => Number(a.sort) - Number(b.sort) || String(a.name).localeCompare(String(b.name));
   if (url.pathname === '/rest/v1/rpc/museum_wings') {
@@ -571,6 +627,10 @@ export async function handleDb(route: Route, db: MockDb, user: DbUser): Promise<
     const item = allItems().find((m) => m.key === a.frame);
     return owns(id, String(a.frame)) ? { frame: a.frame, label: null, style: item?.style ?? null } : null;
   };
+  const frameInSeason = (key: string) => {
+    const holders = (db.seasons ?? []).filter((x) => (x.frame as Row | null)?.key === key);
+    return holders.length === 0 || holders.some((x) => x === liveSeason());
+  };
   if (url.pathname === '/rest/v1/rpc/my_mart') {
     if (!userId) return (await err(401, '42501', 'permission denied for function my_mart')), true;
     const a = (db.appearance ?? []).find((r) => r.member_id === userId);
@@ -578,8 +638,8 @@ export async function handleDb(route: Route, db: MockDb, user: DbUser): Promise<
       eligible: inHall(userId),
       balance: balanceOf(db, userId),
       items: allItems()
-        .filter((m) => (m.active && m.for_sale) || owns(userId, String(m.key)))
-        .map((m) => ({ key: m.key, kind: m.kind ?? 'frame', name: m.name, description: m.description, price: m.price, for_sale: m.for_sale, style: m.style, owned: owns(userId, String(m.key)) })),
+        .filter((m) => (m.active && m.for_sale && frameInSeason(String(m.key))) || owns(userId, String(m.key)))
+        .map((m) => ({ limited_until: (db.seasons ?? []).find((x) => (x.frame as Row | null)?.key === m.key && x === liveSeason())?.ends_on ?? null, key: m.key, kind: m.kind ?? 'frame', name: m.name, description: m.description, price: m.price, for_sale: m.for_sale, style: m.style, owned: owns(userId, String(m.key)) })),
       perks: perksOf(userId),
       equipped: { frame: a?.frame ?? null, affiliation: a?.frame_affiliation ?? null, title: a?.title ?? null, plate: a?.plate ?? null },
     })), true;

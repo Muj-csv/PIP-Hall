@@ -1,6 +1,6 @@
 # PIP-Hall v2: the living hall
 
-Status: **in progress** (2026-10-06). No deadline (D-093). Decisions: D-093 to D-102. Rules: `CLAUDE.md` → Product rules.
+Status: **in progress** (2026-10-06). No deadline (D-093). Decisions: D-093 to D-103. Rules: `CLAUDE.md` → Product rules.
 
 ## The problem
 
@@ -133,9 +133,18 @@ Each phase ships on its own, behind a feature switch where it changes the hall, 
   - **Admin → Wings**: rename, reorder, write notes, close or open; add tag wings (1–12 tags) or remove them. Only admins write notes (the open question, answered).
   - Evidence: `docs/build/evidence/wings/`.
 
-### V2-7 · Seasons and events (P1)
+### V2-7 · Seasons and events (P1) — done (D-103)
+
+**Loop:** an admin schedules Build Week → every page shows its banner → members and guests do its Mission and watch the real counters move → the limited frame is there only that week → next event.
 
 - Admin-scheduled events (e.g. **Build Week**): a date range, a sky or banner change, event Missions, one limited frame. Event counters show only real numbers from `hall_events`.
+- Budget: ≤ 6 KB gzipped JS; one public RPC (`current_season()`, cached a minute), one more for members during an event.
+- As built:
+  - **Admin → Events**: name, dates, banner line, event Mission (kind, what it asks, PIPs 5–200), limited frame. Events never overlap; one that has started stays on record.
+  - A **banner** under the top bar on every page (★ during, ◇ "Coming up" within 30 days), and an **event panel** in the hall above Missions with "So far: N joined · N projects · N exhibits · N team-ups", the event Mission and the limited frame.
+  - The banner is the event's look; the sky is unchanged.
+  - Nothing is scheduled by default: the first event and its dates are for the owner to set.
+  - Evidence: `docs/build/evidence/events/`.
 
 ### V2-8 · Network and lineage (density-gated, D-096)
 
@@ -159,4 +168,4 @@ Booth mode (strong for events; revisit before the next fair) · rule-based "Ask 
 
 ## Open questions for later phases
 
-- V2-7: first event and its dates.
+None right now. (Answered: curator notes are admin-only, D-102; the first event is the owner's to schedule in Admin → Events, D-103.)

@@ -43,6 +43,7 @@ import {
 import { HallSearch } from './HallSearch';
 import { Hud } from './Hud';
 import { MissionsPanel } from './MissionsPanel';
+import { SeasonPanel } from './SeasonPanel';
 import { recentAvailable, RecentStrip } from './RecentStrip';
 import { PassportScreen } from './PassportScreen';
 import { MissingScreen, ProfileScreen } from './ProfileScreen';
@@ -644,6 +645,19 @@ export function Hall({ profile = null, passport = false }: HallProps) {
         controlsDisabled={count === 0}
         ledBlink={ledBlink}
       />
+      {recentAvailable && cardsState.status === 'ready' && all.length > 0 && (
+        <SeasonPanel
+          cards={all}
+          onSearch={(patch) => {
+            const next = filtersToParams({ ...NO_FILTERS, q: patch.q ?? '', skill: patch.skill ?? null, department: patch.department ?? null });
+            if (mode !== 'level') navigate({ pathname: '/', search: next.toString() });
+            else setParams(next, { replace: true });
+            screenRef.current?.focus({ preventScroll: true });
+          }}
+          onRandom={randomPlayer}
+          onPips={pips.setBalance}
+        />
+      )}
       {cardsState.status === 'ready' && all.length > 0 && (
         <MissionsPanel
           cards={all}

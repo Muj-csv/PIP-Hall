@@ -151,12 +151,15 @@ test('tabs work from the keyboard', async ({ page }) => {
   await page.keyboard.press('End'); // with PIPs on, Rewards is the last tab (D-087)
   await expect(page.getByRole('tab', { name: 'Rewards' })).toBeFocused();
   await page.keyboard.press('ArrowLeft');
+  await expect(page.getByRole('tab', { name: 'Events' })).toBeFocused(); // V2-7 (D-103)
+  await page.keyboard.press('ArrowLeft');
   await expect(page.getByRole('tab', { name: 'Wings' })).toBeFocused(); // V2-6 (D-102)
   await page.keyboard.press('ArrowLeft');
   await expect(page.getByRole('tab', { name: 'Affiliations' })).toBeFocused();
   await page.keyboard.press('ArrowLeft');
   await expect(page.getByRole('tab', { name: 'Featured (0)' })).toBeFocused();
   await expect(page.locator('.dialogue .sr-only')).toContainText('No featured cards yet');
+  await page.keyboard.press('ArrowRight');
   await page.keyboard.press('ArrowRight');
   await page.keyboard.press('ArrowRight');
   await page.keyboard.press('ArrowRight');

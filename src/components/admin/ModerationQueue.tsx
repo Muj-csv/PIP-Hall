@@ -8,17 +8,19 @@ import { DialogueBox } from '../dialogue/DialogueBox';
 import { pipsEnabled } from '../../lib/features';
 import { AffiliationsManager } from './AffiliationsManager';
 import { RewardsManager } from './RewardsManager';
+import { SeasonsManager } from './SeasonsManager';
 import { WingsManager } from './WingsManager';
 import { PendingReview, PublishedReview } from './ReviewPanel';
 
-type Tab = 'pending' | 'published' | 'featured' | 'affiliations' | 'wings' | 'rewards';
-const TABS: Tab[] = ['pending', 'published', 'featured', 'affiliations', 'wings', ...(pipsEnabled ? (['rewards'] as const) : [])];
-const LABEL: Record<Tab, string> = { pending: 'Pending', published: 'Published', featured: 'Featured', affiliations: 'Affiliations', wings: 'Wings', rewards: 'Rewards' };
+type Tab = 'pending' | 'published' | 'featured' | 'affiliations' | 'wings' | 'events' | 'rewards';
+const TABS: Tab[] = ['pending', 'published', 'featured', 'affiliations', 'wings', 'events', ...(pipsEnabled ? (['rewards'] as const) : [])];
+const LABEL: Record<Tab, string> = { pending: 'Pending', published: 'Published', featured: 'Featured', affiliations: 'Affiliations', wings: 'Wings', events: 'Events', rewards: 'Rewards' };
 /** Tabs that are tools, not lists of cards: no count on the tab. */
-const TOOLS: readonly Tab[] = ['affiliations', 'wings', 'rewards'];
+const TOOLS: readonly Tab[] = ['affiliations', 'wings', 'events', 'rewards'];
 const EMPTY: Record<Tab, string> = {
   affiliations: '',
   wings: '',
+  events: '',
   rewards: '',
   pending: 'Nobody’s waiting for review. New cards show up here when members submit them.',
   published: 'The hall is empty. Approve a card and it hangs here.',
@@ -34,7 +36,7 @@ interface Row {
 export function ModerationQueue({ queue, onDone }: { queue: Queue; onDone: (message: string) => void }) {
   const [tab, setTab] = useState<Tab>('pending');
   const [picked, setPicked] = useState<Partial<Record<Tab, string>>>({});
-  const tabRefs = useRef<Record<Tab, HTMLButtonElement | null>>({ pending: null, published: null, featured: null, affiliations: null, wings: null, rewards: null });
+  const tabRefs = useRef<Record<Tab, HTMLButtonElement | null>>({ pending: null, published: null, featured: null, affiliations: null, wings: null, events: null, rewards: null });
 
   const featured = queue.published.filter((c) => c.is_featured);
   const rows: Record<Tab, Row[]> = {
@@ -43,6 +45,7 @@ export function ModerationQueue({ queue, onDone }: { queue: Queue; onDone: (mess
     featured: featured.map((c) => ({ id: c.profile_id, name: c.card.full_name, detail: `@${c.username} · No.${String(c.no).padStart(3, '0')}` })),
     affiliations: [],
     wings: [],
+    events: [],
     rewards: [],
   };
   const list = rows[tab];
@@ -89,6 +92,8 @@ export function ModerationQueue({ queue, onDone }: { queue: Queue; onDone: (mess
           <AffiliationsManager onDone={onDone} />
         ) : tab === 'wings' ? (
           <WingsManager onDone={onDone} />
+        ) : tab === 'events' ? (
+          <SeasonsManager onDone={onDone} />
         ) : tab === 'rewards' ? (
           <RewardsManager members={queue.published} onDone={onDone} />
         ) : list.length === 0 ? (
