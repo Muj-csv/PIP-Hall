@@ -1,6 +1,6 @@
 # PIP-Hall v2: the living hall
 
-Status: **built** (2026-10-06); the map opens itself when the hall is dense enough. No deadline (D-093). Decisions: D-093 to D-105. Rules: `CLAUDE.md` → Product rules.
+Status: **built** (2026-10-06); the map opens itself when the hall is dense enough. **Next: `V2-NEXT.md`** (V2-9 to V2-17). No deadline (D-093). Decisions: D-093 to D-105. Rules: `CLAUDE.md` → Product rules.
 
 ## The problem
 
