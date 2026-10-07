@@ -8,7 +8,7 @@
 1. `docs/DECISIONS.md` — what's decided. Don't relitigate; flag a concern once and move on.
 2. `docs/ARCHITECTURE.md` — stack, data model, security, routes, folders.
 3. `docs/design/DESIGN_BRIEF.md` + `src/styles/theme.css` — how it looks and moves.
-4. `docs/plan/V2-LIVING-HALL.md` — the v2 plan and its phases. Do only the phase you're on, then **stop and report**.
+4. `docs/plan/V2-LIVING-HALL.md` (V2-0 to V2-8, built) and `docs/plan/V2-NEXT.md` (V2-9 onward) — the v2 plans and their phases. Do only the phase you're on, then **stop and report**.
 5. `docs/build/PHASE-N.md` — v1 phase briefs (history).
 The original spec is in `docs/spec/`. Where it conflicts with the files above, the files above win (e.g. D-008 full colour replaces monochrome).
 
@@ -42,7 +42,7 @@ The original spec is in `docs/spec/`. Where it conflicts with the files above, t
 12. **Wait for density.** The network graph and project lineage ship only once the hall has enough verified relationships to look alive (about 30 members, judged by projects and collaborations, D-096).
 
 ## Not yet justified
-Build only when a plan justifies it (and the owner says go): update emails · sound · booth mode · reactions · extra themes · multi-org · private repos · AI features (any "Ask Pip" stays rule-based and free; no paid AI service).
+Build only when a plan justifies it (and the owner says go): update emails · reactions · extra themes · multi-org (design note only, D-106) · private repos · AI features (any "Ask Pip" stays rule-based and free; no paid AI service). Sound, booth mode and rule-based Ask Pip are now planned in `docs/plan/V2-NEXT.md` (D-109, D-110).
 
 ## Commands
 ```bash
