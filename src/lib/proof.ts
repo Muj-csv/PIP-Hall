@@ -4,6 +4,7 @@
 
 import type { PublicCard } from '../types/card';
 import { collaborationsOf } from './collab';
+import { awardLabel, type HallAward } from './events';
 import { titleOf, type HallTitle } from './titles';
 
 export interface ProofLine {
@@ -27,7 +28,7 @@ export function githubOwner(url: string | null | undefined): string | null {
 
 const list = (xs: readonly string[]) => (xs.length <= 1 ? (xs[0] ?? '') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`);
 
-export function proofOf(card: PublicCard, hall: readonly PublicCard[], titles: HallTitle | null): ProofLine[] {
+export function proofOf(card: PublicCard, hall: readonly PublicCard[], titles: HallTitle | null, awards: readonly HallAward[] = []): ProofLine[] {
   const c = card.card;
   const gh = c.github_username?.toLowerCase() ?? null;
   const lines: ProofLine[] = [];
@@ -64,6 +65,15 @@ export function proofOf(card: PublicCard, hall: readonly PublicCard[], titles: H
       mark: '✓',
       text: `Card approved ${approved.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}.`,
       sub: 'What you see here is the card as an admin approved it.',
+    });
+  }
+
+  // Results the admins recorded and announced (D-116): one line per award, newest first.
+  for (const a of awards) {
+    lines.push({
+      mark: '★',
+      text: `${awardLabel(a)} at ${a.event}${a.title ? ` with “${a.title}”` : ''}.`,
+      sub: 'Recorded by the hall’s admins when the results were announced.',
     });
   }
 

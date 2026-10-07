@@ -769,6 +769,159 @@ try {
   await c.query(readFileSync(join(here, '..', 'migrations', '20261006001000_seasons.sql'), 'utf8'));
   await expectOk(c, 'the events migration is safe to run twice', ADMIN, `select admin_seasons() as s`, [], (r) => r.rows[0].s.some((x) => x.key === 'build-week' && x.state === 'over'));
 
+  console.log('hackathons: tracks, submissions and winners (D-115 to D-117)');
+  // The events migration was re-run above; this one comes after it again.
+  await c.query(readFileSync(join(here, '..', 'migrations', '20261007000000_hackathons.sql'), 'utf8'));
+  const day = (d, h = 0) => `((${today} + ${d})::timestamp + interval '${h} hours') at time zone 'Asia/Manila'`;
+  const hack = (key, from, to, ev, tracks, close, results) =>
+    `select admin_save_season('${key}', 'Spring Hackathon', 'Build something in a weekend.', ${today} + ${from}, ${today} + ${to}, null, null, null, null, null, ${ev}, ${tracks}, ${close}, ${results})`;
+  const TRACKS = `array['Health','Education']`;
+  await expectErr(c, 'the old way of saving an event is gone', ADMIN, `select admin_save_season('x', 'X event', '', ${today} + 60, ${today} + 61, null, null, null, null, null)`, [], /does not exist/);
+  await expectErr(c, 'members cannot schedule a hackathon', A, hack('spring-hack', 40, 42, `'hackathon'`, TRACKS, day(41), day(42)), [], /NOT_ADMIN/);
+  await expectErr(c, 'an event is a plain event, a hackathon or a building event', ADMIN, hack('h1', 40, 42, `'party'`, 'null', 'null', 'null'), [], /BAD_EVENT_KIND/);
+  await expectErr(c, 'a hackathon needs a submissions deadline and a results time', ADMIN, hack('h1', 40, 42, `'hackathon'`, 'null', 'null', 'null'), [], /BAD_SCHEDULE/);
+  await expectErr(c, '…submissions close after it starts', ADMIN, hack('h1', 40, 42, `'hackathon'`, 'null', day(40), day(42)), [], /BAD_SCHEDULE/);
+  await expectErr(c, '…results come after submissions close', ADMIN, hack('h1', 40, 42, `'hackathon'`, 'null', day(41, 12), day(41)), [], /BAD_SCHEDULE/);
+  await expectErr(c, '…and both fall within its dates', ADMIN, hack('h1', 40, 42, `'hackathon'`, 'null', day(41), day(44)), [], /BAD_SCHEDULE/);
+  await expectErr(c, 'at most 6 tracks', ADMIN, hack('h1', 40, 42, `'hackathon'`, `array['Aa','Bb','Cc','Dd','Ee','Ff','Gg']`, day(41), day(42)), [], /BAD_TRACKS/);
+  await expectErr(c, '…no two alike', ADMIN, hack('h1', 40, 42, `'hackathon'`, `array['Health','health']`, day(41), day(42)), [], /BAD_TRACKS/);
+  await expectErr(c, '…each 2 to 30 characters', ADMIN, hack('h1', 40, 42, `'build'`, `array['H']`, day(41), day(42)), [], /BAD_TRACKS/);
+  await expectOk(c, 'an admin schedules a hackathon with two tracks', ADMIN, hack('spring-hack', 20, 22, `'hackathon'`, `array[' Health ','Education','']`, day(21), day(22)), []);
+  await expectOk(c, 'visitors see it coming, with its tracks and schedule', 'anon', `select current_season() as s`, [], (r) => {
+    const n = r.rows[0].s.next;
+    return n?.key === 'spring-hack' && n.kind === 'hackathon' && n.phase === 'upcoming' && JSON.stringify(n.tracks) === '["Health","Education"]' && n.submissions_close && n.results_at && n.announced_at === null;
+  });
+  await expectOk(c, 'a plain event keeps no schedule', ADMIN, `select admin_seasons() as s`, [], (r) => {
+    const b = r.rows[0].s.find((x) => x.key === 'build-week');
+    return b.kind === 'event' && b.phase === 'over' && b.submissions_close === null && b.tracks.length === 0;
+  });
+  const P1live = (await c.query(`select live_project_ids($1) as ids`, [A])).rows[0].ids;
+  const otherA = P1live.find((id) => id !== P1);
+  await expectErr(c, 'nothing can be submitted before it starts', A, `select submit_to_event('spring-hack', $1, 'Health')`, [P1], /SUBMISSIONS_CLOSED/);
+  // It starts (yesterday, the day after Build Week ended); submissions close in an hour.
+  await expectOk(c, 'it is moved to now: submissions close in an hour, results in two', ADMIN, hack('spring-hack', -1, 3, `'hackathon'`, TRACKS, `now() + interval '1 hour'`, `now() + interval '2 hours'`), []);
+  await expectOk(c, 'the live event says submissions are open, with none yet', 'anon', `select current_season() as s`, [], (r) => r.rows[0].s.live?.key === 'spring-hack' && r.rows[0].s.live.phase === 'open' && r.rows[0].s.live.counts.submissions === 0);
+  // Another maker: Ms[5] gets a project approved.
+  await as(c, Ms[5], `update profiles set full_name='Em Five' where id=$1`, [Ms[5]]);
+  const Q = (await as(c, Ms[5], `insert into projects (profile_id, title) values ($1, 'Kite') returning id`, [Ms[5]])).rows[0].id;
+  await as(c, Ms[5], `select submit_for_review()`);
+  await as(c, ADMIN, `select approve_profile($1)`, [Ms[5]]);
+  await expectErr(c, 'visitors cannot submit', 'anon', `select submit_to_event('spring-hack', $1, 'Health')`, [P1], /permission denied/);
+  const N = '00000000-0000-0000-0000-00000000000e';
+  await c.query(`insert into auth.users (id, email) values ($1, 'n@x.test')`, [N]);
+  await expectErr(c, 'a member out of the hall cannot submit', N, `select submit_to_event('spring-hack', $1, 'Health')`, [P1], /NOT_ELIGIBLE/);
+  await expectErr(c, 'a member cannot submit someone else’s project', A, `select submit_to_event('spring-hack', $1, 'Health')`, [Q], /NOT_LIVE/);
+  const draftQ = (await as(c, Ms[5], `insert into projects (profile_id, title) values ($1, 'Kite 2') returning id`, [Ms[5]])).rows[0].id;
+  await expectErr(c, '…nor a project that isn’t on their approved card', Ms[5], `select submit_to_event('spring-hack', $1, 'Health')`, [draftQ], /NOT_LIVE/);
+  await expectErr(c, 'an event with tracks needs one', A, `select submit_to_event('spring-hack', $1, null)`, [P1], /BAD_TRACK/);
+  await expectErr(c, '…one of its own', A, `select submit_to_event('spring-hack', $1, 'Gaming')`, [P1], /BAD_TRACK/);
+  await expectErr(c, 'a plain event takes no submissions', A, `select submit_to_event('build-week', $1, null)`, [P1], /NO_SUCH_EVENT/);
+  await expectOk(c, 'a member submits a project on their card to a track', A, `select submit_to_event('spring-hack', $1, 'Health') as s`, [P1], (r) => r.rows[0].s.track === 'Health');
+  await expectSu(c, '…which the hall hears about', `select visibility, metadata->>'season' as k from hall_events where event_type='EVENT_SUBMITTED' and actor_id=$1 and target_id=$2`, [A, P1], (r) => r.rowCount === 1 && r.rows[0].visibility === 'public' && r.rows[0].k === 'spring-hack');
+  await expectOk(c, 'they can move it to another track', A, `select submit_to_event('spring-hack', $1, 'Education') as s`, [P1], (r) => r.rows[0].s.track === 'Education');
+  await expectSu(c, '…without a second announcement', `select count(*)::int as n from hall_events where event_type='EVENT_SUBMITTED' and actor_id=$1`, [A], (r) => r.rows[0].n === 1);
+  await expectErr(c, 'one project per member per event', A, `select submit_to_event('spring-hack', $1, 'Health')`, [otherA], /ONE_PER_EVENT/);
+  await expectOk(c, 'the member sees what they submitted', A, `select my_season() as s`, [], (r) => r.rows[0].s.submission?.project_id === P1 && r.rows[0].s.submission.track === 'Education');
+  await expectOk(c, 'another member submits theirs', Ms[5], `select submit_to_event('spring-hack', $1, 'Health')`, [Q]);
+  await expectOk(c, 'the event room shows both, as on the cards, with no results yet', 'anon', `select museum_events() as e`, [], (r) => {
+    const e = r.rows[0].e.find((x) => x.key === 'spring-hack');
+    return e && e.entries.length === 2 && e.entries.some((x) => x.project_id === P1 && x.track === 'Education' && x.project.title) && e.entries.some((x) => x.project_id === Q && x.username) && e.awards.length === 0;
+  });
+  await expectOk(c, 'plain events have no room', 'anon', `select museum_events() as e`, [], (r) => !r.rows[0].e.some((x) => x.key === 'build-week'));
+  await expectOk(c, 'Recent in the hall says who submitted to what', 'anon', `select recent_hall_events(20) as r`, [], (r) => r.rows[0].r.some((x) => x.type === 'EVENT_SUBMITTED' && x.project_id === P1 && x.event === 'Spring Hackathon' && x.event_key === 'spring-hack'));
+  await expectErr(c, 'submissions are not read directly', 'anon', `select * from event_submissions`, [], /permission denied/);
+  await expectErr(c, '…not even by members', A, `select * from event_submissions`, [], /permission denied/);
+  await expectErr(c, 'members cannot write submissions directly', A, `insert into event_submissions (season_key, project_id, member_id) values ('spring-hack', $1, $2)`, [otherA, A], /permission denied/);
+  await expectOk(c, 'a member can withdraw while submissions are open', A, `select withdraw_from_event('spring-hack')`, []);
+  await expectOk(c, '…and the strip forgets it', 'anon', `select recent_hall_events(20) as r`, [], (r) => !r.rows[0].r.some((x) => x.type === 'EVENT_SUBMITTED' && x.project_id === P1));
+  await expectErr(c, '…once', A, `select withdraw_from_event('spring-hack')`, [], /NOT_SUBMITTED/);
+  await as(c, A, `select submit_to_event('spring-hack', $1, 'Education')`, [P1]);
+  await expectErr(c, 'no awards while submissions are open', ADMIN, `select admin_save_award('spring-hack', $1, 1, null, null, 'Great')`, [P1], /STILL_OPEN/);
+  await expectErr(c, '…and no announcement', ADMIN, `select admin_announce_results('spring-hack')`, [], /STILL_OPEN/);
+
+  // Submissions close (a minute ago): judging.
+  await as(c, ADMIN, hack('spring-hack', -1, 3, `'hackathon'`, TRACKS, `now() - interval '1 minute'`, `now() + interval '1 hour'`));
+  await expectOk(c, 'after the deadline the event is being judged', 'anon', `select current_season() as s`, [], (r) => r.rows[0].s.live.phase === 'judging' && r.rows[0].s.live.counts.submissions === 2);
+  await expectErr(c, 'nothing can be submitted after the deadline', A, `select submit_to_event('spring-hack', $1, 'Health')`, [P1], /SUBMISSIONS_CLOSED/);
+  await expectErr(c, '…or withdrawn', Ms[5], `select withdraw_from_event('spring-hack')`, [], /SUBMISSIONS_CLOSED/);
+  await expectErr(c, 'members cannot record awards', A, `select admin_save_award('spring-hack', $1, 1, null, null, '')`, [P1], /NOT_ADMIN/);
+  await expectErr(c, 'an award is a place or a name, not both', ADMIN, `select admin_save_award('spring-hack', $1, 1, 'Best UI', null, '')`, [P1], /BAD_AWARD/);
+  await expectErr(c, '…places are 1st to 3rd', ADMIN, `select admin_save_award('spring-hack', $1, 4, null, null, '')`, [P1], /BAD_AWARD/);
+  await expectErr(c, 'only submitted projects can win', ADMIN, `select admin_save_award('spring-hack', $1, 1, null, null, '')`, [otherA], /NOT_SUBMITTED/);
+  await expectErr(c, 'a track award goes to a project in that track', ADMIN, `select admin_save_award('spring-hack', $1, null, 'Best UI', 'Health', '')`, [P1], /BAD_TRACK/);
+  await expectErr(c, 'the judges’ note is at most 200 characters', ADMIN, `select admin_save_award('spring-hack', $1, 1, null, null, repeat('x', 201))`, [P1], /BAD_NOTE/);
+  let firstId;
+  await expectOk(c, 'an admin records 1st place with the judges’ note', ADMIN, `select admin_save_award('spring-hack', $1, 1, null, null, 'A clear idea, beautifully shipped.') as id`, [P1], (r) => (firstId = r.rows[0].id) > 0);
+  await expectOk(c, '…2nd place', ADMIN, `select admin_save_award('spring-hack', $1, 2, null, null, '')`, [Q]);
+  await expectOk(c, '…and a named award in a track', ADMIN, `select admin_save_award('spring-hack', $1, null, ' Best UI ', 'Health', 'Lovely to use.')`, [Q]);
+  await expectErr(c, 'each place has one winner', ADMIN, `select admin_save_award('spring-hack', $1, 1, null, null, '')`, [Q], /AWARD_TAKEN/);
+  await expectErr(c, '…each named award too (any case)', ADMIN, `select admin_save_award('spring-hack', $1, null, 'best ui', 'Health', '')`, [Q], /AWARD_TAKEN/);
+  await expectErr(c, 'a project takes one place', ADMIN, `select admin_save_award('spring-hack', $1, 3, null, null, '')`, [P1], /AWARD_TAKEN/);
+  const pick = (await as(c, ADMIN, `select admin_save_award('spring-hack', $1, null, 'People''s Pick', null, '') as id`, [P1])).rows[0].id;
+  await expectOk(c, 'an award can be taken back before the announcement', ADMIN, `select admin_delete_award($1)`, [pick]);
+  await expectErr(c, 'awards are not read directly', 'anon', `select * from event_awards`, [], /permission denied/);
+  await expectOk(c, 'admins see the entries and every award', ADMIN, `select admin_event_results('spring-hack') as r`, [], (r) =>
+    r.rows[0].r.entries.length === 2 && r.rows[0].r.awards.length === 3 && r.rows[0].r.announced_at === null && r.rows[0].r.entries.every((e) => e.on_card && e.title));
+  await expectErr(c, '…members don’t', A, `select admin_event_results('spring-hack')`, [], /NOT_ADMIN/);
+  await expectOk(c, 'nothing is public before the announcement', 'anon', `select museum_events() as e, hall_awards() as w`, [], (r) =>
+    r.rows[0].e.find((x) => x.key === 'spring-hack').awards.length === 0 && r.rows[0].w.length === 0);
+  await expectOk(c, '…and nobody is a Champion yet', A, `select my_titles() as t`, [], (r) => r.rows[0].t.titles.some((t) => t.key === 'champion' && !t.earned));
+  await expectErr(c, 'submissions can’t reopen once judging has begun', ADMIN, hack('spring-hack', -1, 3, `'hackathon'`, TRACKS, `now() + interval '1 hour'`, `now() + interval '2 hours'`), [], /IN_USE/);
+  await expectErr(c, 'a track that has entries can’t be removed', ADMIN, hack('spring-hack', -1, 3, `'hackathon'`, `array['Health']`, `now() - interval '1 minute'`, `now() + interval '1 hour'`), [], /IN_USE/);
+  await expectErr(c, 'members cannot announce', A, `select admin_announce_results('spring-hack')`, [], /NOT_ADMIN/);
+
+  const makersOf = async (pid, owner) => {
+    const card = (await c.query(`select card from published_cards where profile_id=$1`, [owner])).rows[0].card;
+    const names = (card.projects.find((p) => p.id === pid)?.collaborators ?? []).map((m) => m.username);
+    const ids = (await c.query(`select profile_id from published_cards where username = any($1)`, [names])).rows.map((r) => r.profile_id);
+    return [owner, ...ids];
+  };
+  // A teammate on the winning project: tagged, accepted, and on the approved card.
+  await as(c, A, `select tag_collaborator($1, (select username from published_cards where profile_id=$2))`, [P1, Ms[6]]);
+  await as(c, Ms[6], `select respond_collaboration($1, true)`, [P1]);
+  await reapprove();
+  const p1Makers = await makersOf(P1, A);
+  await expectOk(c, 'the admin announces the results: every credited maker hears what they won', ADMIN, `select admin_announce_results('spring-hack') as r`, [], (r) => r.rows[0].r.makers === p1Makers.length + 2);
+  await expectErr(c, '…once', ADMIN, `select admin_announce_results('spring-hack')`, [], /ALREADY_ANNOUNCED/);
+  await expectErr(c, 'the winners are fixed after the announcement', ADMIN, `select admin_save_award('spring-hack', $1, 3, null, null, '')`, [Q], /ALREADY_ANNOUNCED/);
+  await expectErr(c, '…none can be taken back', ADMIN, `select admin_delete_award($1)`, [firstId], /ALREADY_ANNOUNCED/);
+  await expectOk(c, '…but a judges’ note can be corrected', ADMIN, `select admin_award_note($1, 'A clear idea, shipped beautifully.')`, [firstId]);
+  await expectErr(c, 'members cannot edit notes', A, `select admin_award_note($1, 'Mine!')`, [firstId], /NOT_ADMIN/);
+  await expectSu(c, 'the hall hears the results once', `select count(*)::int as n, bool_and(actor_id is null and visibility='public') as ok from hall_events where event_type='RESULTS_ANNOUNCED' and target_id='spring-hack'`, [], (r) => r.rows[0].n === 1 && r.rows[0].ok);
+  await expectOk(c, 'visitors see the results in the event room', 'anon', `select museum_events() as e`, [], (r) => {
+    const e = r.rows[0].e.find((x) => x.key === 'spring-hack');
+    return e.phase === 'results' && e.awards.length === 3 && e.awards.some((a) => a.place === 1 && a.project_id === P1 && a.note === 'A clear idea, shipped beautifully.') && e.awards.some((a) => a.name === 'Best UI' && a.track === 'Health');
+  });
+  await expectOk(c, '…and the banner can say the results are in', 'anon', `select current_season() as s`, [], (r) => r.rows[0].s.results?.key === 'spring-hack' && r.rows[0].s.results.announced_at);
+  await expectOk(c, 'Recent in the hall announces the results', 'anon', `select recent_hall_events(20) as r`, [], (r) => r.rows[0].r.some((x) => x.type === 'RESULTS_ANNOUNCED' && x.event === 'Spring Hackathon' && x.event_key === 'spring-hack'));
+  await expectOk(c, 'every maker of a winning project wears its ribbon, the credited teammate too', 'anon', `select hall_awards() as w`, [], (r) => {
+    const of = (id) => r.rows[0].w.find((x) => x.profile_id === id)?.awards ?? [];
+    return p1Makers.length > 1 && p1Makers.every((id) => of(id).some((a) => a.place === 1 && a.event === 'Spring Hackathon' && a.project_id === P1))
+      && of(Ms[5]).length === 2 && of(Ms[9]).length === 0;
+  });
+  await expectOk(c, 'the bell tells a winner what they won', A, `select my_notifications() as n`, [], (r) => r.rows[0].n.items.some((x) => x.type === 'AWARD_WON' && x.place === 1 && x.event === 'Spring Hackathon' && x.target_id === P1 && x.title));
+  await expectOk(c, '…and a track award with its name and track', Ms[5], `select my_notifications() as n`, [], (r) => r.rows[0].n.items.some((x) => x.type === 'AWARD_WON' && x.award === 'Best UI' && x.track === 'Health'));
+  await expectOk(c, 'a teammate hears it too', p1Makers[1], `select my_notifications() as n`, [], (r) => r.rows[0].n.items.some((x) => x.type === 'AWARD_WON' && x.target_id === P1));
+  await expectOk(c, 'winners earn the Champion title', A, `select my_titles() as t`, [], (r) => r.rows[0].t.titles.some((t) => t.key === 'champion' && t.earned));
+  await expectOk(c, '…and can wear it', A, `select equip_title('champion')`, []);
+  await expectOk(c, 'others don’t', Ms[9], `select my_titles() as t`, [], (r) => r.rows[0].t.titles.some((t) => t.key === 'champion' && !t.earned));
+  await expectErr(c, '…and can’t wear it', Ms[9], `select equip_title('champion')`, [], /NOT_EARNED/);
+  await expectOk(c, 'the hall shows it on the badge', 'anon', `select hall_titles() as t`, [], (r) => r.rows[0].t.find((x) => x.profile_id === A)?.title === 'champion');
+  await expectOk(c, 'opening an exhibit in an event room stamps the Passport', Ms[9], `select stamp_exhibit($1) as s`, [Q], (r) => r.rows[0].s === true);
+  await expectOk(c, '…but not your own', Ms[5], `select stamp_exhibit($1) as s`, [Q], (r) => r.rows[0].s === false);
+  await c.query(readFileSync(join(here, '..', 'migrations', '20261007000000_hackathons.sql'), 'utf8'));
+  await expectOk(c, 'the hackathons migration is safe to run twice, and keeps the results', 'anon', `select museum_events() as e`, [], (r) => {
+    const e = r.rows[0].e.find((x) => x.key === 'spring-hack');
+    return e.phase === 'results' && e.entries.length === 2 && e.awards.length === 3;
+  });
+  await c.query(readFileSync(join(here, '..', 'migrations', '20261006000700_notifications.sql'), 'utf8'));
+  await expectSu(c, 'running the notifications migration again keeps the new event types', `select pg_get_constraintdef(oid) as d from pg_constraint where conname='hall_events_event_type_check'`, [], (r) => /AWARD_WON/.test(r.rows[0].d));
+  await c.query(readFileSync(join(here, '..', 'migrations', '20261007000000_hackathons.sql'), 'utf8'));
+  // A winning project deleted by its maker takes its entry and award with it (rule 4).
+  await as(c, Ms[5], `delete from projects where id=$1`, [Q]);
+  await expectOk(c, 'a deleted project leaves the event room, and its ribbons go with it', 'anon', `select museum_events() as e, hall_awards() as w`, [], (r) =>
+    r.rows[0].e.find((x) => x.key === 'spring-hack').entries.length === 1 && !r.rows[0].w.some((x) => x.profile_id === Ms[5]));
+
   console.log('account deletion');
   await expectErr(c, 'anon cannot call delete_my_account', 'anon', `select delete_my_account()`, [], /permission denied/);
   await expectOk(c, 'member deletes own account', B, `select delete_my_account()`, []);

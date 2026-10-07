@@ -3,6 +3,7 @@
 // decides what is live (current_season()) and checks the Mission before paying; this file turns
 // an event into words. Counters are real numbers from public hall_events; nothing is made up.
 
+import type { EventKind, EventPhase } from './events';
 import { makeMission, type Mission, type MissionKind } from './missions';
 
 export interface SeasonMission {
@@ -22,15 +23,24 @@ export interface Season {
   mission: SeasonMission | null;
   frame: { key: string; name: string; price: number } | null;
   /** Only for a live event: what happened in the hall during it. */
-  counts: { joined: number; projects: number; exhibits: number; teamups: number } | null;
+  counts: { joined: number; projects: number; exhibits: number; teamups: number; submissions?: number } | null;
+  // Hackathons and building events (V2-9, D-115). Missing before the hackathons update: a plain event.
+  kind?: EventKind;
+  tracks?: string[];
+  submissions_close?: string | null;
+  results_at?: string | null;
+  announced_at?: string | null;
+  phase?: EventPhase;
 }
 
 export interface CurrentSeason {
   live: Season | null;
   next: Season | null;
+  /** An event whose results were announced in the last 7 days. */
+  results: Season | null;
 }
 
-export const NO_SEASON: CurrentSeason = { live: null, next: null };
+export const NO_SEASON: CurrentSeason = { live: null, next: null, results: null };
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const parts = (d: string) => {
@@ -61,8 +71,15 @@ export function seasonStart(s: Season): Date {
   return new Date(Date.UTC(y, m, d) - 8 * 3600_000);
 }
 
-/** "3 joined · 5 projects · 2 exhibits · 1 team-up": every number real, zeros included. */
-export function countsLine(c: NonNullable<Season['counts']>): string {
+/** "3 joined · 5 projects · 2 exhibits · 1 team-up": every number real, zeros included. An event
+ *  that takes submissions says how many first. */
+export function countsLine(c: NonNullable<Season['counts']>, entries = false): string {
   const n = (v: number, one: string, many: string) => `${v} ${v === 1 ? one : many}`;
-  return [n(c.joined, 'joined', 'joined'), n(c.projects, 'project', 'projects'), n(c.exhibits, 'exhibit', 'exhibits'), n(c.teamups, 'team-up', 'team-ups')].join(' · ');
+  return [
+    ...(entries ? [n(c.submissions ?? 0, 'entry', 'entries')] : []),
+    n(c.joined, 'joined', 'joined'),
+    n(c.projects, 'project', 'projects'),
+    n(c.exhibits, 'exhibit', 'exhibits'),
+    n(c.teamups, 'team-up', 'team-ups'),
+  ].join(' · ');
 }

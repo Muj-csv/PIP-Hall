@@ -1,6 +1,6 @@
 # PIP-Hall v2, part two: the Museum, hackathons, and a hall that comes alive
 
-Status: **planned** (2026-10-07). Follows `V2-LIVING-HALL.md` (V2-0 to V2-8, all built). No deadline (D-093). Decisions: D-106 to D-120 (the owner's answers, 2026-10-07). Rules: `CLAUDE.md` → Product rules.
+Status: **V2-9 built** (2026-10-07); V2-10 next. Follows `V2-LIVING-HALL.md` (V2-0 to V2-8, all built). No deadline (D-093). Decisions: D-106 to D-120 (the owner's answers, 2026-10-07). Rules: `CLAUDE.md` → Product rules.
 
 ## Why this round
 
@@ -35,7 +35,9 @@ Same discipline as before: one phase at a time, SQL first where there is SQL, ev
 
 ## Phases
 
-### V2-9 · Hackathons: tracks, submissions and winners (P0)
+### V2-9 · Hackathons: tracks, submissions and winners (P0) · built
+
+Built as planned (details: D-121). Evidence: `docs/build/evidence/hackathons/`. The Winners' Hall and event rooms live in today's Museum page until V2-11 makes it walkable.
 
 **Loop:** an admin schedules a hackathon → members submit their projects during the window → the event's room in the Museum fills up → judges' results are announced → winners are acknowledged in the Museum, on their badges and in the hall → people come back for the next one.
 

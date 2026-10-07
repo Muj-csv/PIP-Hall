@@ -97,6 +97,14 @@ Both are safe to run again (they only add columns and replace functions).
 1. Supabase **SQL editor:** run `supabase/migrations/20261006000300_project_collaborators.sql`. Safe to run again.
 2. Check: a member opens **My card → Collaborators**, tags another member of the hall on a project; that member sees the request in their own **Collaborators** panel and accepts. After the owner's next approval, the project's public card lists them.
 
+## Hackathons and winners (V2-9, D-115 to D-117)
+
+1. Supabase **SQL editor:** run `supabase/migrations/20261007000000_hackathons.sql` (after the events one) **before** merging the app update: the new Admin → Events form saves events the new way. Safe to run again. If you ever re-run the events (seasons) or notifications migration, run this one again after it.
+2. In the app: **Admin → Events → Schedule an event**. Pick **Kind: Hackathon** (or Building event). Its first day is the kickoff and its last day the results day. Add tracks if you want them (e.g. "Health, Education"), when submissions close and when results are expected (Manila time).
+3. While submissions are open, members with an approved card enter one project each from the event panel in the hall (`/#event`), in a track. Entries hang in the event's Museum room (`/museum?event=<key>`) from the first day.
+4. After the deadline: **Admin → Events → Results**. Record 1st, 2nd and 3rd place and any named awards (overall or per track) with a short judges' note. Check them, then **Announce results**. That can't be undone: the hall announces it, every winning maker hears it in their bell, winners wear a ribbon on their badge and earn the **Champion** title, and the Museum's **Winners' Hall** shows them. A typo in a judges' note can still be fixed with **Edit note**.
+5. Check: `/museum` opens with the Winners' Hall; the banner says "Results are in!" for a week.
+
 ## Map of the hall (V2-8, D-105)
 
 No SQL. After the deploy, `/network` says how close the hall is to opening the map (30 members with projects and 10 team-ups). As an admin you can open it now to preview. When the hall gets there, a **Map** button appears in the hall by Passport for everyone.

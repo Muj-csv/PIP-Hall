@@ -1,6 +1,8 @@
 // /museum/:id — one exhibit on its own page (D-073): the framed project as approved, its plaque,
 // its links, its maker, a Share button, and the neighbouring exhibits. Shareable like a badge.
 // Since V2-6 (D-102) it also says which wings it hangs in and leads on to others in them.
+// Since V2-9 (D-115, D-116) a project entered in a hall event opens here too, and its plaque says
+// which event it was entered in, and what it won there.
 
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router';
@@ -17,10 +19,13 @@ import { useCards } from '../lib/useCards';
 import { usePassport } from '../lib/usePassport';
 import type { PublicCard } from '../types/card';
 import { DEFAULT_WINGS, relatedTo, wingPath, type Wing } from '../lib/wings';
+import { awardLabel, eventRoomPath, winnersOf, type MuseumEvent } from '../lib/events';
+import { Ribbon } from '../components/museum/Ribbon';
+import { eventService } from '../services/eventService';
 import { museumService } from '../services/museumService';
 import type { Exhibit as ExhibitRow } from '../types/museum';
 
-type Load = { status: 'loading' } | { status: 'error' } | { status: 'ready'; exhibits: ExhibitRow[] };
+type Load = { status: 'loading' } | { status: 'error' } | { status: 'ready'; exhibits: ExhibitRow[]; events: MuseumEvent[] };
 
 export default function Exhibit() {
   const { id = '' } = useParams();
@@ -33,9 +38,14 @@ export default function Exhibit() {
 
   useEffect(() => {
     let on = true;
-    museumService
-      .exhibits()
-      .then((exhibits) => on && setLoad({ status: 'ready', exhibits }))
+    // Event rooms are extra: if they can't be read, the Museum's own exhibits still open.
+    Promise.all([museumService.exhibits(), eventService.museumEvents().catch(() => [])])
+      .then(([shown, events]) => {
+        if (!on) return;
+        const seen = new Set(shown.map((e) => e.project_id));
+        const entered = events.flatMap((ev) => ev.entries).filter((e) => !seen.has(e.project_id) && (seen.add(e.project_id), true));
+        setLoad({ status: 'ready', exhibits: [...shown, ...entered], events });
+      })
       .catch(() => on && setLoad({ status: 'error' }));
     museumService
       .wings()
@@ -65,6 +75,17 @@ export default function Exhibit() {
   const withNames = (exhibit?.project.collaborators ?? []).map((c) => c.full_name);
   const kind = exhibit ? consoleFor(exhibit.project_id, exhibit.console) : null;
   const around = useMemo(() => (exhibit ? relatedTo(exhibit, wings, ordered) : { wings: [], related: [] }), [exhibit, wings, ordered]);
+  // The events it was entered in, each with what it won (announced results only).
+  const entries = useMemo(
+    () =>
+      load.status === 'ready' && exhibitId
+        ? load.events.flatMap((ev) => {
+            const entry = ev.entries.find((x) => x.project_id === exhibitId);
+            return entry ? [{ event: ev, track: entry.track, awards: winnersOf(ev).filter((w) => w.entry.project_id === exhibitId).map((w) => w.award) }] : [];
+          })
+        : [],
+    [load, exhibitId],
+  );
 
   const share = async () => {
     if (!exhibit) return;
@@ -115,6 +136,35 @@ export default function Exhibit() {
         <article className="exhibit-page" aria-labelledby="exhibit-maker">
           <ExhibitArt project={exhibit.project} console={kind!} featured={exhibit.featured} eager />
           <div className="exhibit-plaque">
+            {entries.map(({ event, track, awards }) =>
+              awards.length > 0 ? (
+                awards.map((a) => (
+                  <div key={`${event.key}-${a.place ?? a.name}-${a.track ?? ''}`} className="award-plate" data-place={a.place ?? 'award'}>
+                    <Ribbon award={a} />
+                    <span>
+                      <b>{awardLabel(a)}</b> at{' '}
+                      <Link to={eventRoomPath(event.key)} className="underline decoration-2">
+                        {event.name}
+                      </Link>
+                      {a.note && (
+                        <q className="award-note">
+                          <span className="sr-only">Judges’ note: </span>
+                          {a.note}
+                        </q>
+                      )}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <p key={event.key} className="m-0">
+                  <span aria-hidden="true">⚑ </span>Entered in{' '}
+                  <Link to={eventRoomPath(event.key)} className="underline decoration-2">
+                    {event.name}
+                  </Link>
+                  {track && <> · {track} track</>}
+                </p>
+              ),
+            )}
             {exhibit.project.description && <p className="m-0">{exhibit.project.description}</p>}
             <Facts exhibit={exhibit} />
             <p id="exhibit-maker" className="m-0">

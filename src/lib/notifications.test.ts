@@ -49,6 +49,10 @@ describe('notificationLine', () => {
     expect(notificationLine(n({ type: 'ACHIEVEMENT_UNLOCKED', title: 'Explorer' }), 'ada')).toEqual({ text: 'Achievement unlocked: Explorer!', to: '/member/ada' });
     expect(notificationLine(n({ type: 'MEMBER_FEATURED' }), null)?.to).toBe('/');
   });
+  it('tells a winner what their project won, and where, and leads to the exhibit', () => {
+    expect(notificationLine(n({ type: 'AWARD_WON', target_id: 'p1', title: 'Kite', event: 'Spring Hackathon', place: 1 }), 'ada')).toEqual({ text: '“Kite” won 1st place at Spring Hackathon!', to: '/museum/p1' });
+    expect(notificationLine(n({ type: 'AWARD_WON', target_id: 'p1', title: 'Kite', event: 'Spring Hackathon', award: 'Best UI', track: 'Health' }), null)?.text).toBe('“Kite” won Best UI · Health track at Spring Hackathon!');
+  });
   it('drops kinds it doesn’t know', () => {
     expect(notificationLine(n({ type: 'MISSION_COMPLETED' as HallNotification['type'] }), 'ada')).toBeNull();
   });
@@ -100,5 +104,15 @@ describe('ago', () => {
     expect(ago('2026-10-05T10:00:00Z', now)).toBe('yesterday');
     expect(ago('2026-10-03T12:00:00Z', now)).toBe('3 days ago');
     expect(ago('2026-09-01T12:00:00Z', now)).toMatch(/Sep/);
+  });
+});
+
+describe('event lines in Recent (V2-9)', () => {
+  it('names who entered what in which event', () => {
+    expect(recentLine(r({ type: 'EVENT_SUBMITTED', title: 'Kite', project_id: 'p1', event: 'Spring Hackathon', event_key: 'spring-hack' }))).toEqual({ text: 'Ada L entered “Kite” in Spring Hackathon.', to: '/museum/p1' });
+  });
+  it('announces results with no member attached, and leads to the event room', () => {
+    expect(recentLine(r({ type: 'RESULTS_ANNOUNCED', username: null, full_name: null, event: 'Spring Hackathon', event_key: 'spring-hack' }))).toEqual({ text: 'Results are in for Spring Hackathon!', to: '/museum?event=spring-hack' });
+    expect(recentLine(r({ type: 'RESULTS_ANNOUNCED', username: null, event: null, event_key: null }))).toBeNull();
   });
 });

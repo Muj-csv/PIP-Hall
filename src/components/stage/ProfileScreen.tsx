@@ -36,8 +36,10 @@ export function ProfileScreen({ card, onBack, onShowQr, reward = null, hall = []
   const affiliations = useAffiliations(card.profile_id);
   const rank = rankOf(c.projects.length);
   const collabs = useMemo(() => collaborationsOf(card.username, hall), [card.username, hall]);
-  const titles = useAppearance().titleOf(card.profile_id);
-  const proof = useMemo(() => proofOf(card, hall, titles), [card, hall, titles]);
+  const look = useAppearance();
+  const titles = look.titleOf(card.profile_id);
+  const awards = look.awardsOf(card.profile_id);
+  const proof = useMemo(() => proofOf(card, hall, titles, awards), [card, hall, titles, awards]);
   useEffect(() => back.current?.focus(), []);
   // Opened from a badge's QR (?via=qr): greet the finder once, then tidy the address (V2-1).
   const [params, setParams] = useSearchParams();

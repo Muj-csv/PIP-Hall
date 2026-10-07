@@ -16,10 +16,17 @@ alter table public.hall_events add column if not exists recipient_id uuid refere
 update public.hall_events set recipient_id = coalesce((metadata->>'owner')::uuid, actor_id) where recipient_id is null;
 create index if not exists hall_events_recipient_idx on public.hall_events (recipient_id, created_at desc);
 
-alter table public.hall_events drop constraint if exists hall_events_event_type_check;
-alter table public.hall_events add constraint hall_events_event_type_check check (event_type in (
-  'CARD_APPROVED', 'PROJECT_PUBLISHED', 'EXHIBIT_ADDED', 'COLLAB_ACCEPTED', 'ACHIEVEMENT_UNLOCKED',
-  'MISSION_COMPLETED', 'MEMBER_FEATURED', 'COLLAB_REQUESTED', 'CARD_REJECTED', 'COLLAB_PUBLISHED'));
+-- Only widens: running this file again after a later migration added more types keeps them.
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'hall_events_event_type_check'
+                  and pg_get_constraintdef(oid) like '%COLLAB_PUBLISHED%') then
+    alter table public.hall_events drop constraint if exists hall_events_event_type_check;
+    alter table public.hall_events add constraint hall_events_event_type_check check (event_type in (
+      'CARD_APPROVED', 'PROJECT_PUBLISHED', 'EXHIBIT_ADDED', 'COLLAB_ACCEPTED', 'ACHIEVEMENT_UNLOCKED',
+      'MISSION_COMPLETED', 'MEMBER_FEATURED', 'COLLAB_REQUESTED', 'CARD_REJECTED', 'COLLAB_PUBLISHED'));
+  end if;
+end $$;
 
 -- The recipient comes from metadata.recipient, else metadata.owner, else the actor. log_event()
 -- keeps its signature, so the D-099 functions don't change.

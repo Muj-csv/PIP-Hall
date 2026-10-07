@@ -80,5 +80,13 @@ describe('proofOf', () => {
     const ada = card('ada', { projects: [project({ title: 'Kite', collaborators: [{ username: 'bo', full_name: 'Name bo', member_no: 2 }] })] });
     expect(proofOf(ada, [ada, bo], null).map((l) => l.text)).toContain('Team projects: “Kite” with Name bo.');
     expect(proofOf(bo, [ada, bo], null).map((l) => l.text)).toEqual(['No GitHub account linked.', 'Team projects: “Kite” with Name ada.', 'Card approved 6 Oct 2026.']);
+    const won = proofOf(bo, [ada, bo], null, [
+      { event_key: 'spring-hack', event: 'Spring Hackathon', place: 1, name: null, track: null, project_id: 'k', title: 'Kite', at: '2026-10-12T10:00:00Z' },
+      { event_key: 'spring-hack', event: 'Spring Hackathon', place: null, name: 'Best UI', track: 'Health', project_id: 'k', title: 'Kite', at: '2026-10-12T10:00:00Z' },
+    ]);
+    expect(won.filter((l) => l.mark === '★').map((l) => l.text)).toEqual([
+      '1st place at Spring Hackathon with “Kite”.',
+      'Best UI · Health track at Spring Hackathon with “Kite”.',
+    ]);
   });
 });

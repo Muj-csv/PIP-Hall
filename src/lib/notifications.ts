@@ -2,6 +2,7 @@
 // database (my_notifications, recent_hall_events); this file only turns an event into words and a
 // place to go. Nothing here invents activity (product rule 7): an event we don't know is dropped.
 
+import { awardLabel, eventRoomPath } from './events';
 import { exhibitPath, memberPath } from './publicUrl';
 
 export type NotificationType =
@@ -11,7 +12,8 @@ export type NotificationType =
   | 'COLLAB_ACCEPTED'
   | 'COLLAB_PUBLISHED'
   | 'ACHIEVEMENT_UNLOCKED'
-  | 'MEMBER_FEATURED';
+  | 'MEMBER_FEATURED'
+  | 'AWARD_WON';
 
 export interface HallNotification {
   id: number;
@@ -21,6 +23,11 @@ export interface HallNotification {
   target_id: string | null;
   title: string | null;
   note: string | null;
+  /** AWARD_WON: the event and what was won (V2-9). */
+  event?: string | null;
+  place?: 1 | 2 | 3 | null;
+  award?: string | null;
+  track?: string | null;
   by_username: string | null;
   by_name: string | null;
 }
@@ -30,18 +37,30 @@ export interface MyNotifications {
   items: HallNotification[];
 }
 
-export type RecentType = 'CARD_APPROVED' | 'PROJECT_PUBLISHED' | 'EXHIBIT_ADDED' | 'COLLAB_PUBLISHED' | 'ACHIEVEMENT_UNLOCKED' | 'MEMBER_FEATURED';
+export type RecentType =
+  | 'CARD_APPROVED'
+  | 'PROJECT_PUBLISHED'
+  | 'EXHIBIT_ADDED'
+  | 'COLLAB_PUBLISHED'
+  | 'ACHIEVEMENT_UNLOCKED'
+  | 'MEMBER_FEATURED'
+  | 'EVENT_SUBMITTED'
+  | 'RESULTS_ANNOUNCED';
 
 export interface RecentEvent {
   id: number;
   type: RecentType;
   at: string;
-  username: string;
-  full_name: string;
+  /** Null for a results announcement (the hall's, not a member's). */
+  username: string | null;
+  full_name: string | null;
   title: string | null;
   project_id: string | null;
   with_username: string | null;
   with_name: string | null;
+  /** EVENT_SUBMITTED and RESULTS_ANNOUNCED: which event (V2-9). */
+  event_key?: string | null;
+  event?: string | null;
 }
 
 export interface Line {
@@ -73,6 +92,11 @@ export function notificationLine(n: HallNotification, me: string | null): Line |
       return { text: `Achievement unlocked: ${n.title ?? 'a new one'}!`, to: mine };
     case 'MEMBER_FEATURED':
       return { text: 'You’re featured in the hall!', to: mine };
+    case 'AWARD_WON':
+      return {
+        text: `${quoted(n.title)} won ${awardLabel({ place: n.place ?? null, name: n.award ?? null, track: n.track ?? null })}${n.event ? ` at ${n.event}` : ''}!`,
+        to: n.target_id ? exhibitPath(n.target_id) : '/museum',
+      };
     default:
       return null;
   }
@@ -92,6 +116,8 @@ export function unread(data: MyNotifications | null): number {
 
 /** One public event as a sentence and a link. Every line names a real member and goes to them. */
 export function recentLine(e: RecentEvent): Line | null {
+  if (e.type === 'RESULTS_ANNOUNCED') return e.event && e.event_key ? { text: `Results are in for ${e.event}!`, to: eventRoomPath(e.event_key) } : null;
+  if (!e.username) return null;
   const who = e.full_name || e.username;
   switch (e.type) {
     case 'CARD_APPROVED':
@@ -106,6 +132,8 @@ export function recentLine(e: RecentEvent): Line | null {
       return e.title ? { text: `${who} unlocked ${e.title}.`, to: memberPath(e.username) } : null;
     case 'MEMBER_FEATURED':
       return { text: `${who} is featured in the hall.`, to: memberPath(e.username) };
+    case 'EVENT_SUBMITTED':
+      return e.event ? { text: `${who} entered ${quoted(e.title)} in ${e.event}.`, to: e.project_id ? exhibitPath(e.project_id) : '/museum' } : null;
     default:
       return null;
   }

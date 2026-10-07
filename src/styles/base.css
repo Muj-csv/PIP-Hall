@@ -3144,6 +3144,77 @@ textarea.pixel-input {
   scroll-margin-top: 16px;
 }
 
+/* ---------------------------------------------------------------- hackathons (V2-9, D-115, D-116)
+   The Winners' Hall is a trophy room: a gold-trimmed hall where each winning exhibit stands on a
+   stepped pedestal, its plate carrying the ribbon (with the place's number drawn on it), the award
+   in words and the judges' note. The words and the number say the place; the gold only dresses it. */
+.season-status {
+  font-family: var(--font-display);
+  letter-spacing: 0.04em;
+}
+.event-entry {
+  padding-top: 12px;
+  box-shadow: inset 0 2px 0 var(--color-border);
+}
+.winners-hall {
+  display: grid;
+  gap: 16px;
+  padding: 16px;
+  background: var(--color-surface-raised);
+  border: 3px solid var(--color-border);
+  box-shadow: inset 0 0 0 4px var(--color-card-coin), inset 0 0 0 7px var(--color-card-coin-shade), var(--shadow-hard);
+}
+.winners-hall > .panel-title,
+.winners-hall > p {
+  padding: 0 4px;
+}
+.trophy-case {
+  display: grid;
+  gap: 12px;
+  padding: 4px;
+}
+.pedestal {
+  display: grid;
+  align-content: start;
+}
+/* Two pixel steps under the exhibit: the plinth and its base. */
+.pedestal::after {
+  content: '';
+  height: 20px;
+  background:
+    linear-gradient(var(--color-card-coin), var(--color-card-coin)) 50% 0 / 72% 8px no-repeat,
+    linear-gradient(var(--color-card-coin-shade), var(--color-card-coin-shade)) 50% 8px / 88% 12px no-repeat;
+}
+.award-plate {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 8px;
+  background: var(--color-surface-raised);
+  box-shadow: inset 0 0 0 2px var(--color-border);
+}
+.award-plate[data-place='1'] {
+  box-shadow: inset 0 0 0 2px var(--color-border), inset 6px 0 0 var(--color-card-coin);
+}
+.ribbon-icon {
+  flex: none;
+  width: 18px;
+  height: auto;
+  image-rendering: pixelated;
+}
+.award-note {
+  display: block;
+  margin-top: 2px;
+  font-style: italic;
+}
+/* Ribbons ride the badge's holder strip beside the admin-made pins. */
+.pin-ribbon {
+  display: block;
+  height: 10px;
+  width: auto;
+  image-rendering: pixelated;
+}
+
 /* ---------------------------------------------------------------- the map (V2-8, D-105)
    Shapes, not colours, tell people, projects and skills apart (■ ◆ ▪), and the caption says so.
    Lighting up a person dims what isn't linked to them; nothing moves on its own. */
