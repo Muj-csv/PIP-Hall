@@ -1,126 +1,157 @@
-# PIP-Hall v2, part two: the hall comes alive
+# PIP-Hall v2, part two: the Museum, hackathons, and a hall that comes alive
 
-Status: **planned** (2026-10-07). Follows `V2-LIVING-HALL.md` (V2-0 to V2-8, all built). No deadline (D-093). Decisions: D-106 to D-113 (the owner's answers, 2026-10-07). Rules: `CLAUDE.md` → Product rules.
+Status: **planned** (2026-10-07). Follows `V2-LIVING-HALL.md` (V2-0 to V2-8, all built). No deadline (D-093). Decisions: D-106 to D-120 (the owner's answers, 2026-10-07). Rules: `CLAUDE.md` → Product rules.
 
 ## Why this round
 
-The audit of the original v2 review (30 points) found most of it built. What's left falls into three groups:
+Two things drive it.
 
-- **Gaps** in things that were built ("mostly built"): two Missions, connected projects, the QR landing, the badge PNG, member progress, a Mentor title, Museum wings with character, event skies, more PIP sinks.
-- **The best candidates** not built at all: the design rules reworded as invariants (#18) and a world that reacts to real events (#26).
-- **#29**: Ask Pip, booth mode and sound (P2); multi-org (P3, design only).
+1. **The owner's assignment:** compile previous student projects and hackathon outputs, and find a unique, interactive way to show them *beyond a standard laptop display, like a museum display*. The organization runs hackathons and other building events, and winners should be showcased and acknowledged. So the Museum becomes the centrepiece: events with tracks, submissions and winners; an archive of past projects; a museum you walk through; and physical showcase pieces (kiosk tour, printable placards, a phone companion, posters).
+2. **The rest of the v2 review** (30 points): the gaps in what was built, a world that reacts to real events (#26), the design rules reworded as invariants (#18), and #29 (Ask Pip, sound; multi-org on paper).
 
 Same discipline as before: one phase at a time, SQL first where there is SQL, every feature states its loop and budget, then stop and report.
+
+**Names stay data.** The code never names a host organization (D-029, D-067). Event names ("… Hackathon 2026"), award names ("Best UI") and track names are typed in Admin; the organization appears only there and in affiliations.
 
 ## Decisions taken for this round (2026-10-07)
 
 | # | Question | Answer |
 |---|---|---|
-| D-106 | Multi-org (#29) | **Design only.** One hall stays. An architecture note (ADR-003) describes how halls would be separated, so it's ready if a second organization asks. No code |
-| D-107 | World-centric device (#25) | **START menu + iris.** A START button on the device opens an in-device menu (HALL, MUSEUM, PASSPORT, MAP, MART); choosing one irises into that place. The Museum and Mart keep full-size pages |
-| D-108 | New PIP cosmetics (#8) | **All four:** badge stickers (public), Pip outfits, Passport covers, hall effects (the last three only visible to the owner) |
-| D-109 | Booth mode (#29) | **Kiosk + check-in stamp.** Full-screen attract mode for a laptop or projector, a big QR, and a Passport stamp for visitors who check in during that event (no PIPs for guests) |
-| D-110 | Sound (#29) | **Effects only, off by default.** Original 8-bit effects synthesized in the browser (no audio files, nothing borrowed); a speaker toggle, remembered on the device |
-| D-111 | Mentor title (#10) | **Built with 2 newer members:** credited on team projects with 2 different members who joined the hall after you |
-| D-112 | Member progress (#10) | **Only to the member.** "Missions completed" and achievement progress show in your own Passport and My card; the public profile keeps proof (titles, achievements), no activity counts |
-| D-113 | Event look (#9) | **A sky per event.** The admin picks one of a few original skies (Dusk, Starry night, Festival with bunting) when scheduling; the hall changes for the event's dates |
+| D-106 | Multi-org | **Design only** (ADR-003, V2-19). One hall stays; no code |
+| D-107 | World-centric device | **START menu + iris** (V2-15). The Museum and PIP MART keep full-size pages |
+| D-108 | New PIP cosmetics | **All four:** badge stickers (public), Pip outfits, Passport covers, hall effects (owner-only) |
+| D-109 | Booth mode | **Kiosk + check-in stamp**, now part of the showcase (V2-12) |
+| D-110 | Sound | **Effects only, off by default**, synthesized in the browser (V2-18) |
+| D-111 | Mentor title | **Built with 2 newer members** (V2-13) |
+| D-112 | Member progress | **Only to the member** (V2-13) |
+| D-113 | Event look | **A sky per event** (V2-14) |
+| D-114 | Priority | **Museum and hackathons first**: V2-9 to V2-12, then the rest |
+| D-115 | Hackathon events | Events get a **kind** (hackathon or other building events), **tracks**, a **submission window** where members submit projects, a **schedule with countdowns**, and **results** |
+| D-116 | Winners | **Placements + named awards** per event (1st, 2nd, 3rd, and awards like "Best UI", optionally per track), each with a **judges' note**. Winning projects get a trophy plaque in the Museum's **Winners' Hall**; winning members get a **ribbon pin** on their badge and a bell notification; the hall announces results |
+| D-117 | Champion title | **Yes:** earned by being a credited maker of a project that won a placement or award in a recorded event |
+| D-118 | Past projects | **Admin-curated archive**: admins add past projects and hackathon outputs with event, year, links, picture and makers. Makers who are members link to their badges; others appear by name **only if they agreed**, otherwise by team name. Members can claim an archive project; an admin confirms |
+| D-119 | Museum look | **A walkable Museum**: Pip walks through rooms (Winners' Hall, each event, each wing, the archive by year), exhibits hang on the walls in their consoles with plaques. A plain list stays for keyboards, screen readers and small phones |
+| D-120 | Showcase pieces | **All four:** a kiosk museum tour, printable placards, a phone companion (scan a placard → the exhibit + a stamp), and exhibit and winners posters (PNG) |
 
-## Phases (suggested order)
+## Phases
 
-The order puts the cheap, high-value gaps first, then the things that make the world feel alive, then the bigger features. Say if you want a different order.
+### V2-9 · Hackathons: tracks, submissions and winners (P0)
 
-### V2-9 · Close the gaps (P1, small)
+**Loop:** an admin schedules a hackathon → members submit their projects during the window → the event's room in the Museum fills up → judges' results are announced → winners are acknowledged in the Museum, on their badges and in the hall → people come back for the next one.
+
+- **Event kinds** (D-115): *Hackathon* and *Building event* (Build Week, workshop, showcase…). The kind changes the words and what's offered; the name is the admin's.
+- **Schedule:** submissions open, submissions close, results. The banner counts down to the next one ("Submissions close in 2 days"), and shows "Results are in!" once announced.
+- **Tracks:** an event can have up to 6 tracks (names typed by the admin, e.g. Health, Education). A submission picks one.
+- **Submissions:** during the window, a member submits one of their own projects (with its collaborators) to the event, choosing a track. It appears in the event's room in the Museum once it's on their approved card (ADR-002: public pages only show approved snapshots). One project per event per owner can be withdrawn until the window closes. No Museum-access affiliation is needed for event rooms.
+- **Results** (D-116): after the window, the admin records **1st, 2nd, 3rd** and any **named awards** ("Best UI", "People's Pick"), overall or per track, each with a short **judges' note** (up to 200 characters), then presses **Announce**. Until then nothing is public.
+- **On announce:**
+  - the hall's Recent strip says "Results are in for <event>" and lists the winners;
+  - every credited maker who is a member hears it in the bell ("Your project 'Kite' won 1st place in <event>");
+  - winning members get a **ribbon pin** on their badge (gold, silver, bronze or award ribbon; shape and words, not colour alone);
+  - **Champion** title (D-117) for credited makers of winning projects;
+  - the Proof panel lists the award with its event.
+- **SQL:** event kind, schedule and tracks on `hall_seasons`; `event_submissions`; `event_awards` (placement or award name, track, note, project or archive exhibit); `announce_results()` (admin, once, logs public events); submission functions with the window and ownership checks; awards in `earned_titles()`, `hall_titles()`, `card_pins()`; security tests for every rule (no submissions outside the window, nothing public before announce, only admins record results, a project can't win twice the same award).
+- Budget: ≤ 6 KB gzipped JS; one RPC for the event panel; no change to the hall's first load.
+
+### V2-10 · The archive: past projects and hackathon outputs (P0)
+
+**Loop:** an admin compiles past work → it hangs in the Museum next to today's → a former maker who joins finds it and claims it → their badge links to it.
+
+- **Admin → Archive** (D-118): add a past project with title, description, links (site, code, video), a picture, the **event and year** (an existing event, or a typed name for older ones), its **award** if it won one, and the makers.
+- **Makers:** each maker is either a **member** (picked, linked to their badge) or a **typed name** shown only if the admin ticks "These makers agreed to be named"; otherwise the exhibit shows the **team name** (or "a team of 4").
+- **Claim:** a member sees "Is this yours? Claim it" on an archive exhibit that names them; an admin confirms, and the exhibit links to their badge (and counts for Connector, Curator and Champion where it applies).
+- Archive exhibits hang in the Museum alongside members' exhibits: in their event's room, in matching wings (by language or tools), in the Winners' Hall if they won, and in **The Archive** (by year).
+- Real people only, entered by admins; nothing is invented (rule 7). Pictures are stored as paths (D-027).
+- **SQL:** `archive_exhibits` (admin-written, public read of published rows), `archive_claims`, admin functions, the archive in `museum_exhibits()` (marked `archive`), security tests.
+- Budget: ≤ 5 KB gzipped JS (admin screens are a lazy chunk).
+
+### V2-11 · The walkable Museum (P0)
+
+**Loop:** enter the Museum → walk Pip through rooms → stop at an exhibit to read its plaque → open it or meet its makers → follow the path to the next room → leave a stamp in your Passport.
+
+- **A museum level** (D-119), drawn on the hall's own animation loop (D-031, ADR-001: hand-written, no library): a floor, walls, room signs and doorways; exhibits hang on the walls **inside their consoles** (D-091), with a **plaque** under each (title, makers, event, award).
+- **Rooms**, in this order: **Winners' Hall** (trophies, latest results first, by event) → **each event** (submissions, by track) → **each wing** (Featured, Collab, Web, Games, Data…) → **The Archive** (by year).
+- **Walking:** arrow keys, drag or the device's MOVE rocker; Pip stops in front of an exhibit and its plaque lights up; Enter or OPEN opens the exhibit page. A **room map** jumps straight to any room.
+- **Wing styles** (the old V2-13, #5): each room gets a style from fixed presets (Arcade, Lab, Library, Garden, Trophy room), original art and tokens; each room shows **Makers in this room** and **Next room →**.
+- **Trophies:** winning exhibits stand on a pedestal with a pixel trophy or ribbon and the judges' note on the plaque.
+- **Accessible and light:** the plain list ("List view") is one button away and is what screen readers and very small phones get first; reduced motion walks without animation. Only exhibits on screen are drawn; pictures load as they come into view.
+- No new SQL beyond `museum_wings.style` (checked list).
+- Budget: ≤ 12 KB gzipped JS (a lazy chunk); 60 fps with 200 exhibits.
+
+### V2-12 · The showcase: beyond a laptop display (P0)
+
+**Loop:** a screen at the event tours the Museum by itself → visitors read the placards beside the demos → they scan one → the exhibit opens on their phone and stamps their Passport → some make a card.
+
+- **Kiosk** (D-109, D-120): `/booth` for a laptop, TV or projector, started by an admin. Two modes: **Museum tour** (walks exhibit to exhibit, shows its plaque, award and a big QR, about 12 seconds each, pauses when touched) and **Hall** (the hall's attract mode). Returns to the tour after a minute untouched; no sign-in on the kiosk.
+- **Check-in stamp** (D-109): the kiosk's QR for the live event gives scanners a Passport stamp "Visited the showcase at <event>". Guests on their device, members in their account; no PIPs; once per event.
+- **Printable placards:** a print page for an event, a room or a single exhibit: one label per exhibit (title, makers or team, event and year, award ribbon, judges' note, QR), sized to cut out (A6, four per A4 page). Printing uses the browser's print, so no PDF tool is needed.
+- **Phone companion:** a placard's QR opens the exhibit on the visitor's phone ("You found this exhibit!"), stamps it in the Passport's **Museum stamp book**, and offers its makers and the next exhibit in the room.
+- **Posters (PNG):** a poster for an exhibit and a **winners poster** for an event (all placements and awards, with QR), drawn in the browser like the badge (D-104), for walls and social posts.
+- **SQL:** event check-ins for members (one per member per event), counted in the event's real numbers.
+- Budget: the kiosk, print pages and poster drawer are lazy; nothing added to the hall's first load.
+
+### V2-13 · Close the gaps (P1, small)
 
 **Loop:** the things people already use answer one more question each (who else made this, who's near this person, what have I done).
 
-- **#18 Design invariants.** `DESIGN_BRIEF.md` §8 "Forbidden list" becomes **Visual invariants** (what never changes: tokens only, no blur, no rounding, original art, 4px grid, 44px targets, reduced motion, WCAG 2.2 AA) plus **How to change one**: a decision in `DECISIONS.md` with the reason, then the token or rule change. `CLAUDE.md` says the same. No code.
-- **#11 Connected projects on the exhibit page.** "Connected projects": other projects that share a maker, with who connects them. Shown whenever such a link exists (one real link is honest even in a small hall; the density gate is for the whole map).
-- **#2 "Made with" on profiles.** A small map of one member's own links (projects made together, shared skills). Always on, because it only shows that member's real credits; the full `/network` map keeps its gate.
-- **#12 QR landing.** After "You found X!", a short **Related people** row (made something together, shares a skill) with Walk there buttons that walk Pip to them.
-- **#21 Badge PNG.** The download also carries the member's earned title on its plate and their admin-given badges (pins), like the badge in the hall.
-- **#10 Your progress.** In your own Passport: Missions completed (today, this week, all time) and achievements unlocked out of the total. Never on the public profile (D-112).
-- **#10 Mentor title** (D-111): credited on team projects with 2 different members who joined after you.
-- **#3 Two more Missions:** "Find a project made by 3 or more people" and "Meet 3 people who know <skill>" (offered only when the hall has them).
-- **#15** decided, no change: discoveries stay private (D-063), and an "equipped a frame" event has nothing that would use it.
-- **#23 Server check.** Find out why the live server functions error (the badge download did; link previews may too). Needs from you: what `the-pip-hall.vercel.app/api/og/hall` shows in a browser, or that function's log in Vercel.
-- **SQL:** Mentor in `earned_titles()`; the two Missions in `mission_met()` and `complete_mission()`; a public `connected_projects` is not needed (cards carry the credits).
-- Budget: ≤ 4 KB gzipped JS; no new requests on the hall's first load.
+- **#18 Design invariants.** `DESIGN_BRIEF.md` §8 "Forbidden list" becomes **Visual invariants** (tokens only, no blur, no rounding, original art, 4px grid, 44px targets, reduced motion, WCAG 2.2 AA) plus **How to change one**: a decision in `DECISIONS.md` with the reason, then the token or rule change. `CLAUDE.md` says the same.
+- **#11 Connected projects on the exhibit page:** other projects (members' and archive) that share a maker, with who connects them. Shown whenever a link exists.
+- **#2 "Made with" on profiles:** a small map of one member's own links. Always on; the full `/network` map keeps its gate.
+- **#12 QR landing:** after "You found X!", a **Related people** row with Walk there buttons.
+- **#21 Badge PNG:** carries the earned title on its plate, admin badges and award ribbons (pins).
+- **#10 Your progress** (D-112): Missions completed and achievements unlocked, in your own Passport only. **Mentor title** (D-111).
+- **#3 Two more Missions:** "Find a project made by 3 or more people" and "Meet 3 people who know <skill>" (offered only when the hall has them). Also: "Visit a winning exhibit" when the Winners' Hall has one.
+- **#15** decided, no change: discoveries stay private (D-063); an "equipped a frame" event has nothing that would use it.
+- **#23 Server check:** why the live server functions error (the badge download did; link previews may too). Needs from the owner: what `the-pip-hall.vercel.app/api/og/hall` shows, or that function's log in Vercel.
+- **SQL:** Mentor in `earned_titles()`; the new Missions in `mission_met()` and `complete_mission()`.
+- Budget: ≤ 4 KB gzipped JS.
 
-### V2-10 · The world reacts (#26, #9 sky) (P1)
+### V2-14 · The world reacts (#26, #9 sky) (P1)
 
 **Loop:** something real happens → the world shows it where it happened → people go and look.
 
-- **NEW!** over a member's block for 7 days after their first approval; when Pip reaches it, Pip reacts and a few coins pop (once per visit).
-- **Featured** members' blocks carry a star.
-- **Threads:** a thin dashed line between the badges of two members who made something together, while both are on screen.
-- **Mission complete:** the world answers (a flag goes up at the end of the level and Pip celebrates), not just a message.
-- **Event skies** (D-113): Dusk, Starry night, or Festival (bunting across the sky), original art and tokens, for the event's dates only.
-- **Temporary event wing:** during an event, the Museum gets a wing of exhibits added during the event, which closes when it ends.
-- All of it still with reduced motion (signs stay, motion stops), and every change has a words equivalent (NEW and Featured are in the badge's label; threads are in the "Made with" list).
-- **SQL:** a public first-approval date (`member_first_seen` or a column set at first approval); `hall_seasons.sky` (checked list); the event wing as a built-in wing kind.
-- Budget: ≤ 6 KB gzipped JS; per frame, threads are drawn only for badges on screen.
+- **NEW!** over a member's block for 7 days after their first approval; Pip reacts when reaching it.
+- **Featured** blocks carry a star; **winners'** blocks carry their ribbon.
+- **Threads** between badges of members who made something together, while both are on screen.
+- **Mission complete:** a flag goes up at the end of the level and Pip celebrates.
+- **Event skies** (D-113): Dusk, Starry night, Festival (bunting), for the event's dates.
+- Reduced motion keeps the signs and stops the motion; every sign has words (badge labels, lists).
+- **SQL:** a public first-approval date; `hall_seasons.sky` (checked list).
+- Budget: ≤ 6 KB gzipped JS; threads drawn only for badges on screen.
 
-### V2-11 · The device is the world (#25) (P1)
+### V2-15 · The device is the world (#25) (P1)
 
 **Loop:** press START → pick a place → iris into it → BACK brings you home.
 
-- A **START** button on the device and an in-device menu: HALL, MUSEUM, PASSPORT, MAP (when open), MART (members). Keyboard: Enter/Esc, arrows; screen readers get a normal menu.
-- Choosing a place irises out of the device into that page; the page's BACK irises back into the hall where you left it.
-- The top bar stays (it's the plain way round).
+- A **START** button and an in-device menu: HALL, MUSEUM, PASSPORT, MAP (when open), MART (members). Keyboard and screen-reader friendly; the top bar stays as the plain way round (D-107).
 - No SQL. Budget: ≤ 3 KB gzipped JS.
 
-### V2-12 · More to spend PIPs on (#8) (P1)
+### V2-16 · More to spend PIPs on (#8) (P1)
 
 **Loop:** earn PIPs by exploring → choose how you look or how your hall feels → it shows (to everyone, or just you).
 
-- **Badge stickers** (public): 6–8 original pixel stickers, up to 3 placed on your badge in fixed spots. Suggested 120–250 PIPs each.
-- **Pip outfits** (only you): hats and scarves for your Pip. Suggested 100–200.
-- **Passport covers** (only you): 3–4 cover and page styles. Suggested 150–300.
-- **Hall effects** (only you): a coin trail behind Pip, a sparkle on flip. Suggested 150–250; off with reduced motion.
-- **Seasonal collectibles:** each event can sell one limited sticker, and anyone who did something during the event gets a free event stamp in their Passport (earned, not bought).
+- **Badge stickers** (public, up to 3; suggested 120–250 PIPs), **Pip outfits** (100–200), **Passport covers** (150–300), **hall effects** (150–250; off with reduced motion) (D-108).
+- **Seasonal collectibles:** each event can sell one limited sticker; anyone who took part (submitted, checked in or completed its Mission) gets a free event stamp.
 - Never visibility, ranking or access (rule 6). All art original, in `sprites.ts`.
-- **SQL:** new PIP MART kinds (sticker, outfit, cover, effect) with checked styles; what each member wears in `card_appearance` (stickers public through `card_appearances()`); everything else read only by its owner.
+- **SQL:** new PIP MART kinds with checked styles; what each member wears.
 - Budget: ≤ 6 KB gzipped JS plus sprites.
 
-### V2-13 · Museum wings with character (#5) (P2)
+### V2-17 · Ask Pip (#22) (P2)
 
-**Loop:** enter a wing → it looks and feels like its subject → meet its makers → follow the path to the next wing.
+**Loop:** ask in your own words → Pip answers with people (and exhibits) and why → Pip walks you to them.
 
-- Each wing gets a **style** from fixed presets (e.g. Arcade, Lab, Library, Garden): door art, an accent and a header scene, original sprites and tokens.
-- In each room: **Makers in this wing** (their badges), **Skills in this wing**, and **Next wing →**.
-- **SQL:** `museum_wings.style` (checked list).
-- Budget: ≤ 4 KB gzipped JS plus sprites.
-
-### V2-14 · Ask Pip (#22) (P2)
-
-**Loop:** ask in your own words → Pip answers with people and why → Pip walks you to them.
-
-- A question box ("Who could help me build a mobile app?"). Rule-based, free, no AI service (CLAUDE.md): words are matched to skills, tools, departments and project words, with a small synonym table (mobile → Flutter, Kotlin, Swift, React Native; data → Python, SQL, Pandas…).
-- The answer lists people with the reasons ("Why Pip picked"), and Pip walks to the first one; a plain list for keyboards.
-- When nothing matches, Pip says so and suggests the closest skills that exist.
+- Rule-based, free, no AI service: words are matched to skills, tools, departments, tracks and project words, with a small synonym table (mobile → Flutter, Kotlin, Swift, React Native; data → Python, SQL, Pandas…). "Who won the last hackathon?" answers from recorded results.
+- When nothing matches, Pip says so and suggests the closest things that exist.
 - No SQL. Budget: ≤ 5 KB gzipped JS.
 
-### V2-15 · Booth mode (#29) (P2)
+### V2-18 · Sound (#29) (P2)
 
-**Loop:** a laptop at a fair shows the hall → visitors scan → they land in the hall with a check-in stamp → some make a card.
-
-- **`/booth`** (admins start it): full screen, cycles through badges and the Museum on its own, a large QR ("Scan to explore the hall"), returns to the start after a minute untouched, no sign-in on the kiosk.
-- **Check-in** (D-109): the QR points at the live event; scanning stamps the visitor's Passport "Visited the PIP-Hall booth at Build Week". Guests: on their device; members: in their account. No PIPs (rule 3); once per event.
-- **SQL:** event check-ins for members (one per member per event), counted in the event's real counters.
-- Budget: a lazy page; no change to the hall.
-
-### V2-16 · Sound (#29) (P2)
-
-**Loop:** turn sound on → the hall answers your actions (coin, flip, stamp, Mission done) → it stays your choice.
-
-- Original 8-bit effects made with the Web Audio API in code (no files, nothing sampled or borrowed, D-029/D-020).
-- Off by default; a speaker toggle in the top bar and in Settings, remembered on the device. No sound without a gesture first (browsers require it anyway).
-- No music (D-110).
+- Original 8-bit effects made with the Web Audio API in code (coin, flip, stamp, Mission done, trophy), no files, nothing borrowed (D-020, D-029). Off by default; a speaker toggle, remembered on the device. No music (D-110).
 - No SQL. Budget: ≤ 3 KB gzipped JS.
 
-### V2-17 · Multi-org, on paper (#29) (P3)
+### V2-19 · Multi-org, on paper (#29) (P3)
 
-- **ADR-003**: how several halls would share one PIP-Hall (a hall id on every row, security rules per hall, hall admins, URLs like `/h/<hall>`, one brand still, D-029), with the cost and what would change. No code (D-106).
+- **ADR-003**: how several halls would share one PIP-Hall (a hall id on every row, rules per hall, hall admins, `/h/<hall>` URLs, one brand), with the cost. No code (D-106).
 
 ## Not yet justified (unchanged)
 
