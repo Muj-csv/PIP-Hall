@@ -42,7 +42,7 @@ The original spec is in `docs/spec/`. Where it conflicts with the files above, t
 12. **Wait for density.** The network graph and project lineage ship only once the hall has enough verified relationships to look alive (about 30 members, judged by projects and collaborations, D-096).
 
 ## Not yet justified
-Build only when a plan justifies it (and the owner says go): update emails · reactions · extra themes · multi-org (design note only, D-106) · private repos · AI features (any "Ask Pip" stays rule-based and free; no paid AI service). Sound, booth mode and rule-based Ask Pip are now planned in `docs/plan/V2-NEXT.md` (D-109, D-110).
+Build only when a plan justifies it (and the owner says go): update emails · reactions · extra themes · multi-org (design note only, D-106) · private repos · AI features (any "Ask Pip" stays rule-based and free; no paid AI service). Hackathon events, the archive, the walkable Museum and its showcase (kiosk tour, placards, phone companion, posters), sound, booth mode and rule-based Ask Pip are now planned in `docs/plan/V2-NEXT.md` (D-109, D-110, D-114 to D-120).
 
 ## Commands
 ```bash
