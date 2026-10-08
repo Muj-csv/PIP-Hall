@@ -16,17 +16,29 @@ export interface Stamp {
   imported?: boolean;
 }
 
+/** "Visited the showcase at <event>" (V2-12, D-109): the event's key and name, as it was then. */
+export interface ShowcaseStamp extends Stamp {
+  name: string;
+}
+
 export interface PassportData {
   people: Stamp[];
   exhibits: Stamp[];
+  checkins: ShowcaseStamp[];
 }
 
-export const EMPTY_PASSPORT: PassportData = { people: [], exhibits: [] };
+export const EMPTY_PASSPORT: PassportData = { people: [], exhibits: [], checkins: [] };
 
 /** Adds a stamp if it's new. Returns the same object when nothing changed. */
-export function stamp(data: PassportData, kind: keyof PassportData, id: string, at = new Date().toISOString()): PassportData {
+export function stamp(data: PassportData, kind: 'people' | 'exhibits', id: string, at = new Date().toISOString()): PassportData {
   if (!id || data[kind].some((s) => s.id === id)) return data;
   return { ...data, [kind]: [...data[kind], { id, at }] };
+}
+
+/** Adds a showcase stamp for an event, once. Returns the same object when nothing changed. */
+export function stampCheckin(data: PassportData, key: string, name: string, at = new Date().toISOString()): PassportData {
+  if (!key || data.checkins.some((s) => s.id === key)) return data;
+  return { ...data, checkins: [...data.checkins, { id: key, name, at }] };
 }
 
 /** Stamps on this device that the account doesn't have yet (what a graduation import would add). */
@@ -35,6 +47,7 @@ export function missingFrom(device: PassportData, account: PassportData): Passpo
   return {
     people: device.people.filter((s) => !has(account.people, s.id)),
     exhibits: device.exhibits.filter((s) => !has(account.exhibits, s.id)),
+    checkins: device.checkins.filter((s) => !has(account.checkins, s.id)),
   };
 }
 
@@ -48,7 +61,17 @@ export function parsePassport(raw: unknown): PassportData {
           .map((s) => ({ id: s.id, at: s.at, ...(s.imported ? { imported: true } : {}) }))
       : [];
   const o = (raw && typeof raw === 'object' ? raw : {}) as Partial<PassportData>;
-  return { people: list(o.people), exhibits: list(o.exhibits) };
+  const named = (v: unknown): ShowcaseStamp[] =>
+    Array.isArray(v)
+      ? v
+          .filter(
+            (s): s is ShowcaseStamp =>
+              typeof s === 'object' && s !== null && typeof s.id === 'string' && typeof s.at === 'string' && !Number.isNaN(Date.parse(s.at)) && typeof s.name === 'string' && s.name.trim() !== '',
+          )
+          .slice(0, 50)
+          .map((s) => ({ id: s.id, at: s.at, name: s.name.trim().slice(0, 80), ...(s.imported ? { imported: true } : {}) }))
+      : [];
+  return { people: list(o.people), exhibits: list(o.exhibits), checkins: named(o.checkins) };
 }
 
 export interface TeamProject {

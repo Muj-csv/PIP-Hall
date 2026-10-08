@@ -3566,3 +3566,451 @@ a.net-node:focus {
   background: var(--color-world-sky);
   box-shadow: 0 0 0 2px var(--color-card-ink);
 }
+
+/* ---------------------------------------------------------------- the showcase (V2-12, D-120)
+   The check-in stamp, the Passport's Showcases page, "next in this room", the kiosk, and the
+   placards on A4 paper. Colours are the badge's (a physical card) so print and screen agree. */
+
+/* The check-in stamp lands like a rubber stamp (motion: a reward), once. */
+.checkin-stamp {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  justify-self: center;
+  min-width: min(100%, 280px);
+  padding: 22px 26px;
+  rotate: -3deg;
+  background: var(--color-card-cream);
+  color: var(--color-card-ink);
+  outline: 4px dashed var(--color-card-plum);
+  outline-offset: -10px;
+  box-shadow: 6px 6px 0 0 var(--color-card-ink);
+  text-align: center;
+}
+.checkin-stamp[data-fresh] {
+  animation: stamp-in 420ms steps(6) both;
+}
+@keyframes stamp-in {
+  0% { scale: 1.6; opacity: 0; }
+  60% { scale: 0.94; opacity: 1; }
+  100% { scale: 1; opacity: 1; }
+}
+.checkin-stamp-kicker {
+  font-family: var(--font-display);
+  font-size: 20px;
+  letter-spacing: 0.12em;
+  color: var(--color-card-plum);
+}
+.checkin-stamp-name {
+  font-family: var(--font-display);
+  font-size: 34px;
+  line-height: 1;
+}
+.checkin-stamp-date {
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+.showcase-stamps {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.showcase-stamps li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.showcase-stamp-mark {
+  flex: none;
+  color: var(--color-card-plum);
+}
+.next-in-room .pixel-btn {
+  white-space: normal;
+}
+@media (prefers-reduced-motion: reduce) {
+  .checkin-stamp[data-fresh] { animation: none; }
+  .checkin-stamp { rotate: none; }
+}
+
+/* ---- the kiosk: one screen, sized for a room (TV, projector), no top bar */
+.booth {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: clamp(8px, 2vh, 24px);
+  min-height: 100dvh;
+  padding: clamp(12px, 2.5vh, 32px) clamp(12px, 3vw, 48px);
+  background: var(--color-world-sky);
+  box-shadow: inset 0 calc(-1 * clamp(28px, 6vh, 64px)) 0 var(--color-world-grass);
+  color: var(--color-card-ink);
+}
+.booth-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+.booth-brand {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(24px, 3.4vh, 40px);
+  letter-spacing: 0.06em;
+}
+.booth-brand span {
+  color: var(--color-card-plum);
+}
+.booth-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.booth-slide {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: clamp(16px, 3vw, 56px);
+  min-height: 0;
+  animation: booth-in 360ms steps(6) both;
+}
+@keyframes booth-in {
+  from { translate: 6% 0; opacity: 0; }
+  to { translate: 0 0; opacity: 1; }
+}
+.booth-art {
+  justify-self: center;
+  width: min(100%, 62vh);
+}
+.booth-badge {
+  justify-self: center;
+  zoom: 1.35;
+  padding-inline: 32px;
+}
+.booth-plaque {
+  display: grid;
+  align-content: center;
+  gap: clamp(6px, 1.2vh, 14px);
+  min-width: 0;
+  padding: clamp(14px, 2.4vh, 28px);
+  background: var(--color-card-face);
+  box-shadow: inset 0 0 0 4px var(--color-card-ink), 8px 8px 0 0 var(--color-card-ink);
+}
+.booth-kicker {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(18px, 2.6vh, 30px);
+  letter-spacing: 0.06em;
+  color: var(--color-card-plum);
+}
+.booth-title {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-family: var(--font-display);
+  font-size: clamp(40px, 8vh, 96px);
+  font-weight: 400;
+  line-height: 0.95;
+}
+.booth-by {
+  margin: 0;
+  font-size: clamp(18px, 2.8vh, 32px);
+  font-weight: 700;
+}
+.booth-origin,
+.booth-desc {
+  margin: 0;
+  font-size: clamp(16px, 2.3vh, 26px);
+}
+.booth-desc {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+.booth-awards {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: clamp(16px, 2.4vh, 28px);
+  font-weight: 700;
+}
+.booth-awards li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.booth-ribbon {
+  flex: none;
+  width: clamp(22px, 3.4vh, 40px);
+  height: auto;
+  image-rendering: pixelated;
+}
+.booth-note {
+  display: block;
+  font-size: clamp(16px, 2.3vh, 26px);
+  font-style: italic;
+}
+.booth-qr,
+.booth-checkin {
+  display: flex;
+  align-items: center;
+  gap: clamp(10px, 1.6vw, 24px);
+}
+.booth-qr svg {
+  flex: none;
+  width: clamp(120px, 24vh, 280px);
+  height: auto;
+  padding: 10px;
+  background: var(--color-card-face);
+  box-shadow: inset 0 0 0 4px var(--color-card-ink);
+  color: var(--color-card-ink);
+}
+.booth-qr p,
+.booth-checkin p {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  font-size: clamp(15px, 2.1vh, 24px);
+}
+.booth-qr b {
+  font-family: var(--font-display);
+  font-size: clamp(22px, 3.6vh, 42px);
+  font-weight: 400;
+  line-height: 1;
+}
+.booth-foot {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 16px;
+}
+.booth-status {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.booth-walk {
+  position: relative;
+  height: 52px;
+  margin-inline: 24px;
+  border-bottom: 4px solid var(--color-card-ink);
+}
+.booth-walk i {
+  position: absolute;
+  bottom: -9px;
+  width: 8px;
+  height: 14px;
+  margin-left: -4px;
+  background: var(--color-card-face);
+  box-shadow: inset 0 0 0 2px var(--color-card-ink);
+}
+.booth-walk i[data-past] {
+  background: var(--color-card-coin);
+}
+.booth-pip {
+  position: absolute;
+  bottom: 4px;
+  width: 36px;
+  margin-left: -18px;
+  transition: left 900ms steps(9);
+}
+.booth-pip canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  image-rendering: pixelated;
+}
+.booth-progress {
+  height: 8px;
+  background: var(--color-card-face);
+  box-shadow: inset 0 0 0 2px var(--color-card-ink);
+}
+.booth-progress i {
+  display: block;
+  height: 100%;
+  background: var(--color-card-ink);
+  transform-origin: left;
+  animation: booth-time var(--ms) linear both;
+}
+.booth[data-paused] .booth-progress i {
+  animation-play-state: paused;
+}
+@keyframes booth-time {
+  from { scale: 0 1; }
+  to { scale: 1 1; }
+}
+.booth-hint {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-card-ink);
+}
+.booth-checkin {
+  padding: 12px 16px;
+  background: var(--color-card-face);
+  box-shadow: inset 0 0 0 4px var(--color-card-ink), 6px 6px 0 0 var(--color-card-ink);
+}
+.booth-checkin svg {
+  flex: none;
+  width: clamp(110px, 18vh, 200px);
+  height: auto;
+  color: var(--color-card-ink);
+}
+.booth-checkin h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(22px, 3.4vh, 38px);
+  font-weight: 400;
+  line-height: 1;
+}
+.booth-checkin p {
+  max-width: 24ch;
+}
+@media (max-width: 760px) {
+  .booth-slide,
+  .booth-foot {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .booth-badge { zoom: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .booth-slide,
+  .booth-progress i { animation: none; }
+  .booth-progress { display: none; }
+  .booth-pip { transition: none; }
+}
+
+/* ---- placards: A6 labels, four to an A4 page, cut along the dashed lines */
+.print-page {
+  display: grid;
+  justify-items: center;
+  gap: 24px;
+  padding: 24px 16px 64px;
+}
+.print-tools {
+  display: grid;
+  gap: 12px;
+  width: min(100%, 210mm);
+}
+.print-sheet {
+  display: grid;
+  grid-template-columns: repeat(2, 105mm);
+  grid-template-rows: repeat(2, 148.5mm);
+  width: 210mm;
+  height: 297mm;
+  background: var(--color-card-face);
+  box-shadow: 6px 6px 0 0 var(--color-border);
+  color: var(--color-card-ink);
+}
+.placard {
+  display: flex;
+  flex-direction: column;
+  gap: 2.2mm;
+  padding: 8mm;
+  overflow: hidden;
+  outline: 1px dashed var(--color-card-ink);
+  font-size: 10.5pt;
+  line-height: 1.3;
+}
+.placard p {
+  margin: 0;
+}
+.placard-kicker {
+  font-family: var(--font-display);
+  font-size: 11pt;
+  letter-spacing: 0.08em;
+  color: var(--color-card-plum);
+}
+.placard-title {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-family: var(--font-display);
+  font-size: 26pt;
+  font-weight: 400;
+  line-height: 0.95;
+}
+.placard-by {
+  font-weight: 700;
+}
+.placard-awards {
+  display: grid;
+  gap: 1.5mm;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-weight: 700;
+}
+.placard-awards li {
+  display: flex;
+  align-items: center;
+  gap: 2mm;
+}
+.placard-ribbon {
+  flex: none;
+  width: 6mm;
+  height: auto;
+  image-rendering: pixelated;
+}
+.placard-note {
+  display: block;
+  font-style: italic;
+}
+.placard-desc {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 5;
+}
+.placard-qr {
+  display: flex;
+  align-items: flex-end;
+  gap: 4mm;
+  margin-top: auto;
+}
+.placard-qr svg {
+  flex: none;
+  width: 36mm;
+  height: 36mm;
+  color: var(--color-card-ink);
+}
+.placard-qr p {
+  display: grid;
+  gap: 1mm;
+  font-size: 9.5pt;
+}
+.placard-qr b {
+  font-family: var(--font-display);
+  font-size: 16pt;
+  font-weight: 400;
+  line-height: 1;
+}
+.placard-site {
+  font-family: var(--font-mono);
+  font-size: 8pt;
+  overflow-wrap: anywhere;
+}
+@page {
+  size: A4;
+  margin: 0;
+}
+@media print {
+  html,
+  body {
+    background: var(--color-card-face);
+  }
+  .print-page {
+    display: block;
+    padding: 0;
+  }
+  .print-tools {
+    display: none;
+  }
+  .print-sheet {
+    box-shadow: none;
+    break-after: page;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+}

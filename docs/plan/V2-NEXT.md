@@ -1,6 +1,6 @@
 # PIP-Hall v2, part two: the Museum, hackathons, and a hall that comes alive
 
-Status: **V2-9, V2-10, V2-10b, V2-11 and V2-15 built** (2026-10-08; V2-15 pulled forward with the calmer hall, D-126); V2-12 next. Follows `V2-LIVING-HALL.md` (V2-0 to V2-8, all built). No deadline (D-093). Decisions: D-106 to D-120 (the owner's answers, 2026-10-07), D-123 (the officers' space, 2026-10-08); build details D-121, D-122, D-124, D-125; the calmer hall D-126. Rules: `CLAUDE.md` → Product rules.
+Status: **V2-9, V2-10, V2-10b, V2-11, V2-12 and V2-15 built** (2026-10-08; V2-15 pulled forward with the calmer hall, D-126); V2-13 next. Follows `V2-LIVING-HALL.md` (V2-0 to V2-8, all built). No deadline (D-093). Decisions: D-106 to D-120 (the owner's answers, 2026-10-07), D-123 (the officers' space, 2026-10-08); build details D-121, D-122, D-124, D-125, D-127; the calmer hall D-126. Rules: `CLAUDE.md` → Product rules.
 
 ## Why this round
 
@@ -103,7 +103,9 @@ Built as planned (details: D-125), with three changes: a room for **All exhibits
 - No new SQL beyond `museum_wings.style` (checked list).
 - Budget: ≤ 12 KB gzipped JS (a lazy chunk); 60 fps with 200 exhibits.
 
-### V2-12 · The showcase: beyond a laptop display (P0)
+### V2-12 · The showcase: beyond a laptop display (P0) · built
+
+Built as planned (details: D-127), with three choices the plan left open: the kiosk's link carries the event's **check-in code**, which admins get (and can renew) in Admin → Events → Showcase, so only the screen at the event checks people in; the tour, the placards and "next in this room" share one fixed room order (the Museum page keeps its shuffle); and the Passport's exhibits page became the Museum stamp book for every kind of exhibit (members', event entries, the archive), with a new Showcases page. Budget: nothing on the first load (161.3 KB of 200 KB, slightly less than before, as the badge drawer's shared part moved out); the kiosk (3.3 KB gzipped), print page and check-in page are lazy chunks, and the poster drawer loads satori only on its button, as the badge does. The kiosk makes no requests while it plays except the check-in, read again every five minutes. Evidence: `docs/build/evidence/showcase/`.
 
 **Loop:** a screen at the event tours the Museum by itself → visitors read the placards beside the demos → they scan one → the exhibit opens on their phone and stamps their Passport → some make a card.
 

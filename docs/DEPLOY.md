@@ -97,6 +97,13 @@ Both are safe to run again (they only add columns and replace functions).
 1. Supabase **SQL editor:** run `supabase/migrations/20261006000300_project_collaborators.sql`. Safe to run again.
 2. Check: a member opens **My card → Collaborators**, tags another member of the hall on a project; that member sees the request in their own **Collaborators** panel and accepts. After the owner's next approval, the project's public card lists them.
 
+## The showcase (V2-12, D-109, D-120, D-127)
+
+1. Supabase **SQL editor:** run `supabase/migrations/20261008000300_showcase.sql` (after the museum walk one) **before** merging the app update. Safe to run again. It adds the check-in code and check-ins; the app that's live keeps working. If you ever re-run the passport or hackathons migration, run this one again after it.
+2. Before the event: **Admin → Events → Showcase** on the event's row. Open the **kiosk link** on the laptop, TV or projector (then **Full screen**); it tours the event's room and shows the hall, and while the event is on its **CHECK IN** QR stamps visitors' Passports. **Renew code** if a kiosk link was shared where it shouldn't be.
+3. **Placards to print** opens the print page: print at 100% on A4 and cut along the dashed lines (four A6 placards to a page). Once the results are announced, **Save winners poster** there; each exhibit's page has **Save poster**.
+4. Check: scan a placard with a phone: the exhibit opens with "You found this exhibit!" and **Next in <room>**. Scan the kiosk's CHECK IN: "Stamped! Visited the showcase at <event>"; the event's numbers in the hall add "1 checked in at the showcase" for a member.
+
 ## The walkable Museum (V2-11, D-119, D-125)
 
 1. Supabase **SQL editor:** run `supabase/migrations/20261008000200_museum_walk.sql` (after the officers one) **before** merging the app update. Safe to run again. It only adds a room style to each wing; the app that's live keeps working. If you ever re-run the wings migration, run this one again after it.

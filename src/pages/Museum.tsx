@@ -25,6 +25,7 @@ import { ARCHIVE_ROOM, archiveAsExhibit, archiveAward, archiveCases, archiveOrig
 import { awardLabel, entriesByTrack, eventRoomPath, KIND_NAME, kindOf, phaseLine, winnersOf, type Award, type MuseumEvent } from '../lib/events';
 import { arrangeMuseum, consoleFor } from '../lib/museum';
 import { roomFromParams, roomParams, type MuseumParts } from '../lib/museumWalk';
+import { eventCase } from '../lib/showcase';
 import { useMediaQuery } from '../lib/useMediaQuery';
 import { dateRange } from '../lib/seasons';
 import { DEFAULT_WINGS, wingPath, wingRooms, wingRule, type Wing, type WingRoom } from '../lib/wings';
@@ -45,16 +46,6 @@ type Load = { status: 'loading' } | { status: 'error' } | { status: 'ready'; exh
 type Events = 'loading' | 'error' | MuseumEvent[];
 type Archive = 'loading' | 'error' | ArchiveExhibit[];
 
-/** A hall event's case in the Winners' Hall. */
-const eventCase = (e: MuseumEvent): TrophyCase => ({
-  key: e.key,
-  title: e.name,
-  sub: `${KIND_NAME[kindOf(e)]} · ${dateRange(e.starts_on, e.ends_on)}`,
-  eventKey: e.key,
-  year: null,
-  sort: e.starts_on,
-  winners: winnersOf(e),
-});
 
 export default function Museum() {
   const [load, setLoad] = useState<Load>({ status: 'loading' });

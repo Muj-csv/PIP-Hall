@@ -126,6 +126,9 @@ Two clocks. **Sprites** animate on a stepped frame clock (`motion.sprite-fps`, 8
 | `InstallPrompt` | android · ios-instructions | — | — | |
 | `ModerationQueue` | pending · published · featured | loading · empty · error | — | same shell, menu stage |
 | `Toast` | success · error | — | success, danger | `role="status"` |
+| `Booth` (kiosk, V2-12) | Museum tour · Hall | playing · paused (touched) · loading · empty · error | world.sky/grass, card.* | full screen, no top bar; plaque panel in card colours with a big QR; Pip walks a strip of marks (one per stop); a minute untouched plays on; CHECK IN QR only while the event is on |
+| `Placard` (V2-12) | — | — | card.ink, card.face, card.plum | A6 label, four to an A4 sheet, dashed cut lines; QR at the foot; prints in the card's colours |
+| `CheckinStamp` (V2-12) | fresh · already | — | card.cream, card.plum, card.ink | dashed rubber-stamp look; lands once when fresh |
 
 Library: none. Everything is custom on top of the theme.
 
@@ -169,6 +172,8 @@ Library: none. Everything is custom on top of the theme.
 | Twinkle | featured | 4-frame star blink every ~3s | static star |
 | Talk | each line | ~40 chars/s, tap completes | full line |
 | Approved | member's first view after approval | 12-coin shower ~1.2s + "CARD APPROVED!" | text only |
+| Showcase step | kiosk moves to the next exhibit or badge | slide in from the right (360ms, 6 steps); Pip walks to the next mark (900ms, 9 steps); a thin bar fills over the 12 s | cut; no bar |
+| Stamp | a fresh showcase check-in | the stamp lands: scale 1.6 → 0.94 → 1 over 420ms, 6 steps | static stamp |
 
 ## 16. Sprites (design v2, D-024)
 

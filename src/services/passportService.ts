@@ -1,5 +1,6 @@
 // The Passport (V2-2, D-097, D-098). Guests keep it on their device; approved members keep it in
-// their account (the database records discoveries and exhibit visits; nothing here can grant PIPs).
+// their account (the database records discoveries, exhibit visits and showcase check-ins (V2-12);
+// nothing here can grant PIPs).
 
 import { parsePassport, type PassportData } from '../lib/passport';
 import { requireSupabase } from './supabase';
@@ -29,8 +30,8 @@ export const passportService = {
   async mine(): Promise<{ eligible: boolean; data: PassportData }> {
     const { data, error } = await requireSupabase().rpc('my_passport');
     if (error) throw error;
-    const r = data as { eligible: boolean; people: unknown; exhibits: unknown };
-    return { eligible: Boolean(r.eligible), data: parsePassport({ people: r.people, exhibits: r.exhibits }) };
+    const r = data as { eligible: boolean; people: unknown; exhibits: unknown; checkins?: unknown };
+    return { eligible: Boolean(r.eligible), data: parsePassport({ people: r.people, exhibits: r.exhibits, checkins: r.checkins }) };
   },
 
   /** The member opened an exhibit's page. Stamps it once; never pays PIPs. */
@@ -41,10 +42,13 @@ export const passportService = {
   },
 
   /** Brings a device Passport into the account as history: no PIPs, no achievements (D-097). */
-  async importDevice(d: PassportData): Promise<{ people: number; exhibits: number }> {
+  async importDevice(d: PassportData): Promise<{ people: number; exhibits: number; checkins: number }> {
     const pick = (list: PassportData['people']) => list.map(({ id, at }) => ({ id, at }));
-    const { data, error } = await requireSupabase().rpc('import_passport', { p_people: pick(d.people), p_exhibits: pick(d.exhibits) });
+    // Showcase stamps only when there are some, so the import works before the showcase update too.
+    const args = { p_people: pick(d.people), p_exhibits: pick(d.exhibits), ...(d.checkins.length ? { p_checkins: pick(d.checkins) } : {}) };
+    const { data, error } = await requireSupabase().rpc('import_passport', args);
     if (error) throw error;
-    return data as { people: number; exhibits: number };
+    const r = data as { people: number; exhibits: number; checkins?: number };
+    return { people: r.people, exhibits: r.exhibits, checkins: r.checkins ?? 0 };
   },
 };

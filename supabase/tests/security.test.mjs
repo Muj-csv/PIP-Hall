@@ -1147,12 +1147,105 @@ try {
     r.rows[0].w.find((w) => w.key === 'web')?.style === 'library' && r.rows[0].w.find((w) => w.key === 'featured')?.style === 'trophy' && r.rows[0].w.find((w) => w.key === 'robots')?.style === 'lab');
   await expectOk(c, 'removing a styled wing still works', ADMIN, `select admin_delete_wing('sound')`, []);
 
+  console.log('the showcase: check-ins (D-127)');
+  // The passport and hackathons migrations were re-run above; this one comes after them again.
+  const SHOW = readFileSync(join(here, '..', 'migrations', '20261008000300_showcase.sql'), 'utf8');
+  const importFns = `select count(*)::int as n from pg_proc where proname = 'import_passport' and pronamespace = 'public'::regnamespace`;
+  const liveCheckins = async () => (await as(c, 'anon', `select current_season() as s`)).rows[0].s.live?.counts?.checkins;
+  const expectCheckins = async (name, n) => { const got = await liveCheckins(); if (got === n) ok(name); else bad(name, got); };
+  await expectSu(c, 're-running the passport migration brings back its old import…', importFns, [], (r) => r.rows[0].n === 2);
+  await c.query(SHOW);
+  await expectSu(c, '…and running the showcase migration after it leaves one again', importFns, [], (r) => r.rows[0].n === 1);
+  await expectOk(c, '…so the two-list import (the app before this update) still works', A, `select import_passport('[]','[]') as r`, [], (r) => r.rows[0].r.checkins === 0);
+  await expectCheckins('the live event counts its check-ins: none yet', 0);
+  await expectOk(c, 'with no check-in code yet, a link checks nobody in', 'anon', `select checkin_event('spring-hack', '') as e`, [], (r) => r.rows[0].e.live === true && r.rows[0].e.ok === false);
+  await expectErr(c, '…not even a member', A, `select check_in('spring-hack', '')`, [], /BAD_CODE/);
+  await expectErr(c, 'members cannot make a check-in code', A, `select admin_checkin_code('spring-hack')`, [], /NOT_ADMIN/);
+  await expectErr(c, 'visitors cannot either', 'anon', `select admin_checkin_code('spring-hack')`, [], /permission denied/);
+  await expectErr(c, 'a code is for an event that exists', ADMIN, `select admin_checkin_code('nope')`, [], /NO_SUCH_EVENT/);
+  let code1, code;
+  await expectOk(c, 'an admin makes the event’s check-in code', ADMIN, `select admin_checkin_code('spring-hack') as k`, [], (r) => /^[0-9a-f]{12}$/.test((code1 = r.rows[0].k)));
+  await expectOk(c, '…the same one when asked again', ADMIN, `select admin_checkin_code('spring-hack') as k`, [], (r) => r.rows[0].k === code1);
+  await expectOk(c, '…and a new one when renewed', ADMIN, `select admin_checkin_code('spring-hack', true) as k`, [], (r) => /^[0-9a-f]{12}$/.test((code = r.rows[0].k)) && code !== code1);
+  await expectErr(c, 'the code is never read from the events table', 'anon', `select checkin_code from hall_seasons`, [], /permission denied/);
+  await expectErr(c, '…not even by members', A, `select checkin_code from hall_seasons`, [], /permission denied/);
+  await expectOk(c, 'a scanned link with the code is good while the event is on', 'anon', `select checkin_event('spring-hack', $1) as e`, [code], (r) => {
+    const e = r.rows[0].e;
+    return e.key === 'spring-hack' && e.name === 'Spring Hackathon' && e.live && e.ok && !JSON.stringify(e).includes(code);
+  });
+  await expectOk(c, '…written in capitals or with spaces too', 'anon', `select checkin_event('spring-hack', $1) as e`, [` ${code.toUpperCase()} `], (r) => r.rows[0].e.ok === true);
+  await expectOk(c, 'the old code stopped working when it was renewed', 'anon', `select checkin_event('spring-hack', $1) as e`, [code1], (r) => r.rows[0].e.ok === false);
+  await expectOk(c, 'an unknown event is nothing', 'anon', `select checkin_event('nope', $1) as e`, [code], (r) => r.rows[0].e === null);
+  await expectErr(c, 'visitors check in on their device, not in the database', 'anon', `select check_in('spring-hack', $1)`, [code], /permission denied/);
+  const pipsShow = await pipsOf(A);
+  const achShow = await achOf(A);
+  await expectOk(c, 'a member checks in at the showcase', A, `select check_in('spring-hack', $1) as r`, [code], (r) => r.rows[0].r === true);
+  await expectOk(c, '…once per event', A, `select check_in('spring-hack', $1) as r`, [code], (r) => r.rows[0].r === false);
+  await expectOk(c, '…and it shows in their Passport with the event’s name', A, `select my_passport() as p`, [], (r) =>
+    r.rows[0].p.checkins.length === 1 && r.rows[0].p.checkins[0].id === 'spring-hack' && r.rows[0].p.checkins[0].name === 'Spring Hackathon' && r.rows[0].p.checkins[0].imported === false);
+  await expectSu(c, 'a check-in pays no PIPs', `select coalesce(sum(amount),0)::int as n from pip_ledger where member_id=$1`, [A], (r) => r.rows[0].n === pipsShow);
+  await expectSu(c, '…and unlocks no achievements', `select count(*)::int as n from member_achievements where member_id=$1`, [A], (r) => r.rows[0].n === achShow);
+  await expectOk(c, 'a member out of the hall keeps it on their device instead', N, `select check_in('spring-hack', $1) as r`, [code], (r) => r.rows[0].r === false);
+  await expectSu(c, '…so nothing is written for them', `select count(*)::int as n from event_checkins where member_id=$1`, [N], (r) => r.rows[0].n === 0);
+  await expectErr(c, 'a wrong code checks nobody in', M, `select check_in('spring-hack', 'deadbeef0000')`, [], /BAD_CODE/);
+  await expectErr(c, '…nor the old one', M, `select check_in('spring-hack', $1)`, [code1], /BAD_CODE/);
+  await expectErr(c, '…nor a missing one', M, `select check_in('spring-hack', null)`, [], /BAD_CODE/);
+  await expectErr(c, 'an unknown event checks nobody in', M, `select check_in('nope', $1)`, [code], /NO_SUCH_EVENT/);
+  const later = (await as(c, ADMIN, `select admin_checkin_code('later-week') as k`)).rows[0].k;
+  await expectOk(c, 'an event that hasn’t started says so', 'anon', `select checkin_event('later-week', $1) as e`, [later], (r) => r.rows[0].e.live === false && r.rows[0].e.ok === false);
+  await expectErr(c, '…and checks nobody in yet', M, `select check_in('later-week', $1)`, [later], /NOT_LIVE/);
+  await expectErr(c, 'nor does an event that is over', M, `select check_in('build-week', $1)`, [code], /NOT_LIVE/);
+  await expectOk(c, 'another member checks in', M, `select check_in('spring-hack', $1) as r`, [code], (r) => r.rows[0].r === true);
+  await expectOk(c, 'members read only their own check-ins', A, `select member_id from event_checkins`, [], (r) => r.rowCount === 1 && r.rows[0].member_id === A);
+  await expectErr(c, 'visitors read none', 'anon', `select * from event_checkins`, [], /permission denied/);
+  await expectErr(c, 'members cannot write check-ins directly', B, `insert into event_checkins (member_id, season_key) values ($1, 'spring-hack')`, [B], /permission denied/);
+  await expectErr(c, '…nor change one', A, `update event_checkins set checked_at = now() - interval '1 day'`, [], /permission denied/);
+  await expectCheckins('the live event counts its two check-ins', 2);
+
+  // Graduation: a device's showcase stamps come along as history.
+  const dates = (await c.query(`select to_char(now() - interval '1 hour', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as live,
+      to_char(now() - interval '6 days', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as past, to_char(now() + interval '1 day', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as future`)).rows[0];
+  const device = [
+    { id: 'spring-hack', at: dates.live },
+    { id: 'spring-hack', at: dates.live }, // twice on the device
+    { id: 'build-week', at: dates.past }, // on at that date, but it never had a check-in QR
+    { id: 'later-week', at: dates.live }, // has a QR, but wasn't on at that date
+    { id: 'spring-hack', at: dates.future },
+    { id: 'nope', at: dates.live },
+    { id: 'spring-hack' },
+    'x',
+  ];
+  await expectErr(c, 'device check-ins must be a list', B, `select import_passport('[]', '[]', '{}')`, [], /BAD_IMPORT/);
+  await expectErr(c, '…of at most 50', B, `select import_passport('[]', '[]', (select jsonb_agg(jsonb_build_object('id', 'spring-hack')) from generate_series(1, 51)))`, [], /BAD_IMPORT/);
+  await expectErr(c, 'a member out of the hall cannot import check-ins', N, `select import_passport('[]', '[]', $1::jsonb)`, [JSON.stringify(device)], /NOT_ELIGIBLE/);
+  await expectOk(c, 'a member brings their device check-ins into their account', B, `select import_passport('[]', '[]', $1::jsonb) as r`, [JSON.stringify(device)], (r) => r.rows[0].r.checkins === 1);
+  await expectOk(c, '…kept only for an event with a QR that was on at that date, marked as imported', B, `select my_passport() as p`, [], (r) => {
+    const k = r.rows[0].p.checkins;
+    return k.length === 1 && k[0].id === 'spring-hack' && k[0].imported === true;
+  });
+  await expectSu(c, '…with the date the device gave', `select checked_at = $2::timestamptz as same from event_checkins where member_id=$1`, [B, dates.live], (r) => r.rows[0].same === true);
+  await expectCheckins('imported check-ins are not counted', 2);
+  await expectOk(c, 'checking in with the account while the event is on makes it count', B, `select check_in('spring-hack', $1) as r`, [code], (r) => r.rows[0].r === true);
+  await expectOk(c, '…once', B, `select check_in('spring-hack', $1) as r`, [code], (r) => r.rows[0].r === false);
+  await expectCheckins('…and now the event counts three', 3);
+  await expectOk(c, 'importing again adds nothing, and doesn’t undo it', B, `select import_passport('[]', '[]', $1::jsonb) as r, my_passport() as p`, [JSON.stringify(device)], (r) =>
+    r.rows[0].r.checkins === 0 && r.rows[0].p.checkins[0].imported === false);
+  await expectSu(c, 'the events table refuses a malformed code, even for its owner', `do $$ begin
+      begin update public.hall_seasons set checkin_code = 'Short!' where key = 'later-week'; raise exception 'NO_CHECK';
+      exception when check_violation then null; end;
+    end $$`, [], () => true);
+  await c.query(SHOW);
+  await c.query(SHOW);
+  await expectOk(c, 'the showcase migration is safe to run twice and keeps codes and check-ins', ADMIN, `select admin_checkin_code('spring-hack') as k`, [], (r) => r.rows[0].k === code);
+  await expectCheckins('…and the count', 3);
+
   console.log('account deletion');
   await expectErr(c, 'anon cannot call delete_my_account', 'anon', `select delete_my_account()`, [], /permission denied/);
   await expectOk(c, 'member deletes own account', B, `select delete_my_account()`, []);
   await expectOk(c, 'their draft is gone', ADMIN, `select * from profiles where id=$1`, [B], (r) => r.rowCount === 0);
   await expectOk(c, 'their public card is gone too', 'anon', `select * from published_cards where profile_id=$1`, [B], (r) => r.rowCount === 0);
   await expectOk(c, 'other members are untouched', 'anon', `select * from published_cards where profile_id=$1`, [A], (r) => r.rowCount === 1);
+  await expectSu(c, '…and their showcase check-ins went with them', `select count(*)::int as n from event_checkins where member_id=$1`, [B], (r) => r.rows[0].n === 0);
 } finally {
   await c.end();
   await db.stop();

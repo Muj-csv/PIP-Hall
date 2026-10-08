@@ -23,7 +23,7 @@ export interface Season {
   mission: SeasonMission | null;
   frame: { key: string; name: string; price: number } | null;
   /** Only for a live event: what happened in the hall during it. */
-  counts: { joined: number; projects: number; exhibits: number; teamups: number; submissions?: number } | null;
+  counts: { joined: number; projects: number; exhibits: number; teamups: number; submissions?: number; checkins?: number } | null;
   // Hackathons and building events (V2-9, D-115). Missing before the hackathons update: a plain event.
   kind?: EventKind;
   tracks?: string[];
@@ -72,7 +72,8 @@ export function seasonStart(s: Season): Date {
 }
 
 /** "3 joined · 5 projects · 2 exhibits · 1 team-up": every number real, zeros included. An event
- *  that takes submissions says how many first. */
+ *  that takes submissions says how many first; one whose showcase has checked people in (V2-12)
+ *  says how many last. */
 export function countsLine(c: NonNullable<Season['counts']>, entries = false): string {
   const n = (v: number, one: string, many: string) => `${v} ${v === 1 ? one : many}`;
   return [
@@ -81,5 +82,6 @@ export function countsLine(c: NonNullable<Season['counts']>, entries = false): s
     n(c.projects, 'project', 'projects'),
     n(c.exhibits, 'exhibit', 'exhibits'),
     n(c.teamups, 'team-up', 'team-ups'),
+    ...(c.checkins ? [n(c.checkins, 'checked in at the showcase', 'checked in at the showcase')] : []),
   ].join(' · ');
 }
