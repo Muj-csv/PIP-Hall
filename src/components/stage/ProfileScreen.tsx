@@ -5,14 +5,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { useAppearance } from '../../app/appearanceContext';
+import { archiveOrigin, type ArchiveExhibit } from '../../lib/archive';
 import { collaborationsOf } from '../../lib/collab';
+import { awardLabel } from '../../lib/events';
 import { proofOf } from '../../lib/proof';
-import { memberPath, serialFor } from '../../lib/publicUrl';
+import { exhibitPath, memberPath, serialFor } from '../../lib/publicUrl';
 import { rankOf } from '../../lib/rank';
 import { GEM_SPRITES, GEM_TONE_PALETTES } from '../../lib/sprites';
 import { SpriteCanvas } from '../pixel/SpriteCanvas';
 import { useAchievements } from '../../lib/useAchievements';
 import { useAffiliations } from '../../lib/useAffiliations';
+import { archiveService } from '../../services/archiveService';
 import { publicImageUrl } from '../../services/storageService';
 import type { PublicCard, PublicProject } from '../../types/card';
 import { FlipBadge } from '../cards/BadgeStage';
@@ -39,7 +42,19 @@ export function ProfileScreen({ card, onBack, onShowQr, reward = null, hall = []
   const look = useAppearance();
   const titles = look.titleOf(card.profile_id);
   const awards = look.awardsOf(card.profile_id);
-  const proof = useMemo(() => proofOf(card, hall, titles, awards), [card, hall, titles, awards]);
+  // Past projects in the Museum's Archive this member is linked on (D-118).
+  const [past, setPast] = useState<ArchiveExhibit[]>([]);
+  useEffect(() => {
+    let on = true;
+    archiveService
+      .list()
+      .then((all) => on && setPast(all.filter((a) => a.makers.some((m) => m.username === card.username))))
+      .catch(() => undefined); // the profile stands without it
+    return () => {
+      on = false;
+    };
+  }, [card.username]);
+  const proof = useMemo(() => proofOf(card, hall, titles, awards, past), [card, hall, titles, awards, past]);
   useEffect(() => back.current?.focus(), []);
   // Opened from a badge's QR (?via=qr): greet the finder once, then tidy the address (V2-1).
   const [params, setParams] = useSearchParams();
@@ -158,6 +173,25 @@ export function ProfileScreen({ card, onBack, onShowQr, reward = null, hall = []
               </ol>
             )}
           </section>
+
+          {past.length > 0 && (
+            <section className="menu-panel" aria-labelledby="profile-archive">
+              <h3 id="profile-archive" className="panel-title">
+                In the Museum’s Archive <span className="text-text-secondary">· {past.length}</span>
+              </h3>
+              <ul className="collab-credits">
+                {past.map((a) => (
+                  <li key={a.id}>
+                    <Link to={exhibitPath(a.id)} className="underline decoration-2">
+                      <b>{a.title}</b>
+                    </Link>{' '}
+                    <span className="text-text-secondary">· {archiveOrigin(a)}</span>
+                    {a.award && <span className="text-caption"> · ♛ {awardLabel(a.award)}</span>}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
 
           <section className="menu-panel" aria-labelledby="profile-proof">
             <h3 id="profile-proof" className="panel-title">

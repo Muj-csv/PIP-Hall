@@ -1,6 +1,6 @@
 # PIP-Hall v2, part two: the Museum, hackathons, and a hall that comes alive
 
-Status: **V2-9 built** (2026-10-07); V2-10 next. Follows `V2-LIVING-HALL.md` (V2-0 to V2-8, all built). No deadline (D-093). Decisions: D-106 to D-120 (the owner's answers, 2026-10-07). Rules: `CLAUDE.md` → Product rules.
+Status: **V2-9 and V2-10 built** (2026-10-08); V2-11 next. Follows `V2-LIVING-HALL.md` (V2-0 to V2-8, all built). No deadline (D-093). Decisions: D-106 to D-120 (the owner's answers, 2026-10-07). Rules: `CLAUDE.md` → Product rules.
 
 ## Why this round
 
@@ -55,7 +55,9 @@ Built as planned (details: D-121). Evidence: `docs/build/evidence/hackathons/`. 
 - **SQL:** event kind, schedule and tracks on `hall_seasons`; `event_submissions`; `event_awards` (placement or award name, track, note, project or archive exhibit); `announce_results()` (admin, once, logs public events); submission functions with the window and ownership checks; awards in `earned_titles()`, `hall_titles()`, `card_pins()`; security tests for every rule (no submissions outside the window, nothing public before announce, only admins record results, a project can't win twice the same award).
 - Budget: ≤ 6 KB gzipped JS; one RPC for the event panel; no change to the hall's first load.
 
-### V2-10 · The archive: past projects and hackathon outputs (P0)
+### V2-10 · The archive: past projects and hackathon outputs (P0) · built
+
+Built as planned (details: D-122), with one change: the archive is read through its own `museum_archive()` rather than folded into `museum_exhibits()`, and the app hangs it with the other exhibits. Evidence: `docs/build/evidence/archive/`.
 
 **Loop:** an admin compiles past work → it hangs in the Museum next to today's → a former maker who joins finds it and claims it → their badge links to it.
 

@@ -60,6 +60,11 @@ export interface MockDb {
    *  awards {id, season_key, project_id, place, name, track, note}. */
   submissions?: Row[];
   awards?: Row[];
+  /** V2-10 (D-118): archive exhibits as stored ({id, title, …, makers: [{id, member_id, name}],
+   *  published}) and members' claims ({id, exhibit_id, member_id, note, status}). Left undefined,
+   *  museum_archive() answers as if the archive update hasn't run. */
+  archive?: Row[];
+  archiveClaims?: Row[];
 }
 
 /** The wings the wings migration seeds (no notes: the curators write those). */
@@ -355,6 +360,23 @@ export async function handleDb(route: Route, db: MockDb, user: DbUser): Promise<
   }
 
   const inHall = (id: string) => db.published.some((r) => r.profile_id === id);
+  // V2-10: an archive exhibit's event as people say it, and crediting a linked member once.
+  const arcLabel = (a: Row): string | null => {
+    const n = (a.season_key ? ((db.seasons ?? []).find((x) => x.key === a.season_key)?.name as string | undefined) : undefined) ?? (a.event_name as string | null) ?? null;
+    return n === null ? null : n.includes(String(a.year)) ? n : `${n} ${a.year}`;
+  };
+  const arcCredit = (a: Row, memberId: string) => {
+    (a.credited as string[] | undefined) ??= [];
+    if ((a.credited as string[]).includes(memberId) || !inHall(memberId)) return;
+    (a.credited as string[]).push(memberId);
+    const card = db.published.find((r) => r.profile_id === memberId)!;
+    const at = new Date().toISOString();
+    db.notifications?.push({ recipient: memberId, id: 600_000 + (db.notifications?.length ?? 0), type: 'ARCHIVE_CREDITED', at, target_type: 'archive', target_id: a.id, title: a.title, note: null, by_username: null, by_name: null });
+    db.recentEvents?.unshift({ id: 650_000 + (db.recentEvents?.length ?? 0), type: 'ARCHIVE_CREDITED', at, username: card.username, full_name: (card.card as Row).full_name, title: a.title, project_id: a.id, with_username: null, with_name: null, event_key: null, event: null });
+    for (const c of (db.archiveClaims ?? []).filter((x) => x.exhibit_id === a.id && x.member_id === memberId && x.status === 'pending')) c.status = 'confirmed';
+    // The database works titles out from the records; the mock adds Champion for an archive win.
+    if (db.identity && (a.award_place || a.award_name)) (db.earned ??= {})[memberId] = [...new Set([...(db.earned?.[memberId] ?? ['card_holder']), 'champion'])];
+  };
   if (url.pathname === '/rest/v1/rpc/my_pips') return (await json(200, { eligible: inHall(userId), balance: balanceOf(db, userId) })), true;
   if (url.pathname === '/rest/v1/rpc/discover_card') {
     const card = String(body().p_card);
@@ -575,13 +597,17 @@ export async function handleDb(route: Route, db: MockDb, user: DbUser): Promise<
     return (await json(200, out)), true;
   }
   if (url.pathname === '/rest/v1/rpc/hall_awards') {
-    if (!db.seasons) return (await err(404, 'PGRST202', 'Could not find the function public.hall_awards in the schema cache')), true;
+    if (!db.seasons && !db.archive) return (await err(404, 'PGRST202', 'Could not find the function public.hall_awards in the schema cache')), true;
     const by = new Map<unknown, Row[]>();
     for (const a of db.awards ?? []) {
-      const ev = db.seasons.find((x) => x.key === a.season_key);
+      const ev = (db.seasons ?? []).find((x) => x.key === a.season_key);
       if (!ev?.announced_at) continue;
       for (const m of makersOf(a)) by.set(m.id, [...(by.get(m.id) ?? []), { event_key: ev.key, event: ev.name, place: a.place ?? null, name: a.name ?? null, track: a.track ?? null, project_id: a.project_id, title: m.title, at: ev.announced_at }]);
     }
+    // V2-10: archive awards for the members linked on them.
+    for (const a of (db.archive ?? []).filter((x) => x.published && (x.award_place || x.award_name)))
+      for (const m of (a.makers as Row[]).filter((m) => m.member_id && inHall(String(m.member_id))))
+        by.set(m.member_id, [...(by.get(m.member_id) ?? []), { event_key: a.season_key ?? null, event: arcLabel(a), place: a.award_place ?? null, name: a.award_name ?? null, track: a.award_in_track ? a.track : null, project_id: a.id, title: a.title, at: `${a.year}-12-31`, archive: true }]);
     return (await json(200, [...by].map(([profile_id, awards]) => ({ profile_id, awards })))), true;
   }
   if (url.pathname === '/rest/v1/rpc/submit_to_event' || url.pathname === '/rest/v1/rpc/withdraw_from_event') {
@@ -757,6 +783,126 @@ export async function handleDb(route: Route, db: MockDb, user: DbUser): Promise<
     if (row && row.kind !== 'tags') return (await err(400, 'P0001', 'BUILT_IN')), true;
     if (!row) return (await err(400, 'P0001', 'NO_SUCH_WING')), true;
     db.wings = db.wings!.filter((w) => w.key !== p_key);
+    return (await json(200, null)), true;
+  }
+
+  // ---- V2-10 the archive (mirrors 20261008000000_archive.sql).
+  if (url.pathname === '/rest/v1/rpc/museum_archive') {
+    if (!db.archive) return (await err(404, 'PGRST202', 'Could not find the function public.museum_archive in the schema cache')), true;
+    const out = db.archive
+      .filter((a) => a.published)
+      .sort((a, b) => Number(b.year) - Number(a.year) || String(a.title).localeCompare(String(b.title)))
+      .map((a) => ({
+        id: a.id, title: a.title, description: a.description ?? '', year: a.year,
+        event_key: a.season_key ?? null, event: arcLabel(a), track: a.track ?? null,
+        award: a.award_place || a.award_name ? { place: a.award_place ?? null, name: a.award_name ?? null, track: a.award_in_track ? a.track : null, note: a.award_note ?? '' } : null,
+        team_name: a.team_name ?? null, tech: a.tech ?? [], project_url: a.project_url ?? null, github_url: a.github_url ?? null, video_url: a.video_url ?? null, cover_path: a.cover_path ?? null,
+        makers: (a.makers as Row[]).flatMap((m): Row[] => {
+          const c = m.member_id ? db.published.find((r) => r.profile_id === m.member_id) : undefined;
+          if (c) return [{ username: c.username, full_name: (c.card as Row).full_name, member_no: c.member_no }];
+          return a.names_ok && m.name ? [{ full_name: m.name }] : [];
+        }),
+        team_size: (a.makers as Row[]).length,
+      }));
+    return (await json(200, out)), true;
+  }
+  if (url.pathname === '/rest/v1/rpc/my_archive') {
+    return (await json(200, {
+      eligible: inHall(userId),
+      claims: (db.archiveClaims ?? []).filter((c) => c.member_id === userId).map((c) => ({ exhibit_id: c.exhibit_id, status: c.status })),
+      credited: (db.archive ?? []).filter((a) => (a.makers as Row[]).some((m) => m.member_id === userId)).map((a) => a.id),
+    })), true;
+  }
+  if (url.pathname === '/rest/v1/rpc/claim_archive') {
+    if (!inHall(userId)) return (await err(400, 'P0001', 'NOT_ELIGIBLE')), true;
+    const b = body() as { p_id: string; p_note: string };
+    const a = (db.archive ?? []).find((x) => x.id === b.p_id && x.published);
+    if (!a) return (await err(400, 'P0001', 'NO_SUCH_EXHIBIT')), true;
+    if ((a.makers as Row[]).some((m) => m.member_id === userId)) return (await err(400, 'P0001', 'ALREADY_CREDITED')), true;
+    db.archiveClaims ??= [];
+    const mine = db.archiveClaims.find((c) => c.exhibit_id === a.id && c.member_id === userId);
+    if (mine?.status === 'pending') return (await err(400, 'P0001', 'ALREADY_CLAIMED')), true;
+    if (mine) Object.assign(mine, { status: 'pending', note: (b.p_note ?? '').trim() });
+    else db.archiveClaims.push({ id: db.archiveClaims.length + 1, exhibit_id: a.id, member_id: userId, note: (b.p_note ?? '').trim(), status: 'pending', at: new Date().toISOString() });
+    return (await json(200, null)), true;
+  }
+  if (url.pathname === '/rest/v1/rpc/leave_archive') {
+    const { p_id } = body() as { p_id: string };
+    const slot = ((db.archive ?? []).find((x) => x.id === p_id)?.makers as Row[] | undefined)?.find((m) => m.member_id === userId);
+    if (!slot) return (await err(400, 'P0001', 'NOT_CREDITED')), true;
+    slot.member_id = null;
+    return (await json(200, null)), true;
+  }
+  if (url.pathname === '/rest/v1/rpc/admin_archive') {
+    if (!admin) return (await err(403, '42501', 'NOT_ADMIN')), true;
+    const out = (db.archive ?? []).map((a) => ({
+      ...a,
+      event: arcLabel(a),
+      makers: (a.makers as Row[]).map((m) => {
+        const c = m.member_id ? db.published.find((r) => r.profile_id === m.member_id) : undefined;
+        return { ...m, username: c?.username ?? null, full_name: (c?.card as Row | undefined)?.full_name ?? null };
+      }),
+      claims: (db.archiveClaims ?? [])
+        .filter((c) => c.exhibit_id === a.id && c.status === 'pending')
+        .map((c) => {
+          const card = db.published.find((r) => r.profile_id === c.member_id);
+          return { id: c.id, member_id: c.member_id, username: card?.username ?? '', full_name: (card?.card as Row | undefined)?.full_name ?? '', note: c.note, at: c.at };
+        }),
+    }));
+    return (await json(200, out)), true;
+  }
+  if (url.pathname === '/rest/v1/rpc/admin_save_archive') {
+    if (!admin) return (await err(403, '42501', 'NOT_ADMIN')), true;
+    const { p_id, p_data: d } = body() as { p_id: string | null; p_data: Row };
+    if (!String(d.title ?? '').trim()) return (await err(400, 'P0001', 'BAD_TITLE')), true;
+    if (!/^\d{4}$/.test(String(d.year ?? ''))) return (await err(400, 'P0001', 'BAD_YEAR')), true;
+    if ((d.award_place || d.award_name) && !d.season_key && !d.event_name) return (await err(400, 'P0001', 'BAD_AWARD')), true;
+    const makers = (d.makers as Row[]).map((m) => ({ member_id: m.member_id ?? null, name: m.name ?? null }));
+    if (makers.some((m) => m.member_id && !inHall(String(m.member_id)))) return (await err(400, 'P0001', 'NOT_IN_HALL')), true;
+    db.archive ??= [];
+    let row = p_id ? db.archive.find((x) => x.id === p_id) : undefined;
+    if (p_id && !row) return (await err(400, 'P0001', 'NO_SUCH_EXHIBIT')), true;
+    let slot = db.archive.reduce((n, a) => n + (a.makers as Row[]).length, 0);
+    const next = { ...d, year: Number(d.year), makers: makers.map((m) => ({ id: ++slot + 1000, ...m })) };
+    if (row) Object.assign(row, next);
+    else db.archive.push((row = { id: crypto.randomUUID(), first_published_at: null, ...next }));
+    if (row.published) {
+      if (!row.first_published_at) {
+        row.first_published_at = new Date().toISOString();
+        db.recentEvents?.unshift({ id: 800_000 + (db.recentEvents?.length ?? 0), type: 'ARCHIVE_ADDED', at: row.first_published_at, username: null, full_name: null, title: row.title, project_id: row.id, with_username: null, with_name: null, event_key: row.season_key ?? null, event: arcLabel(row) });
+      }
+      for (const m of row.makers as Row[]) if (m.member_id) arcCredit(row, String(m.member_id));
+    }
+    return (await json(200, row.id)), true;
+  }
+  if (url.pathname === '/rest/v1/rpc/admin_delete_archive') {
+    if (!admin) return (await err(403, '42501', 'NOT_ADMIN')), true;
+    const { p_id } = body() as { p_id: string };
+    if (!(db.archive ?? []).some((x) => x.id === p_id)) return (await err(400, 'P0001', 'NO_SUCH_EXHIBIT')), true;
+    db.archive = db.archive!.filter((x) => x.id !== p_id);
+    return (await json(200, null)), true;
+  }
+  if (url.pathname === '/rest/v1/rpc/admin_answer_claim') {
+    if (!admin) return (await err(403, '42501', 'NOT_ADMIN')), true;
+    const b = body() as { p_id: number; p_accept: boolean; p_maker: number | null; p_note: string };
+    const c = (db.archiveClaims ?? []).find((x) => x.id === b.p_id && x.status === 'pending');
+    if (!c) return (await err(400, 'P0001', 'NO_SUCH_CLAIM')), true;
+    const a = db.archive!.find((x) => x.id === c.exhibit_id)!;
+    if (!b.p_accept) {
+      c.status = 'declined';
+      db.notifications?.push({ recipient: c.member_id, id: 700_000 + Number(c.id), type: 'ARCHIVE_CLAIM_DECLINED', at: new Date().toISOString(), target_type: 'archive', target_id: a.id, title: a.title, note: b.p_note || null, by_username: null, by_name: null });
+      return (await json(200, null)), true;
+    }
+    const makers = a.makers as Row[];
+    if (!makers.some((m) => m.member_id === c.member_id)) {
+      if (b.p_maker != null) {
+        const slot = makers.find((m) => m.id === b.p_maker && !m.member_id);
+        if (!slot) return (await err(400, 'P0001', 'BAD_MAKER')), true;
+        slot.member_id = c.member_id;
+      } else makers.push({ id: 5000 + makers.length, member_id: c.member_id, name: null });
+    }
+    c.status = 'confirmed';
+    arcCredit(a, String(c.member_id));
     return (await json(200, null)), true;
   }
 

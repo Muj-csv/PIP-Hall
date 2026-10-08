@@ -1,5 +1,6 @@
 // MUSEUM and affiliations (docs/plan/MUSEUM.md).
 
+import type { ArchiveExhibit } from '../lib/archive';
 import type { ConsoleKind } from '../lib/sprites';
 import type { PublicProject } from './card';
 
@@ -23,6 +24,8 @@ export interface Exhibit {
   /** The console the maker picked; null or missing means picked from the project id (D-091). */
   console?: ConsoleKind | null;
   project: PublicProject;
+  /** Set for a past project from the archive (V2-10, D-118): its makers, event and award. */
+  archive?: ArchiveExhibit;
 }
 
 export interface MyMuseum {

@@ -13,7 +13,9 @@ export type NotificationType =
   | 'COLLAB_PUBLISHED'
   | 'ACHIEVEMENT_UNLOCKED'
   | 'MEMBER_FEATURED'
-  | 'AWARD_WON';
+  | 'AWARD_WON'
+  | 'ARCHIVE_CREDITED'
+  | 'ARCHIVE_CLAIM_DECLINED';
 
 export interface HallNotification {
   id: number;
@@ -45,7 +47,9 @@ export type RecentType =
   | 'ACHIEVEMENT_UNLOCKED'
   | 'MEMBER_FEATURED'
   | 'EVENT_SUBMITTED'
-  | 'RESULTS_ANNOUNCED';
+  | 'RESULTS_ANNOUNCED'
+  | 'ARCHIVE_ADDED'
+  | 'ARCHIVE_CREDITED';
 
 export interface RecentEvent {
   id: number;
@@ -97,6 +101,13 @@ export function notificationLine(n: HallNotification, me: string | null): Line |
         text: `${quoted(n.title)} won ${awardLabel({ place: n.place ?? null, name: n.award ?? null, track: n.track ?? null })}${n.event ? ` at ${n.event}` : ''}!`,
         to: n.target_id ? exhibitPath(n.target_id) : '/museum',
       };
+    case 'ARCHIVE_CREDITED':
+      return { text: `You’re credited on ${quoted(n.title)} in the Museum’s Archive. It links to your badge.`, to: n.target_id ? exhibitPath(n.target_id) : '/museum' };
+    case 'ARCHIVE_CLAIM_DECLINED':
+      return {
+        text: n.note ? `Your claim on ${quoted(n.title)} wasn’t confirmed: ${n.note}` : `Your claim on ${quoted(n.title)} wasn’t confirmed.`,
+        to: n.target_id ? exhibitPath(n.target_id) : '/museum',
+      };
     default:
       return null;
   }
@@ -117,6 +128,8 @@ export function unread(data: MyNotifications | null): number {
 /** One public event as a sentence and a link. Every line names a real member and goes to them. */
 export function recentLine(e: RecentEvent): Line | null {
   if (e.type === 'RESULTS_ANNOUNCED') return e.event && e.event_key ? { text: `Results are in for ${e.event}!`, to: eventRoomPath(e.event_key) } : null;
+  if (e.type === 'ARCHIVE_ADDED')
+    return e.title && e.project_id ? { text: `New in the Museum’s Archive: ${quoted(e.title)}${e.event ? ` from ${e.event}` : ''}.`, to: exhibitPath(e.project_id) } : null;
   if (!e.username) return null;
   const who = e.full_name || e.username;
   switch (e.type) {
@@ -134,6 +147,8 @@ export function recentLine(e: RecentEvent): Line | null {
       return { text: `${who} is featured in the hall.`, to: memberPath(e.username) };
     case 'EVENT_SUBMITTED':
       return e.event ? { text: `${who} entered ${quoted(e.title)} in ${e.event}.`, to: e.project_id ? exhibitPath(e.project_id) : '/museum' } : null;
+    case 'ARCHIVE_CREDITED':
+      return e.project_id ? { text: `${who} is credited on ${quoted(e.title)} in the Museum’s Archive.`, to: exhibitPath(e.project_id) } : null;
     default:
       return null;
   }

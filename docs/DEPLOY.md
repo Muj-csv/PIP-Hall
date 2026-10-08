@@ -97,6 +97,13 @@ Both are safe to run again (they only add columns and replace functions).
 1. Supabase **SQL editor:** run `supabase/migrations/20261006000300_project_collaborators.sql`. Safe to run again.
 2. Check: a member opens **My card → Collaborators**, tags another member of the hall on a project; that member sees the request in their own **Collaborators** panel and accepts. After the owner's next approval, the project's public card lists them.
 
+## The archive (V2-10, D-118, D-122)
+
+1. Supabase **SQL editor:** run `supabase/migrations/20261008000000_archive.sql` (after the hackathons one). Safe to run again. If you ever re-run the hackathons, events or notifications migration, run this one again after it.
+2. In the app: **Admin → Archive → Add a past project.** Fill in the title, year and event (one of the hall's events once it's over, or "An older event" with its name), the track and award if it won one (with the judges' note), the team name, what it was built with, links and a picture. Add its makers: pick members who have a card in the hall; type other names; leave a slot blank for someone who shouldn't be named. Tick **These makers agreed to be named** only when they did; without it the exhibit shows the team name or "a team of N". Leave **On show** off to keep a draft while you compile.
+3. Check: `/museum` shows a door to **The Archive** (by year); winners stand in the Winners' Hall; each exhibit hangs in its wings and, for a hall event, in that event's room.
+4. Claims: a member who made one opens it and presses **Claim it**. In **Admin → Archive → Claims waiting**, link them to the maker they were (or as a new maker) and **Confirm**, or **Decline** with a note. Confirmed members hear it in their bell; their profile lists the project and its award, with a ribbon on their badge.
+
 ## Hackathons and winners (V2-9, D-115 to D-117)
 
 1. Supabase **SQL editor:** run `supabase/migrations/20261007000000_hackathons.sql` (after the events one) **before** merging the app update: the new Admin → Events form saves events the new way. Safe to run again. If you ever re-run the events (seasons) or notifications migration, run this one again after it.

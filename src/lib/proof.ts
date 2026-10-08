@@ -3,6 +3,7 @@
 // self-listed things (skills) are labelled as such rather than dressed up as proof.
 
 import type { PublicCard } from '../types/card';
+import type { ArchiveExhibit } from './archive';
 import { collaborationsOf } from './collab';
 import { awardLabel, type HallAward } from './events';
 import { titleOf, type HallTitle } from './titles';
@@ -28,7 +29,13 @@ export function githubOwner(url: string | null | undefined): string | null {
 
 const list = (xs: readonly string[]) => (xs.length <= 1 ? (xs[0] ?? '') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`);
 
-export function proofOf(card: PublicCard, hall: readonly PublicCard[], titles: HallTitle | null, awards: readonly HallAward[] = []): ProofLine[] {
+export function proofOf(
+  card: PublicCard,
+  hall: readonly PublicCard[],
+  titles: HallTitle | null,
+  awards: readonly HallAward[] = [],
+  archive: readonly Pick<ArchiveExhibit, 'title' | 'event' | 'year'>[] = [],
+): ProofLine[] {
   const c = card.card;
   const gh = c.github_username?.toLowerCase() ?? null;
   const lines: ProofLine[] = [];
@@ -66,6 +73,11 @@ export function proofOf(card: PublicCard, hall: readonly PublicCard[], titles: H
       text: `Card approved ${approved.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}.`,
       sub: 'What you see here is the card as an admin approved it.',
     });
+  }
+
+  // Past projects the admins linked them on in the Museum's Archive (D-118).
+  for (const a of archive) {
+    lines.push({ mark: '✓', text: `Archive: credited on “${a.title}” (${a.event ?? a.year}).`, sub: 'Linked by the hall’s admins, from their records or a confirmed claim.' });
   }
 
   // Results the admins recorded and announced (D-116): one line per award, newest first.

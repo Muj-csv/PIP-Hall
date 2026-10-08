@@ -1,26 +1,29 @@
 // The admin's queue (FR-08): Pending / Published / Featured tabs. Each tab is a list of cards
 // on the left and the selected card's ReviewPanel on the right. The Affiliations tab manages the
-// labels admins give members (D-067); the Rewards tab designs borders and badges (D-087).
+// labels admins give members (D-067); the Rewards tab designs borders and badges (D-087); the
+// Archive tab compiles past projects and answers members' claims on them (D-118).
 
 import { useRef, useState, type KeyboardEvent } from 'react';
 import type { Queue } from '../../services/adminService';
 import { DialogueBox } from '../dialogue/DialogueBox';
 import { pipsEnabled } from '../../lib/features';
 import { AffiliationsManager } from './AffiliationsManager';
+import { ArchiveManager } from './ArchiveManager';
 import { RewardsManager } from './RewardsManager';
 import { SeasonsManager } from './SeasonsManager';
 import { WingsManager } from './WingsManager';
 import { PendingReview, PublishedReview } from './ReviewPanel';
 
-type Tab = 'pending' | 'published' | 'featured' | 'affiliations' | 'wings' | 'events' | 'rewards';
-const TABS: Tab[] = ['pending', 'published', 'featured', 'affiliations', 'wings', 'events', ...(pipsEnabled ? (['rewards'] as const) : [])];
-const LABEL: Record<Tab, string> = { pending: 'Pending', published: 'Published', featured: 'Featured', affiliations: 'Affiliations', wings: 'Wings', events: 'Events', rewards: 'Rewards' };
+type Tab = 'pending' | 'published' | 'featured' | 'affiliations' | 'wings' | 'events' | 'archive' | 'rewards';
+const TABS: Tab[] = ['pending', 'published', 'featured', 'affiliations', 'wings', 'events', 'archive', ...(pipsEnabled ? (['rewards'] as const) : [])];
+const LABEL: Record<Tab, string> = { pending: 'Pending', published: 'Published', featured: 'Featured', affiliations: 'Affiliations', wings: 'Wings', events: 'Events', archive: 'Archive', rewards: 'Rewards' };
 /** Tabs that are tools, not lists of cards: no count on the tab. */
-const TOOLS: readonly Tab[] = ['affiliations', 'wings', 'events', 'rewards'];
+const TOOLS: readonly Tab[] = ['affiliations', 'wings', 'events', 'archive', 'rewards'];
 const EMPTY: Record<Tab, string> = {
   affiliations: '',
   wings: '',
   events: '',
+  archive: '',
   rewards: '',
   pending: 'Nobody’s waiting for review. New cards show up here when members submit them.',
   published: 'The hall is empty. Approve a card and it hangs here.',
@@ -36,7 +39,7 @@ interface Row {
 export function ModerationQueue({ queue, onDone }: { queue: Queue; onDone: (message: string) => void }) {
   const [tab, setTab] = useState<Tab>('pending');
   const [picked, setPicked] = useState<Partial<Record<Tab, string>>>({});
-  const tabRefs = useRef<Record<Tab, HTMLButtonElement | null>>({ pending: null, published: null, featured: null, affiliations: null, wings: null, events: null, rewards: null });
+  const tabRefs = useRef<Record<Tab, HTMLButtonElement | null>>({ pending: null, published: null, featured: null, affiliations: null, wings: null, events: null, archive: null, rewards: null });
 
   const featured = queue.published.filter((c) => c.is_featured);
   const rows: Record<Tab, Row[]> = {
@@ -46,6 +49,7 @@ export function ModerationQueue({ queue, onDone }: { queue: Queue; onDone: (mess
     affiliations: [],
     wings: [],
     events: [],
+    archive: [],
     rewards: [],
   };
   const list = rows[tab];
@@ -94,6 +98,8 @@ export function ModerationQueue({ queue, onDone }: { queue: Queue; onDone: (mess
           <WingsManager onDone={onDone} />
         ) : tab === 'events' ? (
           <SeasonsManager onDone={onDone} />
+        ) : tab === 'archive' ? (
+          <ArchiveManager onDone={onDone} />
         ) : tab === 'rewards' ? (
           <RewardsManager members={queue.published} onDone={onDone} />
         ) : list.length === 0 ? (

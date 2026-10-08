@@ -116,3 +116,14 @@ describe('event lines in Recent (V2-9)', () => {
     expect(recentLine(r({ type: 'RESULTS_ANNOUNCED', username: null, event: null, event_key: null }))).toBeNull();
   });
 });
+
+describe('archive lines (V2-10)', () => {
+  it('tells a member they’re credited, or why a claim wasn’t confirmed', () => {
+    expect(notificationLine(n({ type: 'ARCHIVE_CREDITED', target_id: 'k1', title: 'Kite' }), null)).toEqual({ text: 'You’re credited on “Kite” in the Museum’s Archive. It links to your badge.', to: '/museum/k1' });
+    expect(notificationLine(n({ type: 'ARCHIVE_CLAIM_DECLINED', target_id: 'k1', title: 'Kite', note: 'Not on the team list.' }), null)?.text).toBe('Your claim on “Kite” wasn’t confirmed: Not on the team list.');
+  });
+  it('announces new archive exhibits and credits in Recent', () => {
+    expect(recentLine(r({ type: 'ARCHIVE_ADDED', username: null, full_name: null, title: 'Kite', project_id: 'k1', event: 'Spring Hackathon 2024' }))).toEqual({ text: 'New in the Museum’s Archive: “Kite” from Spring Hackathon 2024.', to: '/museum/k1' });
+    expect(recentLine(r({ type: 'ARCHIVE_CREDITED', title: 'Kite', project_id: 'k1' }))?.text).toBe('Ada L is credited on “Kite” in the Museum’s Archive.');
+  });
+});
