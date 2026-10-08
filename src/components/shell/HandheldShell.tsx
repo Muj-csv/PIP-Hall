@@ -1,8 +1,8 @@
 // The PIXENDO handheld (brief §14, D-022): a two-grip slab. MOVE rocker on the left grip; FLIP,
-// OPEN and the DAY/NIGHT switch on the right. On phones the grips fold into one row under the screen.
+// OPEN and START on the right (D-107, D-126: START opens the device's menu; DAY/NIGHT lives in the
+// top bar and that menu). On phones the grips fold into one row under the screen.
 
 import type { ReactNode } from 'react';
-import { useTheme } from '../../app/themeContext';
 import { useOnline } from '../../lib/useOnline';
 
 interface Props {
@@ -19,14 +19,14 @@ interface Props {
   /** The walkable Museum (V2-11) moves between exhibits and opens its map with the action button. */
   moveLabels?: { group: string; prev: string; next: string };
   flipLabel?: string;
+  /** The START button and whether its menu is open; without one the device has two action buttons. */
+  start?: { onClick: () => void; open: boolean; controls: string };
 }
 
 const PLAYERS = { group: 'Move between players', prev: 'Previous player', next: 'Next player' };
 
-export function HandheldShell({ screen, onPrev, onNext, onFlip, onOpen, openLabel, controlsDisabled, ledBlink, moveLabels = PLAYERS, flipLabel = 'FLIP' }: Props) {
+export function HandheldShell({ screen, onPrev, onNext, onFlip, onOpen, openLabel, controlsDisabled, ledBlink, moveLabels = PLAYERS, flipLabel = 'FLIP', start }: Props) {
   const online = useOnline();
-  const { theme, toggle } = useTheme();
-  const night = theme === 'dark';
   return (
     <div className="device-outer">
       <div className="device step16">
@@ -77,9 +77,11 @@ export function HandheldShell({ screen, onPrev, onNext, onFlip, onOpen, openLabe
             <button type="button" className="hw-btn" onClick={onOpen} disabled={controlsDisabled}>
               {openLabel}
             </button>
-            <button type="button" className="hw-btn" data-variant="small" onClick={toggle} aria-label={night ? 'Night world. Switch to day' : 'Day world. Switch to night'}>
-              {night ? 'NIGHT' : 'DAY'}
-            </button>
+            {start && (
+              <button type="button" className="hw-btn" data-variant="small" onClick={start.onClick} aria-expanded={start.open} aria-controls={start.controls}>
+                START
+              </button>
+            )}
           </div>
           <Grille />
         </div>

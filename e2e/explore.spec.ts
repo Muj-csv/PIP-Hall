@@ -4,6 +4,11 @@ import { expect, test, type Page } from '@playwright/test';
 
 const playerCount = (p: Page) => p.locator('.hud span').last();
 const current = (p: Page) => p.locator('.slot:not([aria-hidden]) .badge');
+/** Opens the device's START menu (D-126) and returns it. */
+const start = async (page: Page) => {
+  await page.getByRole('button', { name: 'START', exact: true }).click();
+  return page.getByRole('region', { name: 'START', exact: true });
+};
 const status = (p: Page) => p.getByRole('region', { name: 'Find players' }).getByRole('status');
 const q = (p: Page) => p.getByRole('searchbox', { name: 'Search players' });
 
@@ -69,12 +74,12 @@ test('filters by skill and featured, and Pip says when nothing matches', async (
 
 test('Random player walks to one of the results', async ({ page }) => {
   await page.goto('/?q=quest+solo');
-  await page.getByRole('button', { name: /Random player/ }).click();
+  await (await start(page)).getByRole('button', { name: /Random player/ }).click();
   await expect(page.locator('.dialogue .sr-only')).toContainText('Random player: Sample Player 5');
   await expect(current(page)).toContainText('Sample Player 5');
 
   await page.goto('/');
-  await page.getByRole('button', { name: /Random player/ }).click();
+  await (await start(page)).getByRole('button', { name: /Random player/ }).click();
   await expect(page.locator('.dialogue .sr-only')).toContainText('Random player:');
   await expect(playerCount(page)).not.toHaveText('1/6'); // never the player already in front
 });

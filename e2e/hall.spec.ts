@@ -85,10 +85,13 @@ test.describe('desktop', () => {
     await expect(playerCount(page)).toHaveText('5/6');
   });
 
-  test('DAY / NIGHT switch sets the theme', async ({ page }) => {
-    await page.getByRole('radio', { name: 'NIGHT' }).check({ force: true });
+  test('DAY / NIGHT: one button in the top bar steps through them, and START switches the world', async ({ page }) => {
+    const world = page.locator('header').getByRole('button', { name: /^World:/ });
+    for (let i = 0; i < 3 && !(await world.textContent())?.includes('NIGHT'); i++) await world.click();
+    await expect(world).toHaveText('World: NIGHT');
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
-    await page.getByRole('button', { name: /Switch to day/ }).click();
+    await page.getByRole('button', { name: 'START', exact: true }).click();
+    await page.getByRole('region', { name: 'START', exact: true }).getByRole('button', { name: /Day world/ }).click();
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
   });
 });

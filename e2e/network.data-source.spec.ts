@@ -37,8 +37,10 @@ test('a sparse hall keeps the map closed and says how close it is', async ({ pag
   await boot(page);
   await mockSupabase(page, { publishedCards: samples });
   await page.goto('/');
-  await expect(page.getByRole('button', { name: /Passport/ })).toBeVisible();
-  await expect(page.getByRole('link', { name: /Map/ })).toHaveCount(0);
+  await page.getByRole('button', { name: 'START', exact: true }).click();
+  const menu = page.getByRole('region', { name: 'START', exact: true });
+  await expect(menu.getByRole('button', { name: /Passport/ })).toBeVisible();
+  await expect(menu.getByRole('link', { name: /Map/ })).toHaveCount(0);
   await page.goto('/network');
   const box = page.locator('.dialogue').filter({ hasText: 'The map opens when 30 members have projects' });
   await expect(box).toContainText('Right now:');
@@ -51,7 +53,8 @@ test('a dense hall opens the map: people, projects and shared skills, with plain
   await boot(page);
   await mockSupabase(page, { publishedCards: cards });
   await page.goto('/');
-  await page.getByRole('link', { name: /Map/ }).click();
+  await page.getByRole('button', { name: 'START', exact: true }).click();
+  await page.getByRole('region', { name: 'START', exact: true }).getByRole('link', { name: /Map/ }).click();
   await expect(page).toHaveURL(/\/network$/);
   await expect(page.locator('#net-caption')).toContainText('30 people · 30 projects · 5 shared skills');
 

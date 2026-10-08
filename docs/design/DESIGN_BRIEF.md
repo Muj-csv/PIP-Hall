@@ -27,7 +27,7 @@ Upstream: `docs/ARCHITECTURE.md`, `docs/DECISIONS.md`, original spec in `docs/sp
 
 ## 3. Layout intent
 
-- **Skeleton (home):** one device, one screen. Desktop: the PIXENDO handheld (§14): a wide slab with a left grip (MOVE rocker ◀ ▶), the screen in the middle, a right grip (FLIP, OPEN, DAY/NIGHT). Inside the screen: a HUD strip (PIP-HALL · coins · world · player n/N), then the **level**: a ceiling row of bricks with one emblem block per member, each badge hanging from its block on a lanyard, hills and clouds behind, a ground row in front, and Pip (the hero) standing under the current badge. Under the level, the **text window** (Pip's portrait + one line of dialogue). Search and "Make your card" live in a slim top bar outside the device.
+- **Skeleton (home):** one device, one screen. Desktop: the PIXENDO handheld (§14): a wide slab with a left grip (MOVE rocker ◀ ▶), the screen in the middle, a right grip (FLIP, OPEN, START; START opens the device's menu, D-126). Inside the screen: a HUD strip (PIP-HALL · coins · world · player n/N), then the **level**: a ceiling row of bricks with one emblem block per member, each badge hanging from its block on a lanyard, hills and clouds behind, a ground row in front, and Pip (the hero) standing under the current badge. Under the level, the **text window** (Pip's portrait + one line of dialogue). "Make your card" lives in a slim top bar outside the device, with one search row (search and Filters) between the bar and the device; the rest is in START, and the panels under the device are tabs, one at a time (D-126).
 - **Level geometry (pixel units, 1u = 4px):** HUD 0–8u · bricks 10–20u · strap 20–24u · clip 24–28u · badge 28–116u · Pip 120–132u · ground 132–144u. Slot spacing 66u; neighbours scale to 0.84 and fade 12% per slot. The warp tube sits before the first slot (leads to Explore), the goal flag after the last ("you've met everyone").
 - **Phone (<860px):** the grips fold into one row under the screen: rocker on the left, FLIP / OPEN / theme on the right. The level keeps the same geometry; only the current badge is fully on screen.
 - **Why not the default:** no hero + feature grid, no sidebar + card grid. The page has one object and one way to move through it, the way a game level does.
@@ -154,7 +154,7 @@ Library: none. Everything is custom on top of the theme.
 
 - **Shape:** wide slab, 4-step staircase corners (16px), 4px lit top-left edge, 12px shaded bottom with a 4px deeper lip (it reads as a thick object), four screws, two 5 × 2 dot grilles, embossed PIXENDO under the screen.
 - **Bezel:** slate violet with a lit inner edge; printed line under the screen: POWER LED on the left, "PIP-HALL · PEOPLE, IDENTITY & PROJECTS" on the right.
-- **Controls:** left grip MOVE rocker (two halves, ◀ ▶); right grip FLIP (crimson, tallest), OPEN, theme (DAY/NIGHT). Buttons sit on a 6px shadow and travel 4px in two frames.
+- **Controls:** left grip MOVE rocker (two halves, ◀ ▶); right grip FLIP (crimson, tallest), OPEN, START (the menu; DAY/NIGHT is in it and in the top bar, D-126). Buttons sit on a 6px shadow and travel 4px in two frames.
 - **Rules:** one pixel unit everywhere (no mixels); light always from the top left; solid objects get bevels, paper objects don't; corners are staircases, never radii; the LED only shows real network state.
 
 ## 15. Motion catalog (design v2, D-023)

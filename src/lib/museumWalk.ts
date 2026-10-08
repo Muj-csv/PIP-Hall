@@ -167,6 +167,8 @@ export interface WalkStop {
   awards: PlaqueAward[];
   /** 1-based position in its room. */
   nth: number;
+  /** The group it hangs in (an event in the Winners' Hall, a track, a year), for the room's title. */
+  group: string | null;
 }
 
 export interface WalkSign {
@@ -216,7 +218,7 @@ export function layoutWalk(planned: readonly PlannedRoom[]): WalkLayout {
         x += GROUP_GAP;
       }
       for (const s of g.stops) {
-        stops.push({ room, x: x + STOP_SPACING / 2, exhibit: s.exhibit, awards: s.awards, nth: ++nth });
+        stops.push({ room, x: x + STOP_SPACING / 2, exhibit: s.exhibit, awards: s.awards, nth: ++nth, group: g.title });
         x += STOP_SPACING;
       }
     }

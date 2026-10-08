@@ -2121,11 +2121,12 @@ textarea.pixel-input {
 }
 
 /* ---------------------------------------------------------------- hall search (FR-13, D-072) */
+/* One slim row above the device (D-126): the search and its filters; everything else is in START. */
 .hall-search {
   display: grid;
-  gap: 12px;
-  margin: 0 auto 24px;
-  max-width: 960px;
+  gap: 10px;
+  margin: 0 auto 20px;
+  max-width: 760px;
 }
 .chips {
   display: flex;
@@ -2842,7 +2843,8 @@ textarea.pixel-input {
   color: var(--color-text-secondary);
 }
 .mission-text {
-  flex: 1 1 220px;
+  /* Small enough that Go stays beside it on phones (D-126). */
+  flex: 1 1 140px;
   min-width: 0;
 }
 /* Below the device: the hall stays first on screen. */
@@ -3283,9 +3285,9 @@ a.net-node:focus {
 }
 
 /* ---------------------------------------------------------------- the walkable Museum (V2-11, D-119, D-125)
-   The level is canvas (walls, floors, props, lamps, pedestals, Pip); everything with words is HTML
-   laid over it and moved by the animation loop: door and group signs, and each exhibit in its
-   console with its plaque. The plaque in front of Pip lights up (a hard ring, no blur) and shows the
+   The level is canvas (walls, floors, props, lamps, pedestals, Pip); everything with words is HTML:
+   the room's title, fixed at the top, and each exhibit in its console with its plaque, moved by the
+   animation loop. Heights are in units (--p) and match walkWorld.ts (EXHIBIT_TOP). The plaque in front of Pip lights up (a hard ring, no blur) and shows the
    judges' note; the dialogue line says the same in words. */
 .museum-views {
   display: flex;
@@ -3303,7 +3305,7 @@ a.net-node:focus {
 }
 .walk-stop {
   position: absolute;
-  top: calc(var(--p) * 16);
+  top: calc(var(--p) * 30);
   left: 0;
   width: calc(var(--p) * 54);
   display: grid;
@@ -3325,8 +3327,8 @@ a.net-node:focus {
   display: grid;
   gap: 2px;
   width: calc(var(--p) * 50);
-  /* Ends above a winner's cup or rosette, which stands at the pedestal's foot. */
-  max-height: calc(var(--p) * 42);
+  /* Ends at the chair rail, above a winner's cup or rosette at the pedestal's foot. */
+  max-height: calc(var(--p) * 29);
   margin-top: calc(var(--p) * 2);
   padding: 6px 8px 7px;
   overflow: hidden;
@@ -3380,43 +3382,48 @@ a.net-node:focus {
   font-size: 12px;
 }
 .walk-note {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
   font-size: 12px;
 }
-.walk-sign {
+/* The room's title: one plate, centred under the ceiling, that stays put while Pip walks. */
+.walk-title {
   position: absolute;
-  top: calc(var(--p) * 13);
-  left: 0;
-  max-width: calc(var(--p) * 40);
+  top: calc(var(--p) * 10);
+  left: 50%;
+  z-index: 35;
+  display: grid;
+  justify-items: center;
+  gap: 1px;
+  max-width: min(80%, calc(var(--p) * 90));
   margin: 0;
-  padding: 4px 10px 5px;
-  font-family: var(--font-display);
-  font-size: 15px;
-  letter-spacing: 0.06em;
-  line-height: 1.1;
+  padding: 4px 14px 5px;
+  transform: translateX(-50%);
   text-align: center;
   background: var(--color-card-ink);
   color: var(--color-card-cream);
-  box-shadow: 0 0 0 2px var(--color-museum-trim);
+  box-shadow: 0 0 0 2px var(--color-museum-trim), 4px 4px 0 2px var(--color-card-ink);
   pointer-events: none;
 }
-.walk-sign[data-kind='group'] {
-  top: calc(var(--p) * 30);
-  max-width: calc(var(--p) * 34);
-  font-size: 13px;
-  background: var(--color-card-cream);
-  color: var(--color-card-ink);
-  box-shadow: 0 0 0 2px var(--color-card-ink), 3px 3px 0 2px var(--color-card-ink);
+.walk-title-name {
+  max-width: 100%;
+  overflow: hidden;
+  font-family: var(--font-display);
+  font-size: 16px;
+  letter-spacing: 0.06em;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.walk-sign-sub {
-  display: block;
-  margin-top: 2px;
-  font-family: var(--font-body);
+.walk-title-sub {
+  max-width: 100%;
+  overflow: hidden;
   font-size: 11px;
-  letter-spacing: 0;
-}
-.walk-hud {
-  color: var(--color-card-cream);
-  font-size: 14px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .walk-map-rooms {
   display: grid;
@@ -3480,4 +3487,82 @@ a.net-node:focus {
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+/* ---------------------------------------------------------------- a calmer hall (D-126)
+   START opens the device's menu over the screen; below the device, one tab at a time. */
+.theme-step {
+  min-width: 132px;
+  white-space: nowrap;
+}
+.start-glyph canvas {
+  width: 21px;
+  height: 21px;
+}
+.start-items {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0 6px 6px 0;
+  list-style: none;
+}
+.start-item {
+  all: unset;
+  box-sizing: border-box;
+  cursor: pointer;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  column-gap: 10px;
+  align-items: center;
+  width: 100%;
+  min-height: 60px;
+  padding: 8px 12px;
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  box-shadow: 0 0 0 2px var(--color-card-ink), 4px 4px 0 2px var(--color-card-ink);
+}
+.start-item:hover {
+  background: var(--color-surface-hover);
+}
+.start-item:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 4px;
+}
+.start-item[aria-pressed='true'] {
+  background: var(--color-surface-raised);
+  box-shadow: 0 0 0 2px var(--color-card-ink), inset 6px 0 0 var(--color-accent), 4px 4px 0 2px var(--color-card-ink);
+}
+.start-glyph {
+  grid-row: 1 / span 2;
+  font-family: var(--font-display);
+  font-size: 22px;
+  text-align: center;
+}
+.start-name {
+  font-family: var(--font-display);
+  font-size: 17px;
+  line-height: 1.15;
+}
+.start-what {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+.hall-tabs {
+  display: grid;
+  gap: 12px;
+  margin: 24px auto 0;
+  max-width: 960px;
+}
+.hall-tabs .tabs {
+  justify-content: center;
+}
+.hall-tabs .missions-panel,
+.hall-tabs .recent-panel,
+.hall-tabs .season-panel {
+  margin-top: 0;
+}
+.start-glyph canvas {
+  background: var(--color-world-sky);
+  box-shadow: 0 0 0 2px var(--color-card-ink);
 }

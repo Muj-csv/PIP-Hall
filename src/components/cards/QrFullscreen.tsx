@@ -20,12 +20,18 @@ interface SheetProps {
   /** A line under the heading, e.g. what scanning does. */
   lead?: string;
   onClose: () => void;
+  /** Where focus goes when whatever opened the sheet is gone (a menu that closed behind it). */
+  returnTo?: () => HTMLElement | null;
 }
 
-export function QrSheet({ url, code = url, heading, codeTitle, lead, onClose }: SheetProps) {
+export function QrSheet({ url, code = url, heading, codeTitle, lead, onClose, returnTo }: SheetProps) {
   const ref = useRef<HTMLDialogElement>(null);
   // Who opened the sheet, read once during the first render (before showModal moves focus).
   const [opener] = useState(() => document.activeElement as HTMLElement | null);
+  const fallback = useRef(returnTo);
+  useEffect(() => {
+    fallback.current = returnTo;
+  });
 
   useEffect(() => {
     const dialog = ref.current;
@@ -33,7 +39,7 @@ export function QrSheet({ url, code = url, heading, codeTitle, lead, onClose }: 
     return () => {
       dialog?.close();
       // After the dialog's own focus restoration has run.
-      window.setTimeout(() => opener?.focus(), 0);
+      window.setTimeout(() => (opener?.isConnected ? opener : fallback.current?.())?.focus({ preventScroll: true }), 0);
     };
   }, [opener]);
 

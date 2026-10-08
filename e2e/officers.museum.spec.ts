@@ -89,11 +89,15 @@ test('visitors open the Officers door, see pins and positions, and walk into the
   await mockSupabase(page, { db });
   await page.goto('/');
 
-  // The Officers door: only the current officers, in their seats, and why.
-  const door = page.getByRole('button', { name: 'Officers' });
-  await door.click();
-  await expect(door).toHaveAttribute('aria-pressed', 'true');
+  // The Officers door, in START (D-126): only the current officers, in their seats, and why.
+  await page.getByRole('button', { name: 'START', exact: true }).click();
+  await page.getByRole('region', { name: 'START', exact: true }).getByRole('button', { name: /^Officers/ }).click();
   await expect(page).toHaveURL(/officers=1/);
+  await page.getByRole('button', { name: 'START', exact: true }).click();
+  await expect(page.getByRole('region', { name: 'START', exact: true }).getByRole('button', { name: /^Officers/ })).toHaveAttribute('aria-pressed', 'true');
+  await page.keyboard.press('Escape');
+  // …and a filter: the chip under Filters says so too.
+  await expect(page.getByRole('button', { name: /Filters \(1\)/ })).toBeVisible();
   await expect(page.getByRole('status').filter({ hasText: 'players match' })).toHaveText('2 of 3 players match');
   await expect(page.locator('.officers-caption')).toHaveText('The officers of Officers 2026–27, as named by the hall’s admins.');
   await expect(page.locator('.why-picked')).toContainText('President · Officers 2026–27, named by the hall’s admins');
