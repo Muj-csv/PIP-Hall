@@ -46,7 +46,7 @@ test('visitors walk through the wings: doors, rooms, curator notes, and paths on
   const db = hall();
   await boot(page);
   await mockSupabase(page, { db, publishedCards: db.published });
-  await page.goto('/museum');
+  await page.goto('/museum?view=list');
 
   // Only wings with something on show have a door (no Featured: nobody is featured).
   await expect(doors(page)).toHaveText([/All exhibits/, /Collab Wing\s*1 exhibit/, /Web Wing\s*1 exhibit/, /Games Wing\s*1 exhibit/, /Data Wing\s*1 exhibit/]);
@@ -54,7 +54,7 @@ test('visitors walk through the wings: doors, rooms, curator notes, and paths on
   await page.getByRole('navigation', { name: 'Rooms' }).screenshot({ path: 'docs/build/evidence/wings/doors.png' });
 
   await doors(page).filter({ hasText: 'Web Wing' }).click();
-  await expect(page).toHaveURL(/\/museum\?wing=web$/);
+  await expect(page).toHaveURL(/\/museum\?wing=web&view=list$/);
   const room = page.getByRole('region', { name: 'Web Wing' });
   await expect(room.getByRole('heading', { name: 'Web Wing' })).toBeVisible();
   await expect(room.locator('.curator-note')).toContainText('Things you can open in a browser.');
@@ -77,7 +77,7 @@ test('visitors walk through the wings: doors, rooms, curator notes, and paths on
   await expect(page).toHaveURL(/\/museum\?wing=games$/);
 
   // A wing that is closed or empty sends the visitor back to the rest.
-  await page.goto('/museum?wing=featured');
+  await page.goto('/museum?wing=featured&view=list');
   await expect(page.locator('.dialogue').filter({ hasText: 'That wing has nothing on show right now' })).toBeVisible();
 });
 
@@ -103,7 +103,7 @@ test('an admin writes a curator note and opens a wing; visitors see both', async
   const visitor = await browser.newPage();
   await boot(visitor);
   await mockSupabase(visitor, { db, publishedCards: db.published });
-  await visitor.goto('/museum?wing=data');
+  await visitor.goto('/museum?wing=data&view=list');
   await expect(visitor.locator('.curator-note')).toContainText('Numbers that tell stories.');
   await expect(doors(visitor).filter({ hasText: 'Toys Wing' })).toContainText('1 exhibit');
   await visitor.close();
@@ -113,7 +113,7 @@ test('before the wings update, the default wings still lead somewhere, with no n
   const db = hall(false);
   await boot(page);
   await mockSupabase(page, { db, publishedCards: db.published });
-  await page.goto('/museum');
+  await page.goto('/museum?view=list');
   await expect(doors(page)).toHaveCount(5);
   await doors(page).filter({ hasText: 'Web Wing' }).click();
   await expect(page.getByRole('region', { name: 'Web Wing' })).toContainText('Pixel Diary');

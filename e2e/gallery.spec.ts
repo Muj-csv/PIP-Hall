@@ -2,7 +2,7 @@
 import { expect, test } from '@playwright/test';
 
 test('the Museum shows exhibits, shuffles them, and links to their makers', async ({ page }) => {
-  await page.goto('/museum');
+  await page.goto('/museum?view=list');
   await expect(page).toHaveTitle('Museum · PIP-Hall');
   const items = page.getByRole('list', { name: 'More exhibits' }).locator(':scope > li');
   await expect(items).toHaveCount(12); // the 13th is pinned in Featured
@@ -25,7 +25,7 @@ test('the top bar leads to the Museum', async ({ page }) => {
 });
 
 test('an exhibit has its own page: plaque, maker, neighbours, and a pixel cover when it has no image', async ({ page }) => {
-  await page.goto('/museum');
+  await page.goto('/museum?view=list');
   const first = page.getByRole('list', { name: 'More exhibits' }).locator(':scope > li').first();
   // No sample project has a cover image: every frame shows a drawn pixel cover, never an empty box.
   await expect(first.locator('.exhibit-diorama canvas')).toHaveCount(4);
@@ -60,7 +60,7 @@ test('an exhibit that is no longer on show says so and leads back to the Museum'
 });
 
 test('featured makers are pinned on top, and Shuffle never moves them', async ({ page }) => {
-  await page.goto('/museum');
+  await page.goto('/museum?view=list');
   const featured = page.getByRole('region', { name: 'Featured' });
   await expect(featured.getByRole('list', { name: 'Featured exhibits' }).locator(':scope > li')).toHaveCount(1);
   await expect(featured).toContainText('Sample Player 2');
@@ -76,7 +76,7 @@ test('featured makers are pinned on top, and Shuffle never moves them', async ({
 test('exhibits tilt toward the pointer, and lie flat with reduced motion', async ({ page, isMobile }) => {
   test.skip(isMobile, 'pointer');
   await page.addInitScript(() => sessionStorage.setItem('piphall-splash', '1'));
-  await page.goto('/museum');
+  await page.goto('/museum?view=list');
   const view = page.locator('.exhibit-view').first();
   const box = (await view.boundingBox())!;
   await page.mouse.move(box.x + box.width * 0.95, box.y + box.height * 0.1);

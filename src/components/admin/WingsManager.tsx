@@ -1,13 +1,16 @@
 // Admin → Wings (V2-6, D-102): the curators' side of the Museum. Each wing has a name, a short
 // curator's note, and (for tag wings) the languages and tools that put an exhibit in it. Which
 // exhibits hang in a wing is always worked out from the exhibits; admins never place them by hand.
+// In the walkable Museum (V2-11, D-125) each wing is a room: its style is picked here.
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { affiliationKey, wingErrorMessage, wingService, type AdminWing } from '../../services/museumService';
 import { DialogueBox } from '../dialogue/DialogueBox';
-import { TextArea, TextField, Toggle } from '../editor/fields';
+import { ROOM_STYLES, wingStyle, type RoomStyle } from '../../lib/wings';
+import { SelectField, TextArea, TextField, Toggle } from '../editor/fields';
 
 const splitTags = (s: string) => s.split(',').map((t) => t.trim()).filter(Boolean);
+const STYLE_HINT = 'How the room looks in the walkable Museum: its walls, floor and props. Looks only.';
 
 export function WingsManager({ onDone }: { onDone: (message: string) => void }) {
   const [list, setList] = useState<AdminWing[] | null>(null);
@@ -17,6 +20,7 @@ export function WingsManager({ onDone }: { onDone: (message: string) => void }) 
   const [error, setError] = useState<string | undefined>();
   const [name, setName] = useState('');
   const [tags, setTags] = useState('');
+  const [style, setStyle] = useState<RoomStyle>('arcade');
 
   const reload = useCallback(() => {
     setFailed(false);
@@ -53,12 +57,13 @@ export function WingsManager({ onDone }: { onDone: (message: string) => void }) 
     e.preventDefault();
     const key = affiliationKey(name);
     const ok = await run(
-      () => wingService.save({ key, name: name.trim(), note: '', tags: splitTags(tags), sort: 100, active: true }),
+      () => wingService.save({ key, name: name.trim(), note: '', tags: splitTags(tags), sort: 100, active: true, ...(style !== 'arcade' ? { style } : {}) }),
       `${name.trim()} is open. Write its curator's note below.`,
     );
     if (ok) {
       setName('');
       setTags('');
+      setStyle('arcade');
     }
   };
 
@@ -97,6 +102,7 @@ export function WingsManager({ onDone }: { onDone: (message: string) => void }) 
         </h3>
         <TextField field="wing-name" label="Name" max={30} value={name} onChange={setName} placeholder="e.g. Mobile Wing" />
         <TextField field="wing-tags" label="Tags (comma-separated)" hint="Languages or tools, e.g. Kotlin, Swift, Flutter. Up to 12." value={tags} onChange={setTags} />
+        <SelectField field="wing-style" label="Room style" hint={STYLE_HINT} value={style} options={ROOM_STYLES} onChange={setStyle} />
         <button type="submit" className="pixel-btn justify-self-start" data-variant="primary" disabled={busy || name.trim().length < 2 || splitTags(tags).length === 0}>
           Open wing
         </button>
@@ -110,8 +116,10 @@ function WingEditor({ wing, busy, onSave, onRemove }: { wing: AdminWing; busy: b
   const [note, setNote] = useState(wing.note);
   const [tags, setTags] = useState(wing.tags.join(', '));
   const [open, setOpen] = useState(wing.active);
+  const [style, setStyle] = useState<RoomStyle>(wingStyle(wing));
   const [confirm, setConfirm] = useState(false);
-  const changed = name !== wing.name || note !== wing.note || tags !== wing.tags.join(', ') || open !== wing.active;
+  const styleChanged = style !== wingStyle(wing);
+  const changed = name !== wing.name || note !== wing.note || tags !== wing.tags.join(', ') || open !== wing.active || styleChanged;
   const rule =
     wing.kind === 'featured' ? 'Holds exhibits by featured members.' : wing.kind === 'collab' ? 'Holds team projects.' : wing.kind === 'officers' ? 'Holds exhibits by the current officers.' : null;
   return (
@@ -119,6 +127,7 @@ function WingEditor({ wing, busy, onSave, onRemove }: { wing: AdminWing; busy: b
       <TextField field={`wing-${wing.key}-name`} label="Name" max={30} value={name} onChange={setName} />
       {rule ? <p className="m-0 field-hint">{rule}</p> : <TextField field={`wing-${wing.key}-tags`} label="Tags (comma-separated)" value={tags} onChange={setTags} />}
       <TextArea field={`wing-${wing.key}-note`} label="Curator’s note" max={280} hint="A sentence or two visitors read at the door. Leave empty for none." value={note} onChange={setNote} />
+      <SelectField field={`wing-${wing.key}-style`} label="Room style" hint={STYLE_HINT} value={style} options={ROOM_STYLES} onChange={setStyle} />
       <Toggle field={`wing-${wing.key}-open`} label="Open to visitors" checked={open} onChange={setOpen} />
       <div className="flex flex-wrap gap-space-2">
         <button
@@ -126,7 +135,7 @@ function WingEditor({ wing, busy, onSave, onRemove }: { wing: AdminWing; busy: b
           className="pixel-btn"
           data-variant="primary"
           disabled={busy || !changed}
-          onClick={() => onSave({ ...wing, name: name.trim(), note: note.trim(), tags: splitTags(tags), active: open }, `${name.trim()} saved.`)}
+          onClick={() => onSave({ ...wing, name: name.trim(), note: note.trim(), tags: splitTags(tags), active: open, style: styleChanged ? style : undefined }, `${name.trim()} saved.`)}
         >
           Save<span className="sr-only"> {wing.name}</span>
         </button>

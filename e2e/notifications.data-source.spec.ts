@@ -75,7 +75,7 @@ test('an empty bell says so; without the V2-4 update there is no bell', async ({
 
   delete db.notifications;
   await page.reload();
-  await expect(page.getByRole('link', { name: 'Museum' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Museum', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: /Notifications/ })).toHaveCount(0);
 });
 

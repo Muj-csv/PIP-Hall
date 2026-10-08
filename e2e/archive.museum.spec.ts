@@ -89,7 +89,7 @@ test('an admin compiles a past project; it hangs in The Archive, the Winners’ 
   const visitor = await page.context().browser()!.newPage({ viewport: { width: 1440, height: 1000 } });
   await boot(visitor);
   await mockSupabase(visitor, { db });
-  await visitor.goto('/museum');
+  await visitor.goto('/museum?view=list');
   const doors = visitor.getByRole('navigation', { name: 'Rooms' });
   await expect(doors.getByRole('link', { name: /The Archive/ })).toContainText('1 exhibit');
   await expect(doors.getByRole('link', { name: /Data Wing/ })).toBeVisible(); // built with Python
@@ -97,7 +97,7 @@ test('an admin compiles a past project; it hangs in The Archive, the Winners’ 
   await expect(winners.getByRole('heading', { name: /Spring Hackathon 2024/ })).toContainText('From the Archive');
   await expect(winners.locator('.award-plate[data-place="1"]')).toContainText('Brilliant and simple.');
   await doors.getByRole('link', { name: /The Archive/ }).click();
-  await expect(visitor).toHaveURL(/\/museum\?room=archive$/);
+  await expect(visitor).toHaveURL(/\/museum\?room=archive&view=list$/);
   const year = visitor.getByRole('list', { name: 'From 2024' });
   const plaque = year.locator('.exhibit-plaque');
   await expect(plaque).toContainText('by Player me-player and 2 more · Team Kite');

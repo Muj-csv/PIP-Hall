@@ -68,7 +68,7 @@ test('a member with Museum access puts a project in; visitors see it as approved
   const ctx = await browser.newContext();
   const visitor = await ctx.newPage();
   await mockSupabase(visitor, { db });
-  await visitor.goto('http://localhost:5174/museum');
+  await visitor.goto('http://localhost:5174/museum?view=list');
   await expect(exhibits(visitor)).toHaveCount(1);
   await expect(exhibits(visitor).first()).toContainText('Tide Tables');
   await expect(exhibits(visitor).first()).toContainText('Ocean data for surfers');
@@ -107,7 +107,7 @@ test('the panel lists the approved card: a project removed from the draft stays 
   await expect(panel.getByLabel(/Show Pixel Diary in the Museum/)).toBeChecked();
   await expect(panel.getByLabel(/Show Tide Tables in the Museum/)).not.toBeChecked();
 
-  await page.goto('/museum');
+  await page.goto('/museum?view=list');
   await expect(exhibits(page)).toHaveCount(1);
   await expect(exhibits(page).first()).toContainText('Pixel Diary');
 });

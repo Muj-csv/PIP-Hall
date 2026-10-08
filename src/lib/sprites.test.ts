@@ -1,7 +1,7 @@
 // Every sprite is a clean rectangle and every pixel has a colour from the theme (D-079).
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { CONSOLE_KINDS, consoleArt, coverLayers, coverSprite, GEM_SPRITES, GEM_TONE_PALETTES, RIBBON_PALETTES, RIBBON_PIN_SPRITES, RIBBON_SPRITES, OFFICER_PIN, OFFICER_PIN_PALETTE, CARD_PALETTE, CLIP_PALETTE, DOODLE_PALETTE, FRAME_DOODLES, RANK_GEMS, SPR, WORLD_OVERRIDES, WORLD_PALETTE, type Palette, type SpriteMap } from './sprites';
+import { drawSprite, FLASK_PALETTE, LAMP_PALETTES, MUSEUM_SPR, PLANT_PALETTE, TROPHY_PALETTES, CONSOLE_KINDS, consoleArt, coverLayers, coverSprite, GEM_SPRITES, GEM_TONE_PALETTES, RIBBON_PALETTES, RIBBON_PIN_SPRITES, RIBBON_SPRITES, OFFICER_PIN, OFFICER_PIN_PALETTE, CARD_PALETTE, CLIP_PALETTE, DOODLE_PALETTE, FRAME_DOODLES, RANK_GEMS, SPR, WORLD_OVERRIDES, WORLD_PALETTE, type Palette, type SpriteMap } from './sprites';
 
 const theme = readFileSync(new URL('../styles/theme.css', import.meta.url), 'utf8');
 const CARD_SPRITES = new Set(['clip', 'flower', 'grass', 'iconCode', 'iconCase', 'iconGlobe', 'block']);
@@ -98,5 +98,47 @@ describe('sprites', () => {
   it('every console has its own shell colours', () => {
     const shells = CONSOLE_KINDS.map((k) => consoleArt(k).palette.a);
     expect(new Set(shells).size).toBe(CONSOLE_KINDS.length);
+  });
+
+  it('the walkable Museum’s props are rectangles with every key in their palettes, from theme tokens (D-125)', () => {
+    for (const p of Object.values(LAMP_PALETTES)) check('lamp', MUSEUM_SPR.lamp, p);
+    for (const p of Object.values(TROPHY_PALETTES)) check('trophy', MUSEUM_SPR.trophy, p);
+    check('plant', MUSEUM_SPR.plant, PLANT_PALETTE);
+    check('flask', MUSEUM_SPR.flask, FLASK_PALETTE);
+    for (const p of [...Object.values(LAMP_PALETTES), ...Object.values(TROPHY_PALETTES), PLANT_PALETTE, FLASK_PALETTE]) {
+      for (const v of Object.values(p)) expect(theme, `${v} is a theme token`).toContain(`${v}:`);
+    }
+  });
+});
+
+describe('drawSprite', () => {
+  // A stand-in canvas that records each pixel it fills, to compare runs with single pixels.
+  const fake = () => {
+    const px = new Map<string, string>();
+    let fill = '';
+    let calls = 0;
+    const ctx = {
+      set fillStyle(v: string) {
+        fill = v;
+      },
+      fillRect(x: number, y: number, w: number, h: number) {
+        calls++;
+        for (let i = 0; i < w; i++) for (let j = 0; j < h; j++) px.set(`${x + i},${y + j}`, fill);
+      },
+    } as unknown as CanvasRenderingContext2D;
+    return { ctx, px, calls: () => calls };
+  };
+
+  it('fills runs of one colour as one rectangle, pixel for pixel the same, flipped too', () => {
+    const map = ['kkk..yyk', '.k.kkk..'];
+    const colors = { k: 'ink', y: 'gold' };
+    for (const flip of [false, true]) {
+      const f = fake();
+      drawSprite(f.ctx, map, colors, 2, 3, flip);
+      const want = new Map<string, string>();
+      map.forEach((row, j) => [...row].forEach((ch, i) => colors[ch as 'k' | 'y'] && want.set(`${2 + (flip ? row.length - 1 - i : i)},${3 + j}`, colors[ch as 'k' | 'y'])));
+      expect(f.px).toEqual(want);
+      expect(f.calls()).toBe(5);
+    }
   });
 });

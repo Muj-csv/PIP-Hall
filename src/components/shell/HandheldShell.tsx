@@ -16,9 +16,14 @@ interface Props {
   /** Disable the level controls (loading, empty or error). */
   controlsDisabled: boolean;
   ledBlink: boolean;
+  /** The walkable Museum (V2-11) moves between exhibits and opens its map with the action button. */
+  moveLabels?: { group: string; prev: string; next: string };
+  flipLabel?: string;
 }
 
-export function HandheldShell({ screen, onPrev, onNext, onFlip, onOpen, openLabel, controlsDisabled, ledBlink }: Props) {
+const PLAYERS = { group: 'Move between players', prev: 'Previous player', next: 'Next player' };
+
+export function HandheldShell({ screen, onPrev, onNext, onFlip, onOpen, openLabel, controlsDisabled, ledBlink, moveLabels = PLAYERS, flipLabel = 'FLIP' }: Props) {
   const online = useOnline();
   const { theme, toggle } = useTheme();
   const night = theme === 'dark';
@@ -34,11 +39,11 @@ export function HandheldShell({ screen, onPrev, onNext, onFlip, onOpen, openLabe
           <span className="grip-label" aria-hidden="true">
             MOVE
           </span>
-          <div className="rocker" role="group" aria-label="Move between players">
-            <button type="button" className="hw-btn" onClick={onPrev} disabled={controlsDisabled} aria-label="Previous player">
+          <div className="rocker" role="group" aria-label={moveLabels.group}>
+            <button type="button" className="hw-btn" onClick={onPrev} disabled={controlsDisabled} aria-label={moveLabels.prev}>
               ◀
             </button>
-            <button type="button" className="hw-btn" onClick={onNext} disabled={controlsDisabled} aria-label="Next player">
+            <button type="button" className="hw-btn" onClick={onNext} disabled={controlsDisabled} aria-label={moveLabels.next}>
               ▶
             </button>
           </div>
@@ -67,7 +72,7 @@ export function HandheldShell({ screen, onPrev, onNext, onFlip, onOpen, openLabe
           </span>
           <div className="hw-btns">
             <button type="button" className="hw-btn" data-variant="flip" onClick={onFlip} disabled={controlsDisabled || openLabel === 'BACK'}>
-              FLIP
+              {flipLabel}
             </button>
             <button type="button" className="hw-btn" onClick={onOpen} disabled={controlsDisabled}>
               {openLabel}

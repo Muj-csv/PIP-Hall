@@ -76,6 +76,7 @@ erDiagram
 - **user_roles** — `member | admin`, created by trigger on sign-up; promoted only from the SQL editor (`supabase/seed_first_admin.sql`).
 - **events (v2)** — `hall_seasons` (events: kind `event | hackathon | build`, tracks, deadline, results time, announcement), `event_submissions` (one project per member per event) and `event_awards` (places 1–3 and named awards, each with a judges' note). Members and visitors never read these tables; they go through definer functions (`museum_events()`, `hall_awards()`, `submit_to_event()`, the `admin_*` functions), which keep results private until announced (D-115 to D-117).
 - **archive (v2)** — `archive_exhibits` (past projects: year, event, track, award, links, picture path, consent to name makers, draft or on show), `archive_makers` (slots: a member, a typed name, or unnamed) and `archive_claims` (members asking to be linked). Read through `museum_archive()`; written only by the `admin_*` archive functions; members use `claim_archive()` and `leave_archive()` (D-118, D-122).
+- **museum wings (v2)** — `museum_wings` (key, kind `featured | collab | officers | tags`, name, curator's note, tags, order, open, and **style** `arcade | lab | library | garden | trophy` for its room in the walkable Museum). Read through `museum_wings()`; written only by `admin_save_wing()` and `admin_delete_wing()` (D-102, D-125).
 - **officers (v2)** — an affiliation flagged `officers` (with an optional `term_ends`) is an officers' team; `member_affiliations.position` and `seat` hold each officer's position and order. Read through `hall_officers()` (members on the hall only, current terms first); written only by `admin_set_officers()` and `admin_set_officer()`. The Museum's `officers` wing kind holds exhibits by current officers (D-123, D-124).
 - Storage: `avatars/<uid>/<uuid>.webp`, `project-covers/<uid>/<uuid>.webp`, public read, owner-only write, 2 MB limit, images only. New file name on every upload so approved snapshots keep their image. Rows store the **path** (`profiles.avatar_path`, `projects.cover_path`), never a URL; a check constraint pins it to the owner's folder, and the client builds the public URL (D-027).
 
@@ -132,6 +133,7 @@ src/
     shell/        HandheldShell, Stage, HardwareBar, TopBar, ThemeToggle, InstallPrompt
     cards/        MemberCard, CardFront, CardBack, Lanyard, Sticker, PixelAvatar, QrBadge, QrFullscreen
     carousel/     CardCarousel, useCarousel (index, drag, keyboard, swing)
+    museum/       MuseumWalk, useWalk, walkWorld (the walkable Museum's level), ExhibitArt, Ribbon
     dialogue/     DialogueBox, Emote
     pixel/        PixelButton, PixelInput, PixelTextarea, PixelPanel, PixelIcon (SVG sprites)
     editor/       CardEditor, IdentityFields, LinksFields, SkillsInput, RepoPicker, ProjectList, ManualProjectForm, StatusBanner
@@ -145,7 +147,7 @@ src/
 
 Rules: components never import `supabase.ts`; only `services/` do. Pages get data from hooks that call services. `cardService` has two implementations behind one interface (`fixture`, `supabase`), chosen by `VITE_DATA_SOURCE`, so the card and carousel are built on fixtures first and switch with no component changes.
 
-Routes: `/` home carousel with search, filters, Random player and the Officers door (`?officers=1`) above the device (D-072, D-123) · `/explore` redirects to `/` with the same search · `/museum` (Winners' Hall, wings `?wing=`, event rooms `?event=`, The Archive `?room=archive`) · `/museum/:id` one exhibit (D-073) · `/member/:username` (the hall with that member's profile open inside the device, D-054) · `/login` · `/auth/callback` · `/edit` (create and edit; `/create` redirects) · `/admin` (admin only) · `/settings` · `*` not found. Museum, editor, admin and settings are lazy chunks.
+Routes: `/` home carousel with search, filters, Random player and the Officers door (`?officers=1`) above the device (D-072, D-123) · `/explore` redirects to `/` with the same search · `/museum` (the walkable Museum, D-119: rooms `?room=winners`, `?event=`, `?wing=`, `?room=all`, `?room=archive`, and `&at=` an exhibit; the List view is `?view=list` with the same rooms) · `/museum/:id` one exhibit (D-073) · `/member/:username` (the hall with that member's profile open inside the device, D-054) · `/login` · `/auth/callback` · `/edit` (create and edit; `/create` redirects) · `/admin` (admin only) · `/settings` · `*` not found. Museum, the Museum walk, editor, admin and settings are lazy chunks.
 
 Search (FR-13): `cardService.listPublished()` loads all `published_cards` once (≈ 2–3 KB each; 300 cards ≈ 0.8 MB, cached by the service worker) and `lib/search.ts` filters in memory with a normalized haystack per card.
 

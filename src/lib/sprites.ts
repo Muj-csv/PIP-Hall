@@ -137,13 +137,20 @@ export function drawSprite(
   y: number,
   flip = false,
 ): void {
+  // Each run of one colour in a row is one rectangle, so a sprite costs a few calls per row.
   for (let j = 0; j < map.length; j++) {
     const row = map[j] ?? '';
-    for (let i = 0; i < row.length; i++) {
-      const color = colors[row[i] ?? '.'];
-      if (!color) continue;
-      ctx.fillStyle = color;
-      ctx.fillRect(x + (flip ? row.length - 1 - i : i), y + j, 1, 1);
+    let i = 0;
+    while (i < row.length) {
+      const key = row[i] ?? '.';
+      let end = i + 1;
+      while (end < row.length && row[end] === key) end++;
+      const color = colors[key];
+      if (color) {
+        ctx.fillStyle = color;
+        ctx.fillRect(x + (flip ? row.length - end : i), y + j, end - i, 1);
+      }
+      i = end;
     }
   }
 }
@@ -369,6 +376,65 @@ export const RIBBON_PALETTES: Readonly<Record<'p1' | 'p2' | 'p3' | 'award', Pale
 // with a cream highlight. Decorative: the position is said in words beside it.
 export const OFFICER_PIN: SpriteMap = ['k.....k', 'kk...kk', 'khk.khk', 'kmhkhmk', '.kmhmk.', 'k.kmk.k', 'kk.k.kk', 'khk.khk', '.kmkmk.', '..kmk..', '...k...'];
 export const OFFICER_PIN_PALETTE: Palette = { k: '--color-card-ink', m: '--color-card-plum', h: '--color-card-cream' };
+
+// ---------------------------------------------------------------- the walkable Museum (V2-11, D-125)
+// Props for the Museum's rooms, drawn for this project: a picture light over each exhibit (lit while
+// Pip stands in front of it), a trophy cup for the winners of 1st, 2nd and 3rd place (the place is
+// also said on the plaque, never by colour alone), a potted plant for the Garden and a flask for the
+// Lab. Walls, floors, shelves and columns are drawn from tokens in the walk's level code.
+export const MUSEUM_SPR = {
+  lamp: ['.....kk.....', '.....kk.....', '.kkkkkkkkkk.', 'khhhhhhhhhhk', 'kmmmmmmmmmmk', '.kLLLLLLLLk.'],
+  trophy: [
+    '...kkkkkkkkk...',
+    'kkkhhGGGGGGdkkk',
+    'k.khGGGGGGGdk.k',
+    'k.khGGGGGGGdk.k',
+    'kk.khGGGGGdk.kk',
+    '.kk.khGGGdk.kk.',
+    '..kk.khGdk.kk..',
+    '....kkhGdkk....',
+    '.....khGdk.....',
+    '......kGk......',
+    '.....khGdk.....',
+    '....khGGGdk....',
+    '...kkkkkkkkk...',
+    '...kWWWWWWWk...',
+    '...kkkkkkkkk...',
+  ],
+  plant: [
+    '.....kk.....',
+    '...kkLLkk...',
+    '..kLLlLLLk..',
+    '.kLlLLLlLLk.',
+    'kLLLlLLLLlLk',
+    'kLlLLLlLLLLk',
+    '.kLLLlLLlLk.',
+    '..kkLLLLkk..',
+    '....kllk....',
+    '..kkkkkkkk..',
+    '..kPPPPPpk..',
+    '..kPPPPPpk..',
+    '...kPPPpk...',
+    '...kPPPpk...',
+    '...kkkkkk...',
+  ],
+  flask: ['..kkk..', '..kgk..', '..kgk..', '.kgggk.', 'kgggggk', 'kqqqqqk', 'kqqqqqk', '.kkkkk.'],
+} as const satisfies Record<string, SpriteMap>;
+
+const lampKeys = { k: '--color-card-ink', h: '--color-museum-lamp-hi', m: '--color-museum-lamp' } as const;
+export const LAMP_PALETTES: Readonly<Record<'on' | 'off', Palette>> = {
+  on: { ...lampKeys, L: '--color-museum-light' },
+  off: { ...lampKeys, L: '--color-museum-light-off' },
+};
+// Named in full: the theme only keeps the variables its sources name.
+const cup = (G: string, h: string, d: string): Palette => ({ k: '--color-card-ink', G, h, d, W: '--color-museum-pedestal-shade' });
+export const TROPHY_PALETTES: Readonly<Record<1 | 2 | 3, Palette>> = {
+  1: cup('--color-museum-gold', '--color-museum-gold-hi', '--color-museum-gold-shade'),
+  2: cup('--color-museum-silver', '--color-museum-silver-hi', '--color-museum-silver-shade'),
+  3: cup('--color-museum-bronze', '--color-museum-bronze-hi', '--color-museum-bronze-shade'),
+};
+export const PLANT_PALETTE: Palette = { k: '--color-card-ink', L: '--color-museum-leaf', l: '--color-museum-leaf-dark', P: '--color-museum-pot', p: '--color-museum-pot-shade' };
+export const FLASK_PALETTE: Palette = { k: '--color-card-ink', g: '--color-museum-glass', q: '--color-museum-liquid' };
 
 // ---------------------------------------------------------------- Museum consoles (D-091)
 // Five original PIXENDO consoles that hold an exhibit's screen. They are drawn here from simple
