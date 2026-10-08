@@ -226,7 +226,7 @@ test('admins record places and awards after the deadline and announce once; the 
   const profile = member.locator('.profile-screen');
   await expect(profile.getByRole('list', { name: 'Badges' }).first()).toContainText('1st place at Spring Hackathon');
   await expect(profile.locator('.proof-list')).toContainText('1st place at Spring Hackathon with “Kite”.');
-  await expect(profile.locator('.proof-list')).toContainText('Champion: Made a project that won a place or an award at a hall event.');
+  await expect(profile.locator('.proof-list')).toContainText('Champion: Made a project that won a place or an award at an event.');
   await profile.locator('.badge').first().screenshot({ path: 'docs/build/evidence/hackathons/badge-ribbon.png' });
   // The credited teammate wears it too.
   await member.goto('/member/player-3');

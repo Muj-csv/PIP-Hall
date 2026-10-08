@@ -2,7 +2,8 @@
 // its links, its maker, a Share button, and the neighbouring exhibits. Shareable like a badge.
 // Since V2-6 (D-102) it also says which wings it hangs in and leads on to others in them.
 // Since V2-9 (D-115, D-116) a project entered in a hall event opens here too, and its plaque says
-// which event it was entered in, and what it won there.
+// which event it was entered in, and what it won there. Since V2-10 (D-118) so does a past project
+// from the archive: where and when it was made, by whom, what it won, and "Is this yours?".
 
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router';
@@ -21,6 +22,10 @@ import type { PublicCard } from '../types/card';
 import { DEFAULT_WINGS, relatedTo, wingPath, type Wing } from '../lib/wings';
 import { awardLabel, eventRoomPath, winnersOf, type MuseumEvent } from '../lib/events';
 import { Ribbon } from '../components/museum/Ribbon';
+import { ArchiveClaim } from '../components/museum/ArchiveClaim';
+import { ArchiveCredit } from '../components/museum/ArchiveCredit';
+import { archiveAsExhibit, archiveAward, archiveOrigin, archiveRoomPath } from '../lib/archive';
+import { archiveService } from '../services/archiveService';
 import { eventService } from '../services/eventService';
 import { museumService } from '../services/museumService';
 import type { Exhibit as ExhibitRow } from '../types/museum';
@@ -38,13 +43,13 @@ export default function Exhibit() {
 
   useEffect(() => {
     let on = true;
-    // Event rooms are extra: if they can't be read, the Museum's own exhibits still open.
-    Promise.all([museumService.exhibits(), eventService.museumEvents().catch(() => [])])
-      .then(([shown, events]) => {
+    // Event rooms and the archive are extra: if they can't be read, the Museum's own exhibits still open.
+    Promise.all([museumService.exhibits(), eventService.museumEvents().catch(() => []), archiveService.list().catch(() => [])])
+      .then(([shown, events, past]) => {
         if (!on) return;
         const seen = new Set(shown.map((e) => e.project_id));
         const entered = events.flatMap((ev) => ev.entries).filter((e) => !seen.has(e.project_id) && (seen.add(e.project_id), true));
-        setLoad({ status: 'ready', exhibits: [...shown, ...entered], events });
+        setLoad({ status: 'ready', exhibits: [...shown, ...entered, ...past.map(archiveAsExhibit)], events });
       })
       .catch(() => on && setLoad({ status: 'error' }));
     museumService
@@ -75,6 +80,7 @@ export default function Exhibit() {
   const withNames = (exhibit?.project.collaborators ?? []).map((c) => c.full_name);
   const kind = exhibit ? consoleFor(exhibit.project_id, exhibit.console) : null;
   const around = useMemo(() => (exhibit ? relatedTo(exhibit, wings, ordered) : { wings: [], related: [] }), [exhibit, wings, ordered]);
+  const rooms = useMemo(() => new Set(load.status === 'ready' ? load.events.map((e) => e.key) : []), [load]);
   // The events it was entered in, each with what it won (announced results only).
   const entries = useMemo(
     () =>
@@ -136,6 +142,7 @@ export default function Exhibit() {
         <article className="exhibit-page" aria-labelledby="exhibit-maker">
           <ExhibitArt project={exhibit.project} console={kind!} featured={exhibit.featured} eager />
           <div className="exhibit-plaque">
+            {exhibit.archive && <ArchivePlate exhibit={exhibit.archive} rooms={rooms} />}
             {entries.map(({ event, track, awards }) =>
               awards.length > 0 ? (
                 awards.map((a) => (
@@ -167,14 +174,31 @@ export default function Exhibit() {
             )}
             {exhibit.project.description && <p className="m-0">{exhibit.project.description}</p>}
             <Facts exhibit={exhibit} />
-            <p id="exhibit-maker" className="m-0">
-              Made by{' '}
-              <Link to={memberPath(exhibit.username)} className="underline decoration-2">
-                {exhibit.full_name}
-              </Link>
-              {withNames.length > 0 && <> with {creditLine(withNames)}</>}{' '}
-              <span className="text-text-secondary">· No.{String(exhibit.member_no).padStart(3, '0')}</span>
-            </p>
+            {exhibit.archive ? (
+              <p id="exhibit-maker" className="m-0">
+                {exhibit.archive.team_size > 0 && (
+                  <>
+                    Made by <ArchiveCredit archive={exhibit.archive} />{' '}
+                  </>
+                )}
+                <span className="text-text-secondary">
+                  ·{' '}
+                  <Link to={archiveRoomPath()} className="underline decoration-2">
+                    From the Archive
+                  </Link>{' '}
+                  · {archiveOrigin(exhibit.archive)}
+                </span>
+              </p>
+            ) : (
+              <p id="exhibit-maker" className="m-0">
+                Made by{' '}
+                <Link to={memberPath(exhibit.username)} className="underline decoration-2">
+                  {exhibit.full_name}
+                </Link>
+                {withNames.length > 0 && <> with {creditLine(withNames)}</>}{' '}
+                <span className="text-text-secondary">· No.{String(exhibit.member_no).padStart(3, '0')}</span>
+              </p>
+            )}
             {kind && <p className="m-0 text-caption text-text-secondary">On show on a PIXENDO {CONSOLE_NAMES[kind]}</p>}
             <div className="flex flex-wrap gap-space-2">
               {exhibit.project.project_url && (
@@ -185,6 +209,11 @@ export default function Exhibit() {
               {exhibit.project.github_url && (
                 <a href={exhibit.project.github_url} target="_blank" rel="noopener noreferrer" className="pixel-btn">
                   Code on GitHub<span className="sr-only"> (opens in a new tab)</span>
+                </a>
+              )}
+              {exhibit.archive?.video_url && (
+                <a href={exhibit.archive.video_url} target="_blank" rel="noopener noreferrer" className="pixel-btn">
+                  Watch the video<span className="sr-only"> (opens in a new tab)</span>
                 </a>
               )}
               <button type="button" className="pixel-btn" onClick={() => void share()}>
@@ -199,6 +228,8 @@ export default function Exhibit() {
           </div>
         </article>
       )}
+
+      {exhibit?.archive && <ArchiveClaim exhibitId={exhibit.project_id} title={exhibit.project.title} />}
 
       {exhibit && makers.length > 0 && (
         <section className="made-by" aria-labelledby="made-by-title">
@@ -287,5 +318,38 @@ function Facts({ exhibit }: { exhibit: ExhibitRow }) {
         </div>
       ))}
     </dl>
+  );
+}
+
+/** An archive exhibit's award, with the event it was won at (its room, when it has one). */
+function ArchivePlate({ exhibit: a, rooms }: { exhibit: NonNullable<ExhibitRow['archive']>; rooms: ReadonlySet<string> }) {
+  const award = archiveAward(a);
+  if (!award) return null;
+  return (
+    <div className="award-plate" data-place={award.place ?? 'award'}>
+      <Ribbon award={award} />
+      <span>
+        <b>{awardLabel(award)}</b>
+        {a.event && (
+          <>
+            {' '}
+            at{' '}
+            {a.event_key && rooms.has(a.event_key) ? (
+              <Link to={eventRoomPath(a.event_key)} className="underline decoration-2">
+                {a.event}
+              </Link>
+            ) : (
+              a.event
+            )}
+          </>
+        )}
+        {award.note && (
+          <q className="award-note">
+            <span className="sr-only">Judges’ note: </span>
+            {award.note}
+          </q>
+        )}
+      </span>
+    </div>
   );
 }

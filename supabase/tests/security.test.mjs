@@ -922,6 +922,148 @@ try {
   await expectOk(c, 'a deleted project leaves the event room, and its ribbons go with it', 'anon', `select museum_events() as e, hall_awards() as w`, [], (r) =>
     r.rows[0].e.find((x) => x.key === 'spring-hack').entries.length === 1 && !r.rows[0].w.some((x) => x.profile_id === Ms[5]));
 
+  console.log('the archive (D-118, D-122)');
+  await c.query(readFileSync(join(here, '..', 'migrations', '20261008000000_archive.sql'), 'utf8'));
+  const saveArc = (uid, id, data) => as(c, uid, `select admin_save_archive($1, $2::jsonb) as id`, [id, JSON.stringify(data)]);
+  const arcSql = `select admin_save_archive($1, $2::jsonb) as id`;
+  const kite = {
+    title: 'Kite', description: 'A kite that tweets the wind.', year: 2024, event_name: 'Spring Hackathon', track: 'Health',
+    award_place: 1, award_note: 'Brilliant and simple.', team_name: 'Team Kite', tech: ['Python', ' Arduino ', 'Python'],
+    project_url: 'https://kite.example.org', video_url: 'https://video.example.org/kite', names_ok: false, published: false,
+    makers: [{ name: 'Rosa Diaz' }, { name: 'Sam Lee' }, {}],
+  };
+  const arcErr = (name, data, pattern, uid = ADMIN, id = null) => expectErr(c, name, uid, arcSql, [id, JSON.stringify(data)], pattern);
+  await arcErr('members cannot add to the archive', kite, /NOT_ADMIN/, A);
+  await arcErr('visitors cannot either', kite, /permission denied/, 'anon');
+  await arcErr('an archive exhibit has a title', { ...kite, title: ' ' }, /BAD_TITLE/);
+  await arcErr('…and a real year', { ...kite, year: 1890 }, /BAD_YEAR/);
+  await arcErr('…written as a year', { ...kite, year: 'soon' }, /BAD_YEAR/);
+  await arcErr('an award is a place or a name, not both', { ...kite, award_name: 'Best UI' }, /BAD_AWARD/);
+  await arcErr('an award needs the event it was won at', { ...kite, event_name: null }, /BAD_AWARD/);
+  await arcErr('a track award needs a track', { ...kite, track: null, award_in_track: true }, /BAD_AWARD/);
+  await arcErr('links are https', { ...kite, project_url: 'http://kite.example.org' }, /BAD_LINK/);
+  await arcErr('at most 8 tools', { ...kite, tech: ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'] }, /BAD_TECH/);
+  await arcErr('at most 12 makers', { ...kite, makers: Array.from({ length: 13 }, () => ({})) }, /BAD_MAKERS/);
+  await arcErr('a linked maker must be in the hall', { ...kite, makers: [{ member_id: N }] }, /NOT_IN_HALL/);
+  await arcErr('…and on it once', { ...kite, makers: [{ member_id: Ms[7] }, { member_id: Ms[7] }] }, /BAD_MAKERS/);
+  await arcErr('a picture must be one this admin uploaded', { ...kite, cover_path: `${A}/11111111-2222-3333-4444-555555555555.webp` }, /BAD_PICTURE/);
+  await arcErr('a recorded event must exist', { ...kite, season_key: 'nope' }, /NO_SUCH_EVENT/);
+  await as(c, ADMIN, `select admin_save_season('later-week', 'Later Week', '', ${today} + 50, ${today} + 51, null, null, null, null, null, 'event', null, null, null)`);
+  await arcErr('…and be over, so nothing about it leaks early', { ...kite, season_key: 'later-week' }, /EVENT_NOT_OVER/);
+  let K;
+  await expectOk(c, 'an admin saves a past project as a draft, with an uploaded picture', ADMIN, arcSql, [null, JSON.stringify({ ...kite, cover_path: `${ADMIN}/11111111-2222-3333-4444-555555555555.webp` })], (r) => (K = r.rows[0].id));
+  await expectOk(c, 'drafts are not on show', 'anon', `select museum_archive() as a`, [], (r) => !r.rows[0].a.some((x) => x.id === K));
+  await expectSu(c, '…and nobody hears about them', `select count(*)::int as n from hall_events where target_type='archive' and target_id=$1`, [K], (r) => r.rows[0].n === 0);
+  await expectErr(c, 'the archive tables are not read directly', 'anon', `select * from archive_exhibits`, [], /permission denied/);
+  await expectErr(c, '…not even by members', A, `select * from archive_makers`, [], /permission denied/);
+  await expectErr(c, '…claims neither', A, `select * from archive_claims`, [], /permission denied/);
+  await expectOk(c, 'published: on show with its event, award and team, but no typed names without consent', ADMIN, arcSql, [K, JSON.stringify({ ...kite, cover_path: `${ADMIN}/11111111-2222-3333-4444-555555555555.webp`, published: true })]);
+  await expectOk(c, '…visitors see it', 'anon', `select museum_archive() as a`, [], (r) => {
+    const k = r.rows[0].a.find((x) => x.id === K);
+    return k && k.event === 'Spring Hackathon 2024' && k.award.place === 1 && k.award.track === null && k.award.note === 'Brilliant and simple.'
+      && k.team_name === 'Team Kite' && k.makers.length === 0 && Number(k.team_size) === 3 && JSON.stringify(k.tech) === '["Python","Arduino"]' && k.video_url;
+  });
+  await expectSu(c, '…and the hall hears it once', `select count(*)::int as n from hall_events where event_type='ARCHIVE_ADDED' and target_id=$1 and visibility='public'`, [K], (r) => r.rows[0].n === 1);
+  await saveArc(ADMIN, K, { ...kite, published: true, names_ok: true });
+  await expectOk(c, 'with the makers’ consent their typed names show (not the unnamed slot)', 'anon', `select museum_archive() as a`, [], (r) => {
+    const k = r.rows[0].a.find((x) => x.id === K);
+    return JSON.stringify(k.makers.map((m) => m.full_name)) === '["Rosa Diaz","Sam Lee"]' && Number(k.team_size) === 3;
+  });
+  await expectSu(c, 'saving again doesn’t announce it again', `select count(*)::int as n from hall_events where event_type='ARCHIVE_ADDED' and target_id=$1`, [K], (r) => r.rows[0].n === 1);
+
+  // An admin links a member of the hall to a maker slot.
+  const name7 = await nameOf(Ms[7]);
+  await saveArc(ADMIN, K, { ...kite, published: true, names_ok: true, makers: [{ member_id: Ms[7], name: 'Rosa Diaz' }, { name: 'Sam Lee' }, {}] });
+  await expectOk(c, 'a linked member shows by their card, linked to their badge', 'anon', `select museum_archive() as a`, [], (r) => {
+    const k = r.rows[0].a.find((x) => x.id === K);
+    return k.makers[0].username === name7 && k.makers[0].member_no > 0 && k.makers[1].full_name === 'Sam Lee';
+  });
+  await expectOk(c, '…hears it in their bell', Ms[7], `select my_notifications() as n`, [], (r) => r.rows[0].n.items.some((x) => x.type === 'ARCHIVE_CREDITED' && x.target_id === K && x.title === 'Kite'));
+  await expectOk(c, '…wears its ribbon', 'anon', `select hall_awards() as w`, [], (r) => (r.rows[0].w.find((x) => x.profile_id === Ms[7])?.awards ?? []).some((a) => a.archive && a.place === 1 && a.event === 'Spring Hackathon 2024' && a.project_id === K && a.title === 'Kite'));
+  await expectOk(c, '…and is a Champion', Ms[7], `select my_titles() as t`, [], (r) => r.rows[0].t.titles.some((t) => t.key === 'champion' && t.earned));
+  await saveArc(ADMIN, K, { ...kite, published: true, names_ok: true, makers: [{ member_id: Ms[7], name: 'Rosa Diaz' }, { name: 'Sam Lee' }, {}] });
+  await expectSu(c, '…once, however often it is saved', `select count(*)::int as n from hall_events where event_type='ARCHIVE_CREDITED' and actor_id=$1 and target_id=$2`, [Ms[7], K], (r) => r.rows[0].n === 1);
+  await expectOk(c, 'Recent in the hall says it joined the Archive, and who is credited', 'anon', `select recent_hall_events(20) as r`, [], (r) =>
+    r.rows[0].r.some((x) => x.type === 'ARCHIVE_ADDED' && x.project_id === K && x.title === 'Kite' && x.event === 'Spring Hackathon 2024')
+    && r.rows[0].r.some((x) => x.type === 'ARCHIVE_CREDITED' && x.project_id === K && x.username === name7));
+
+  // Claims: "Is this yours?"
+  await expectErr(c, 'visitors cannot claim', 'anon', `select claim_archive($1, '')`, [K], /permission denied/);
+  await expectErr(c, 'a member out of the hall cannot claim', N, `select claim_archive($1, '')`, [K], /NOT_ELIGIBLE/);
+  await expectErr(c, 'a credited maker has nothing to claim', Ms[7], `select claim_archive($1, '')`, [K], /ALREADY_CREDITED/);
+  await expectOk(c, 'a member claims it with a note for the admins', Ms[8], `select claim_archive($1, 'I built the sensor board.')`, [K]);
+  await expectErr(c, '…once while it waits', Ms[8], `select claim_archive($1, '')`, [K], /ALREADY_CLAIMED/);
+  await expectOk(c, '…and sees it waiting', Ms[8], `select my_archive() as m`, [], (r) => r.rows[0].m.eligible && r.rows[0].m.claims.some((x) => x.exhibit_id === K && x.status === 'pending'));
+  await expectErr(c, 'members cannot answer claims', A, `select admin_answer_claim(1, true, null, '')`, [], /NOT_ADMIN/);
+  let claimId, samSlot;
+  const name8 = await nameOf(Ms[8]);
+  await expectOk(c, 'admins see the claim with who and why, and the maker slots', ADMIN, `select admin_archive() as a`, [], (r) => {
+    const k = r.rows[0].a.find((x) => x.id === K);
+    claimId = k?.claims[0]?.id;
+    samSlot = k?.makers.find((m) => m.name === 'Sam Lee')?.id;
+    return k.claims.length === 1 && k.claims[0].note === 'I built the sensor board.' && k.claims[0].username === name8 && samSlot && claimId;
+  });
+  await expectErr(c, '…members don’t', A, `select admin_archive()`, [], /NOT_ADMIN/);
+  await expectOk(c, 'an admin declines it with a note', ADMIN, `select admin_answer_claim($1, false, null, 'We couldn’t find you in the team list.')`, [claimId]);
+  await expectOk(c, '…which the member hears, privately', Ms[8], `select my_notifications() as n`, [], (r) => r.rows[0].n.items.some((x) => x.type === 'ARCHIVE_CLAIM_DECLINED' && x.note === 'We couldn’t find you in the team list.' && x.title === 'Kite'));
+  await expectSu(c, '…as a private event', `select visibility from hall_events where event_type='ARCHIVE_CLAIM_DECLINED' and actor_id=$1`, [Ms[8]], (r) => r.rows.every((x) => x.visibility === 'private') && r.rowCount === 1);
+  await expectErr(c, 'an answered claim can’t be answered again', ADMIN, `select admin_answer_claim($1, true, null, '')`, [claimId], /NO_SUCH_CLAIM/);
+  await expectOk(c, 'a declined claim can be made again', Ms[8], `select claim_archive($1, 'Here is my old team photo.')`, [K]);
+  claimId = (await as(c, ADMIN, `select admin_archive() as a`)).rows[0].a.find((x) => x.id === K).claims[0].id;
+  await expectErr(c, 'a claim links to an unlinked slot of that exhibit', ADMIN, `select admin_answer_claim($1, true, 999999, '')`, [claimId], /BAD_MAKER/);
+  await expectOk(c, 'an admin confirms it, linking the member to the slot they were', ADMIN, `select admin_answer_claim($1, true, $2, '')`, [claimId, samSlot]);
+  await expectOk(c, '…the exhibit now shows them', 'anon', `select museum_archive() as a`, [], (r) => {
+    const k = r.rows[0].a.find((x) => x.id === K);
+    return k.makers.filter((m) => m.username).length === 2 && !k.makers.some((m) => m.full_name === 'Sam Lee') && Number(k.team_size) === 3;
+  });
+  await expectOk(c, '…the claim is settled', Ms[8], `select my_archive() as m`, [], (r) => r.rows[0].m.claims.some((x) => x.exhibit_id === K && x.status === 'confirmed') && r.rows[0].m.credited.includes(K));
+  await expectOk(c, '…they hear they’re credited', Ms[8], `select my_notifications() as n`, [], (r) => r.rows[0].n.items.some((x) => x.type === 'ARCHIVE_CREDITED' && x.target_id === K));
+  await expectOk(c, 'two members on one archive exhibit are Connectors', Ms[8], `select my_titles() as t`, [], (r) => r.rows[0].t.titles.some((t) => t.key === 'connector' && t.earned));
+  // Curator counts archive credits with Museum exhibits.
+  for (const title of ['Lamp', 'Orbit']) await saveArc(ADMIN, null, { title, year: 2023, published: true, makers: [{ member_id: Ms[8] }] });
+  await expectOk(c, 'three archive credits make a Curator', Ms[8], `select my_titles() as t`, [], (r) => r.rows[0].t.titles.some((t) => t.key === 'curator' && t.earned));
+  await expectOk(c, 'an exhibit from no event shows its year alone', 'anon', `select museum_archive() as a`, [], (r) => {
+    const l = r.rows[0].a.find((x) => x.title === 'Lamp');
+    return l && l.event === null && l.year === 2023 && l.award === null;
+  });
+  const W = (await saveArc(ADMIN, null, { title: 'Weather Wall', year: 2026, season_key: 'build-week', published: true, makers: [] })).rows[0].id;
+  await expectOk(c, 'an exhibit from a recorded event carries the event and its key', 'anon', `select museum_archive() as a`, [], (r) => {
+    const w = r.rows[0].a.find((x) => x.id === W);
+    return w.event_key === 'build-week' && w.event === 'Build Week 2026';
+  });
+
+  // Passport stamps.
+  await expectOk(c, 'opening an archive exhibit stamps the Passport', Ms[9], `select stamp_exhibit($1) as s`, [K], (r) => r.rows[0].s === true);
+  await expectOk(c, '…not for its own makers', Ms[8], `select stamp_exhibit($1) as s`, [K], (r) => r.rows[0].s === false);
+
+  // A member takes their name off.
+  await expectOk(c, 'a member can take their name off an archive exhibit', Ms[7], `select leave_archive($1)`, [K]);
+  await expectErr(c, '…once', Ms[7], `select leave_archive($1)`, [K], /NOT_CREDITED/);
+  await expectOk(c, '…their slot stays, under the typed name the makers agreed to', 'anon', `select museum_archive() as a, hall_awards() as w, recent_hall_events(20) as r`, [], (r) => {
+    const k = r.rows[0].a.find((x) => x.id === K);
+    return Number(k.team_size) === 3 && k.makers.some((m) => m.full_name === 'Rosa Diaz' && !m.username)
+      && !(r.rows[0].w.find((x) => x.profile_id === Ms[7])?.awards ?? []).some((a) => a.project_id === K)
+      && !r.rows[0].r.some((x) => x.type === 'ARCHIVE_CREDITED' && x.username === name7);
+  });
+  await expectOk(c, '…and the title goes with the proof', Ms[7], `select my_titles() as t`, [], (r) => r.rows[0].t.titles.some((t) => t.key === 'champion' && !t.earned));
+
+  // Taking it off show hides it everywhere; deleting removes it.
+  await saveArc(ADMIN, K, { ...kite, published: false, names_ok: true, makers: [{ member_id: Ms[8] }] });
+  await expectOk(c, 'an unpublished exhibit is off show, its ribbons and news too', 'anon', `select museum_archive() as a, hall_awards() as w, recent_hall_events(20) as r`, [], (r) =>
+    !r.rows[0].a.some((x) => x.id === K) && !(r.rows[0].w.find((x) => x.profile_id === Ms[8])?.awards ?? []).some((a) => a.project_id === K)
+    && !r.rows[0].r.some((x) => x.project_id === K));
+  await expectErr(c, '…and can’t be claimed', Ms[9], `select claim_archive($1, '')`, [K], /NO_SUCH_EXHIBIT/);
+  await expectOk(c, '…nor stamped', Ms[9], `select stamp_exhibit($1) as s`, [W], (r) => r.rows[0].s === true);
+  await c.query(readFileSync(join(here, '..', 'migrations', '20261008000000_archive.sql'), 'utf8'));
+  await expectOk(c, 'the archive migration is safe to run twice', ADMIN, `select admin_archive() as a`, [], (r) => r.rows[0].a.length === 4 && r.rows[0].a.some((x) => x.id === K && x.published === false));
+  await c.query(readFileSync(join(here, '..', 'migrations', '20261006000700_notifications.sql'), 'utf8'));
+  await c.query(readFileSync(join(here, '..', 'migrations', '20261007000000_hackathons.sql'), 'utf8'));
+  await expectSu(c, 'running older migrations again keeps the archive’s event types', `select pg_get_constraintdef(oid) as d from pg_constraint where conname='hall_events_event_type_check'`, [], (r) => /ARCHIVE_CLAIM_DECLINED/.test(r.rows[0].d));
+  await c.query(readFileSync(join(here, '..', 'migrations', '20261008000000_archive.sql'), 'utf8'));
+  await expectOk(c, 'an admin deletes an archive exhibit', ADMIN, `select admin_delete_archive($1)`, [K]);
+  await expectErr(c, '…once', ADMIN, `select admin_delete_archive($1)`, [K], /NO_SUCH_EXHIBIT/);
+  await expectSu(c, '…its makers and claims go with it', `select (select count(*) from archive_makers where exhibit_id=$1)::int + (select count(*) from archive_claims where exhibit_id=$1)::int as n`, [K], (r) => r.rows[0].n === 0);
+
   console.log('account deletion');
   await expectErr(c, 'anon cannot call delete_my_account', 'anon', `select delete_my_account()`, [], /permission denied/);
   await expectOk(c, 'member deletes own account', B, `select delete_my_account()`, []);

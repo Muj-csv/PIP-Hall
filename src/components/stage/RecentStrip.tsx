@@ -1,6 +1,7 @@
 // "Recent in the hall" (V2-4, D-100): the last few public things that really happened. Someone
 // joined, added a project, put an exhibit in the Museum, was credited on a team project, unlocked
-// an achievement, was featured, entered an event, or an event's results came in (V2-9). Never discoveries (D-063), never counts or rankings (rule 5).
+// an achievement, was featured, entered an event, or an event's results came in (V2-9), or a past
+// project joined the Museum's Archive or credited a member (V2-10). Never discoveries (D-063), never counts or rankings (rule 5).
 // Every line goes to the member or exhibit, so the strip is another way into the hall.
 
 import { useEffect, useState } from 'react';
@@ -18,6 +19,8 @@ const MARK: Record<RecentEvent['type'], string> = {
   MEMBER_FEATURED: '✦',
   EVENT_SUBMITTED: '⚑',
   RESULTS_ANNOUNCED: '♛',
+  ARCHIVE_ADDED: '▤',
+  ARCHIVE_CREDITED: '▤',
 };
 
 /** Only where the hall has its backend: fixture halls have no events, and none are invented. */

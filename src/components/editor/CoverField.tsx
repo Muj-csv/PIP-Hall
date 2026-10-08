@@ -12,9 +12,11 @@ interface Props {
   previewUrl: string | null;
   onPicked: (image: Blob) => void;
   onRemove: () => void;
+  /** Overrides the member-facing hint (Admin → Archive uses its own). */
+  hint?: string;
 }
 
-export function CoverField({ title, previewUrl, onPicked, onRemove }: Props) {
+export function CoverField({ title, previewUrl, onPicked, onRemove, hint }: Props) {
   const id = useId();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -67,7 +69,7 @@ export function CoverField({ title, previewUrl, onPicked, onRemove }: Props) {
         )}
       </div>
       <p id={`${id}-hint`} className="m-0 field-hint">
-        Upload a screenshot to show your app on the console screen in the Museum. Without one, a GitHub repo shows GitHub’s preview of it.
+        {hint ?? 'Upload a screenshot to show your app on the console screen in the Museum. Without one, a GitHub repo shows GitHub’s preview of it.'}
       </p>
       {busy && <p className="m-0 field-hint" role="status">Getting the picture ready…</p>}
       {error && (
