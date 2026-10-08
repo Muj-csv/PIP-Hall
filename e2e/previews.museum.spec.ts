@@ -48,7 +48,7 @@ test('a linked repo shows GitHub’s preview on the screen; a project without on
   const asked: string[] = [];
   await mockSupabase(page, { db: museum() });
   await page.route(OG, (r) => (asked.push(r.request().url()), r.fulfill(png)));
-  await page.goto('/museum');
+  await page.goto('/museum?view=list');
   await expect(stage(page, 'Tide Tables')).toHaveAttribute('data-preview', 'github');
   await expect(stage(page, 'Tide Tables').locator('img')).toHaveAttribute('src', 'https://opengraph.githubassets.com/1/ada/tide-tables');
   await expect.poll(() => asked).toContain('https://opengraph.githubassets.com/1/ada/tide-tables');
@@ -59,7 +59,7 @@ test('a linked repo shows GitHub’s preview on the screen; a project without on
 test('when GitHub’s preview fails to load, the screen falls back to the pixel cover', async ({ page }) => {
   await mockSupabase(page, { db: museum() });
   await page.route(OG, (r) => r.fulfill({ status: 404, body: '' }));
-  await page.goto('/museum');
+  await page.goto('/museum?view=list');
   await expect(stage(page, 'Tide Tables')).toHaveAttribute('data-preview', 'pixel');
   await expect(stage(page, 'Tide Tables').locator('canvas')).toHaveCount(4);
 });
@@ -89,7 +89,7 @@ test('a member uploads a screenshot; after approval it shows on the console inst
   await mockSupabase(visitor, { db });
   await visitor.route('**/storage/v1/object/public/project-covers/**', (r) => r.fulfill(png));
   await visitor.route(OG, (r) => r.fulfill(png));
-  await visitor.goto('http://localhost:5174/museum');
+  await visitor.goto('http://localhost:5174/museum?view=list');
   await expect(stage(visitor, 'Tide Tables')).toHaveAttribute('data-preview', 'upload');
   await expect(stage(visitor, 'Tide Tables').locator('img')).toHaveAttribute('src', new RegExp(`/storage/v1/object/public/project-covers/${saved.cover_path}$`));
   await ctx.close();

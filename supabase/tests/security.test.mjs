@@ -708,6 +708,8 @@ try {
   const after = await wings();
   await expectSu(c, 'the wings migration is safe to run twice, and keeps the curators’ words', `select 1`, [], () =>
     after.find((w) => w.key === 'web')?.note === 'Things you can open in a browser.' && after.find((w) => w.key === 'featured')?.name === 'Hall of Fame' && !after.some((w) => w.key === 'collab'));
+  // The walkable Museum (V2-11) redefines the wing functions: after the wings migration, run it again (DEPLOY.md).
+  await c.query(readFileSync(join(here, '..', 'migrations', '20261008000200_museum_walk.sql'), 'utf8'));
 
   console.log('seasons and events (D-103)');
   // The identity migration was re-run above; the events migration comes after it again.
@@ -1107,6 +1109,43 @@ try {
   await c.query(readFileSync(join(here, '..', 'migrations', '20261006000900_museum_wings.sql'), 'utf8'));
   await expectOk(c, 'the officers migration is safe to run twice (and the wings one after it), keeping the officers and the wing', 'anon', `select hall_officers() as o, museum_wings() as w`, [], (r) =>
     r.rows[0].o[0]?.position === 'President' && r.rows[0].w.some((w) => w.key === 'officers' && w.name === 'Officers Room'));
+
+  console.log('the walkable Museum: room styles (D-125)');
+  const WALK = readFileSync(join(here, '..', 'migrations', '20261008000200_museum_walk.sql'), 'utf8');
+  const saveWing = `select count(*)::int as n from pg_proc where proname = 'admin_save_wing' and pronamespace = 'public'::regnamespace`;
+  await expectSu(c, 're-running the wings migration brings back its old save function…', saveWing, [], (r) => r.rows[0].n === 2);
+  await c.query(WALK);
+  await expectSu(c, '…and running the walk migration after it leaves one again', saveWing, [], (r) => r.rows[0].n === 1);
+  await expectOk(c, 'every open wing has a room style, in public', 'anon', `select museum_wings() as w`, [], (r) =>
+    r.rows[0].w.length > 0 && r.rows[0].w.every((w) => ['arcade', 'lab', 'library', 'garden', 'trophy'].includes(w.style)));
+  await expectSu(c, 'the built-in wings start in styles that fit them, neighbours differing', `select string_agg(key || ':' || style, ',' order by sort, key) as s from museum_wings where key in ('featured','collab','officers','web','games','data')`, [], (r) =>
+    r.rows[0].s === 'featured:garden,collab:lab,officers:library,web:garden,games:arcade,data:lab');
+  await expectOk(c, 'admins see the style too', ADMIN, `select admin_wings() as w`, [], (r) => r.rows[0].w.find((w) => w.key === 'collab')?.style === 'lab');
+  await expectOk(c, 'an admin picks a style for a wing', ADMIN, `select admin_save_wing('web','Web Wing','Things you can open in a browser.',array['JavaScript','TypeScript'],10,true,'library')`, []);
+  await expectOk(c, '…and visitors walk into it', 'anon', `select museum_wings() as w`, [], (r) => r.rows[0].w.find((w) => w.key === 'web')?.style === 'library');
+  await expectOk(c, 'saving without a style (the app before this update) keeps it', ADMIN, `select admin_save_wing('web','Web Wing','Still a browser thing.',array['JavaScript'],10,true)`, []);
+  await expectOk(c, '…so the six-argument call is not ambiguous, and the style stays', 'anon', `select museum_wings() as w`, [], (r) => {
+    const web = r.rows[0].w.find((w) => w.key === 'web');
+    return web?.style === 'library' && web.note === 'Still a browser thing.';
+  });
+  await expectErr(c, 'only the five styles exist', ADMIN, `select admin_save_wing('web','Web Wing','',array['JavaScript'],10,true,'disco')`, [], /BAD_STYLE/);
+  await expectErr(c, '…not even by writing the table', ADMIN, `update museum_wings set style='disco' where key='web'`, [], /permission denied/);
+  await expectSu(c, '…and the table itself refuses one, even for its owner', `do $$ begin
+      begin update public.museum_wings set style = 'disco' where key = 'web'; raise exception 'NO_CHECK';
+      exception when check_violation then null; end;
+    end $$`, [], () => true);
+  await expectErr(c, 'members cannot pick a style', A, `select admin_save_wing('web','Web Wing','',array['JavaScript'],10,true,'arcade')`, [], /NOT_ADMIN/);
+  await expectErr(c, 'visitors cannot either', 'anon', `select admin_save_wing('web','Web Wing','',array['JavaScript'],10,true,'arcade')`, [], /permission denied/);
+  await expectOk(c, 'a new wing can open in a style', ADMIN, `select admin_save_wing('robots','Robots Wing','',array['ROS','Arduino'],30,true,'lab')`, []);
+  await expectOk(c, 'a new wing saved without one opens as an arcade', ADMIN, `select admin_save_wing('sound','Sound Wing','',array['Audio'],31,true)`, []);
+  await expectOk(c, '…both in public', 'anon', `select museum_wings() as w`, [], (r) => r.rows[0].w.find((w) => w.key === 'robots')?.style === 'lab' && r.rows[0].w.find((w) => w.key === 'sound')?.style === 'arcade');
+  await expectOk(c, 'a built-in wing keeps its rule in a new style', ADMIN, `select admin_save_wing('featured','Hall of Fame','Picked by the curators.',array['ignored'],0,true,'trophy')`, []);
+  await expectSu(c, '…still featured, no tags, now a trophy room', `select kind, tags, style from museum_wings where key='featured'`, [], (r) => r.rows[0].kind === 'featured' && r.rows[0].tags.length === 0 && r.rows[0].style === 'trophy');
+  await c.query(WALK);
+  await c.query(WALK);
+  await expectOk(c, 'the walk migration is safe to run twice and keeps the styles admins picked', 'anon', `select museum_wings() as w`, [], (r) =>
+    r.rows[0].w.find((w) => w.key === 'web')?.style === 'library' && r.rows[0].w.find((w) => w.key === 'featured')?.style === 'trophy' && r.rows[0].w.find((w) => w.key === 'robots')?.style === 'lab');
+  await expectOk(c, 'removing a styled wing still works', ADMIN, `select admin_delete_wing('sound')`, []);
 
   console.log('account deletion');
   await expectErr(c, 'anon cannot call delete_my_account', 'anon', `select delete_my_account()`, [], /permission denied/);

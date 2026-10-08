@@ -115,7 +115,7 @@ test('visitors open the Officers door, see pins and positions, and walk into the
   await expect(page.locator('.profile-screen').getByRole('list', { name: 'Badges' })).toHaveCount(0);
 
   // The Museum's Officers' Wing holds the officers' exhibits.
-  await page.goto('/museum');
+  await page.goto('/museum?view=list');
   const doors = page.getByRole('navigation', { name: 'Rooms' });
   await expect(doors.getByRole('link', { name: /Officers' Wing/ })).toContainText('1 exhibit');
   await doors.getByRole('link', { name: /Officers' Wing/ }).click();

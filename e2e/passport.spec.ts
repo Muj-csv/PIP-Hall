@@ -47,7 +47,7 @@ test('a guest Passport starts empty, fills as you meet people, and keeps on this
 
 test('visiting an exhibit stamps it', async ({ page }) => {
   await page.goto('/museum/sample-player-2-0');
-  await expect(page.getByRole('heading', { level: 1 })).toContainText('Museum');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(/ · Museum$/); // loaded (and stamped), not "Museum" while loading
   await page.goto('/passport');
   const visited = passport(page).getByRole('list', { name: 'Exhibits you’ve visited' });
   await expect(visited.locator('li')).toHaveCount(1);
@@ -64,6 +64,7 @@ test('Why Pip picked explains the match, and a listed result walks Pip there', a
   await page.getByRole('searchbox', { name: 'Search players' }).fill('sample quest');
   await page.getByRole('button', { name: 'List results' }).click();
   const results = page.getByRole('list', { name: 'Matching players' }).getByRole('button');
+  await expect(results.nth(1)).toBeVisible(); // the new search's results, not the last one's
   const n = await results.count();
   expect(n).toBeGreaterThan(1);
   await results.nth(1).click();

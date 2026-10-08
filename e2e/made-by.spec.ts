@@ -34,7 +34,7 @@ test('a solo exhibit shows one maker', async ({ page }) => {
 });
 
 test('the gallery plaque credits collaborators', async ({ page }) => {
-  await page.goto('/museum');
+  await page.goto('/museum?view=list');
   await expect(page.locator('.exhibit', { hasText: 'Sample Quest One' }).first()).toContainText('with Sample Player 2');
 });
 

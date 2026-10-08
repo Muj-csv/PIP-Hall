@@ -9,8 +9,11 @@
 // The archive (V2-10, D-118): past projects hang with the rest, in their wings and their event's
 // room, their winners in the Winners' Hall, and all of them in The Archive (/museum?room=archive),
 // by year.
+// The walkable Museum (V2-11, D-119): by default Pip walks the rooms on the PIXENDO's screen
+// (MuseumWalk, a lazy chunk); this page's rooms and grids are the List view (?view=list), one link
+// away, and what very narrow screens (and 400% zoom) open first. Both views share the address.
 
-import { useCallback, useEffect, useId, useMemo, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useId, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { useAppearance } from '../app/appearanceContext';
 import { DialogueBox } from '../components/dialogue/DialogueBox';
@@ -21,8 +24,10 @@ import { creditLine } from '../lib/collab';
 import { ARCHIVE_ROOM, archiveAsExhibit, archiveAward, archiveCases, archiveOrigin, archiveRoomPath, byYear, withArchive, type ArchiveExhibit, type TrophyCase } from '../lib/archive';
 import { awardLabel, entriesByTrack, eventRoomPath, KIND_NAME, kindOf, phaseLine, winnersOf, type Award, type MuseumEvent } from '../lib/events';
 import { arrangeMuseum, consoleFor } from '../lib/museum';
+import { roomFromParams, roomParams, type MuseumParts } from '../lib/museumWalk';
+import { useMediaQuery } from '../lib/useMediaQuery';
 import { dateRange } from '../lib/seasons';
-import { DEFAULT_WINGS, wingPath, wingRooms, type Wing, type WingRoom } from '../lib/wings';
+import { DEFAULT_WINGS, wingPath, wingRooms, wingRule, type Wing, type WingRoom } from '../lib/wings';
 import { archiveService } from '../services/archiveService';
 import { eventService } from '../services/eventService';
 import { museumService } from '../services/museumService';
@@ -30,6 +35,11 @@ import { ArchiveCredit } from '../components/museum/ArchiveCredit';
 import { ExhibitArt } from '../components/museum/ExhibitArt';
 import { Ribbon } from '../components/museum/Ribbon';
 import type { Exhibit } from '../types/museum';
+
+const MuseumWalk = lazy(() => import('../components/museum/MuseumWalk'));
+
+/** A list-view address keeps the list view. */
+const inList = (path: string) => `${path}${path.includes('?') ? '&' : '?'}view=list`;
 
 type Load = { status: 'loading' } | { status: 'error' } | { status: 'ready'; exhibits: Exhibit[] };
 type Events = 'loading' | 'error' | MuseumEvent[];
@@ -53,7 +63,11 @@ export default function Museum() {
   const [wings, setWings] = useState<Wing[] | null>(null);
   const [events, setEvents] = useState<Events>('loading');
   const [archive, setArchive] = useState<Archive>('loading');
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
+  // Walk by default; the list first on very narrow screens (D-119). ?view= picks one.
+  const narrow = useMediaQuery('(max-width: 359px)');
+  const asked = params.get('view');
+  const view = asked === 'list' || asked === 'walk' ? asked : narrow ? 'list' : 'walk';
 
   useEffect(() => {
     let on = true;
@@ -101,6 +115,43 @@ export default function Museum() {
     () => [...eventList.map(eventCase), ...archiveCases(past, new Set(eventList.map((e) => e.key)))].filter((t) => t.winners.length > 0).sort((a, b) => b.sort.localeCompare(a.sort)),
     [eventList, past],
   );
+  // The walk's rooms: each wing in a new order this visit, featured makers first.
+  const walkParts = useMemo<MuseumParts>(
+    () => ({
+      trophies,
+      events: eventList,
+      wings: rooms.map((r) => {
+        const o = arrangeMuseum(r.exhibits);
+        return { wing: r.wing, exhibits: [...o.featured, ...o.rest] };
+      }),
+      everything: { featured, rest },
+      archive: past,
+    }),
+    [trophies, eventList, rooms, featured, rest, past],
+  );
+  /** Pip walked into another room (the address follows), or opens an exhibit (Back returns to it). */
+  const onRoom = useCallback(
+    (id: string, at?: string) => {
+      const [k, v] = roomParams(id);
+      const next = new URLSearchParams({ [k]: v });
+      if (asked === 'walk') next.set('view', 'walk');
+      if (at) {
+        next.set('at', at);
+        // Rewritten in place just before the exhibit opens, so Back lands on this exhibit.
+        window.history.replaceState(window.history.state, '', `/museum?${next}`);
+      } else setParams(next, { replace: true });
+    },
+    [asked, setParams],
+  );
+  const viewHref = (v: 'walk' | 'list') => {
+    const next = new URLSearchParams(params);
+    next.delete('view');
+    next.delete('at');
+    if (v === 'list') next.set('view', 'list');
+    else if (narrow) next.set('view', 'walk');
+    const q = next.toString();
+    return q ? `/museum?${q}` : '/museum';
+  };
   const retry = useCallback(() => {
     setLoad({ status: 'loading' });
     setEvents('loading');
@@ -112,8 +163,18 @@ export default function Museum() {
   const lobby = !wingKey && !eventKey && !archiveOpen;
   const current = wingKey ?? (eventKey ? `event:${eventKey}` : archiveOpen ? `room:${ARCHIVE_ROOM}` : null);
 
+  const settled = wings !== null && events !== 'loading' && archive !== 'loading';
+
   return (
     <MenuPage title="Museum" wide>
+      <nav className="museum-views" aria-label="How to see the Museum">
+        <Link to={viewHref('list')} className="chip" aria-current={view === 'list' ? 'page' : undefined}>
+          <span aria-hidden="true">☰ </span>List view<span className="sr-only"> (reads best with a screen reader)</span>
+        </Link>
+        <Link to={viewHref('walk')} className="chip" aria-current={view === 'walk' ? 'page' : undefined}>
+          <span aria-hidden="true">▶ </span>Walk the Museum
+        </Link>
+      </nav>
       {load.status === 'loading' && <DialogueBox text="Unlocking the gallery…" emote="pending" />}
       {load.status === 'error' && (
         <DialogueBox text="Can’t reach the Museum right now. Check your connection and try again." emote="attention">
@@ -122,91 +183,105 @@ export default function Museum() {
           </button>
         </DialogueBox>
       )}
-      {exhibits && !anything && lobby && events !== 'loading' && archive !== 'loading' && (
+      {view === 'walk' && exhibits && !settled && <DialogueBox text="Opening the doors…" emote="pending" />}
+      {view === 'walk' && exhibits && settled && !anything && (
         <DialogueBox text="The Museum is waiting for its first exhibit. Members with Museum access can add projects from their card editor, and projects entered in the hall’s events hang here too." />
       )}
-      {exhibits && (rooms.length > 0 || eventList.length > 0 || past.length > 0) && <Doors rooms={rooms} events={eventList} archive={past.length} current={current} />}
+      {view === 'walk' && exhibits && settled && anything && (
+        <Suspense fallback={<DialogueBox text="Opening the doors…" emote="pending" />}>
+          <MuseumWalk parts={walkParts} room={roomFromParams(params)} at={params.get('at')} onRoom={onRoom} />
+        </Suspense>
+      )}
 
-      {exhibits && wingKey && !room && wings && (
-        <DialogueBox text="That wing has nothing on show right now. Every other room is still open." emote="attention">
-          <Link to="/museum" className="hw-btn no-underline" data-variant="small">
-            ALL EXHIBITS
-          </Link>
-        </DialogueBox>
-      )}
-      {exhibits && room && roomOrder && <WingRoomView room={room} order={[...roomOrder.featured, ...roomOrder.rest]} onShuffle={() => setRound((r) => r + 1)} />}
-
-      {exhibits && eventKey && events === 'loading' && <DialogueBox text="Opening the event room…" emote="pending" />}
-      {exhibits && eventKey && events === 'error' && (
-        <DialogueBox text="Can’t open the event rooms right now. Check your connection and try again." emote="attention">
-          <button type="button" className="hw-btn" data-variant="small" onClick={retry}>
-            RETRY
-          </button>
-        </DialogueBox>
-      )}
-      {exhibits && eventKey && Array.isArray(events) && !eventRoom && (
-        <DialogueBox text="That event room isn’t open. A room opens on its event’s first day." emote="attention">
-          <Link to="/museum" className="hw-btn no-underline" data-variant="small">
-            ALL EXHIBITS
-          </Link>
-        </DialogueBox>
-      )}
-      {exhibits && eventRoom && <EventRoomView event={eventRoom} />}
-
-      {exhibits && archiveOpen && archive === 'loading' && <DialogueBox text="Dusting off the Archive…" emote="pending" />}
-      {exhibits && archiveOpen && archive === 'error' && (
-        <DialogueBox text="Can’t open the Archive right now. Check your connection and try again." emote="attention">
-          <button type="button" className="hw-btn" data-variant="small" onClick={retry}>
-            RETRY
-          </button>
-        </DialogueBox>
-      )}
-      {exhibits && archiveOpen && Array.isArray(archive) && <ArchiveRoomView archive={archive} />}
-
-      {exhibits && lobby && anything && (
-        <DialogueBox
-          text={
-            trophies.length > 0
-              ? 'Welcome to the Museum! The winners of the hall’s events stand in the Winners’ Hall; every other exhibit is in a new order each visit.'
-              : featured.length > 0
-                ? 'Welcome to the Museum! Featured makers hang up top; the rest are in a new order every visit.'
-                : 'Welcome to the Museum: projects from members of the hall, in a new order every visit.'
-          }
-        />
-      )}
-      {exhibits && lobby && trophies.length > 0 && <WinnersHall trophies={trophies} />}
-      {exhibits && lobby && exhibits.length > 0 && (
+      {view === 'list' && (
         <>
-          <div className="flex flex-wrap items-center gap-space-3">
-            <button type="button" className="pixel-btn" data-variant="primary" onClick={() => setRound((r) => r + 1)}>
-              <span aria-hidden="true">⟳ </span>Shuffle
-            </button>
-            <p className="m-0 font-display tracking-[0.04em]" role="status">
-              {exhibits.length} {exhibits.length === 1 ? 'exhibit' : 'exhibits'}
-            </p>
-          </div>
-          {featured.length > 0 && (
-            <section className="museum-featured" aria-labelledby="museum-featured-title">
-              <h2 id="museum-featured-title" className="panel-title">
-                Featured
-              </h2>
-              <ul className="museum-grid" aria-label="Featured exhibits">
-                {featured.map((e) => (
-                  <li key={e.project_id}>
-                    <ExhibitFrame exhibit={e} />
-                  </li>
-                ))}
-              </ul>
-            </section>
+          {exhibits && !anything && lobby && events !== 'loading' && archive !== 'loading' && (
+            <DialogueBox text="The Museum is waiting for its first exhibit. Members with Museum access can add projects from their card editor, and projects entered in the hall’s events hang here too." />
           )}
-          {rest.length > 0 && (
-            <ul className="museum-grid" aria-label={featured.length > 0 ? 'More exhibits' : 'Exhibits'}>
-              {rest.map((e) => (
-                <li key={e.project_id}>
-                  <ExhibitFrame exhibit={e} />
-                </li>
-              ))}
-            </ul>
+          {exhibits && (rooms.length > 0 || eventList.length > 0 || past.length > 0) && <Doors rooms={rooms} events={eventList} archive={past.length} current={current} />}
+
+          {exhibits && wingKey && !room && wings && (
+            <DialogueBox text="That wing has nothing on show right now. Every other room is still open." emote="attention">
+              <Link to={inList('/museum')} className="hw-btn no-underline" data-variant="small">
+                ALL EXHIBITS
+              </Link>
+            </DialogueBox>
+          )}
+          {exhibits && room && roomOrder && <WingRoomView room={room} order={[...roomOrder.featured, ...roomOrder.rest]} onShuffle={() => setRound((r) => r + 1)} />}
+
+          {exhibits && eventKey && events === 'loading' && <DialogueBox text="Opening the event room…" emote="pending" />}
+          {exhibits && eventKey && events === 'error' && (
+            <DialogueBox text="Can’t open the event rooms right now. Check your connection and try again." emote="attention">
+              <button type="button" className="hw-btn" data-variant="small" onClick={retry}>
+                RETRY
+              </button>
+            </DialogueBox>
+          )}
+          {exhibits && eventKey && Array.isArray(events) && !eventRoom && (
+            <DialogueBox text="That event room isn’t open. A room opens on its event’s first day." emote="attention">
+              <Link to={inList('/museum')} className="hw-btn no-underline" data-variant="small">
+                ALL EXHIBITS
+              </Link>
+            </DialogueBox>
+          )}
+          {exhibits && eventRoom && <EventRoomView event={eventRoom} />}
+
+          {exhibits && archiveOpen && archive === 'loading' && <DialogueBox text="Dusting off the Archive…" emote="pending" />}
+          {exhibits && archiveOpen && archive === 'error' && (
+            <DialogueBox text="Can’t open the Archive right now. Check your connection and try again." emote="attention">
+              <button type="button" className="hw-btn" data-variant="small" onClick={retry}>
+                RETRY
+              </button>
+            </DialogueBox>
+          )}
+          {exhibits && archiveOpen && Array.isArray(archive) && <ArchiveRoomView archive={archive} />}
+
+          {exhibits && lobby && anything && (
+            <DialogueBox
+              text={
+                trophies.length > 0
+                  ? 'Welcome to the Museum! The winners of the hall’s events stand in the Winners’ Hall; every other exhibit is in a new order each visit.'
+                  : featured.length > 0
+                    ? 'Welcome to the Museum! Featured makers hang up top; the rest are in a new order every visit.'
+                    : 'Welcome to the Museum: projects from members of the hall, in a new order every visit.'
+              }
+            />
+          )}
+          {exhibits && lobby && trophies.length > 0 && <WinnersHall trophies={trophies} />}
+          {exhibits && lobby && exhibits.length > 0 && (
+            <>
+              <div className="flex flex-wrap items-center gap-space-3">
+                <button type="button" className="pixel-btn" data-variant="primary" onClick={() => setRound((r) => r + 1)}>
+                  <span aria-hidden="true">⟳ </span>Shuffle
+                </button>
+                <p className="m-0 font-display tracking-[0.04em]" role="status">
+                  {exhibits.length} {exhibits.length === 1 ? 'exhibit' : 'exhibits'}
+                </p>
+              </div>
+              {featured.length > 0 && (
+                <section className="museum-featured" aria-labelledby="museum-featured-title">
+                  <h2 id="museum-featured-title" className="panel-title">
+                    Featured
+                  </h2>
+                  <ul className="museum-grid" aria-label="Featured exhibits">
+                    {featured.map((e) => (
+                      <li key={e.project_id}>
+                        <ExhibitFrame exhibit={e} />
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+              {rest.length > 0 && (
+                <ul className="museum-grid" aria-label={featured.length > 0 ? 'More exhibits' : 'Exhibits'}>
+                  {rest.map((e) => (
+                    <li key={e.project_id}>
+                      <ExhibitFrame exhibit={e} />
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
           )}
         </>
       )}
@@ -283,14 +358,14 @@ function Doors({ rooms, events, archive, current }: { rooms: WingRoom[]; events:
     <nav className="wing-doors" aria-label="Rooms">
       <ul>
         <li>
-          <Link to="/museum" className="wing-door" aria-current={current === null ? 'page' : undefined}>
+          <Link to={inList('/museum')} className="wing-door" aria-current={current === null ? 'page' : undefined}>
             <span className="wing-arch" aria-hidden="true" />
             <span>All exhibits</span>
           </Link>
         </li>
         {rooms.map(({ wing, exhibits }) => (
           <li key={wing.key}>
-            <Link to={wingPath(wing.key)} className="wing-door" data-kind={wing.kind} aria-current={current === wing.key ? 'page' : undefined}>
+            <Link to={inList(wingPath(wing.key))} className="wing-door" data-kind={wing.kind} aria-current={current === wing.key ? 'page' : undefined}>
               <span className="wing-arch" aria-hidden="true" />
               <span>{wing.name}</span>
               <span className="text-caption text-text-secondary">
@@ -301,7 +376,7 @@ function Doors({ rooms, events, archive, current }: { rooms: WingRoom[]; events:
         ))}
         {archive > 0 && (
           <li>
-            <Link to={archiveRoomPath()} className="wing-door" data-kind="archive" aria-current={current === `room:${ARCHIVE_ROOM}` ? 'page' : undefined}>
+            <Link to={inList(archiveRoomPath())} className="wing-door" data-kind="archive" aria-current={current === `room:${ARCHIVE_ROOM}` ? 'page' : undefined}>
               <span className="wing-arch" aria-hidden="true" />
               <span>The Archive</span>
               <span className="text-caption text-text-secondary">
@@ -312,7 +387,7 @@ function Doors({ rooms, events, archive, current }: { rooms: WingRoom[]; events:
         )}
         {events.map((e) => (
           <li key={e.key}>
-            <Link to={eventRoomPath(e.key)} className="wing-door" data-kind="event" aria-current={current === `event:${e.key}` ? 'page' : undefined}>
+            <Link to={inList(eventRoomPath(e.key))} className="wing-door" data-kind="event" aria-current={current === `event:${e.key}` ? 'page' : undefined}>
               <span className="wing-arch" aria-hidden="true" />
               <span>{e.name}</span>
               <span className="text-caption text-text-secondary">
@@ -339,7 +414,7 @@ function WinnersHall({ trophies }: { trophies: TrophyCase[] }) {
         <section key={t.key} className="trophy-case" aria-labelledby={`case-${t.key}`}>
           <h3 id={`case-${t.key}`} className="m-0 font-display font-normal">
             {t.eventKey ? (
-              <Link to={eventRoomPath(t.eventKey)} className="underline decoration-2">
+              <Link to={inList(eventRoomPath(t.eventKey))} className="underline decoration-2">
                 {t.title}
               </Link>
             ) : (
@@ -459,13 +534,6 @@ function ArchiveRoomView({ archive }: { archive: ArchiveExhibit[] }) {
   );
 }
 
-const RULE: Record<Wing['kind'], (w: Wing) => string> = {
-  featured: () => 'Exhibits by members the curators featured.',
-  collab: () => 'Projects made by more than one member of the hall.',
-  officers: () => 'Projects by the hall’s current officers, as named by its admins.',
-  tags: (w) => `Projects built with ${w.tags.slice(0, 6).join(', ')}${w.tags.length > 6 ? '…' : ''}.`,
-};
-
 function WingRoomView({ room, order, onShuffle }: { room: WingRoom; order: Exhibit[]; onShuffle: () => void }) {
   const { wing } = room;
   return (
@@ -473,7 +541,7 @@ function WingRoomView({ room, order, onShuffle }: { room: WingRoom; order: Exhib
       <h2 id="wing-title" className="panel-title">
         {wing.name}
       </h2>
-      <p className="m-0 text-caption text-text-secondary">{RULE[wing.kind](wing)}</p>
+      <p className="m-0 text-caption text-text-secondary">{wingRule(wing)}</p>
       {wing.note && (
         <figure className="curator-note">
           <blockquote className="m-0">{wing.note}</blockquote>

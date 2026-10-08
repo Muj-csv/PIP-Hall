@@ -1,6 +1,6 @@
 # PIP-Hall v2, part two: the Museum, hackathons, and a hall that comes alive
 
-Status: **V2-9, V2-10 and V2-10b built** (2026-10-08); V2-11 next. Follows `V2-LIVING-HALL.md` (V2-0 to V2-8, all built). No deadline (D-093). Decisions: D-106 to D-120 (the owner's answers, 2026-10-07), D-123 (the officers' space, 2026-10-08). Rules: `CLAUDE.md` → Product rules.
+Status: **V2-9, V2-10, V2-10b and V2-11 built** (2026-10-08); V2-12 next. Follows `V2-LIVING-HALL.md` (V2-0 to V2-8, all built). No deadline (D-093). Decisions: D-106 to D-120 (the owner's answers, 2026-10-07), D-123 (the officers' space, 2026-10-08); build details D-121, D-122, D-124, D-125. Rules: `CLAUDE.md` → Product rules.
 
 ## Why this round
 
@@ -84,7 +84,13 @@ Asked for by the owner after V2-10: the organization's officers want a part of t
 - **SQL** (`20261008000100_officers.sql`): `affiliations.officers` and `term_ends`; `member_affiliations.position` and `seat`; the `officers` wing kind and its seeded wing; `hall_officers()` (public), `admin_set_officers()`, `admin_set_officer()`; security tests.
 - Budget: about 1 KB gzipped JS on the first load (the pin, the door, the wing rule); the admin panel is in the lazy admin chunk. One extra small request (`hall_officers`) with the hall's appearance data; no per-frame work.
 
-### V2-11 · The walkable Museum (P0)
+### V2-11 · The walkable Museum (P0) · built
+
+Built as planned (details: D-125), with three changes: a room for **All exhibits** before The Archive (an exhibit that fits no wing would otherwise be out of reach), the List view is `?view=list` on the same page (so every room's address works in both views), and the Winners' Hall, event rooms, All exhibits and the Archive have fixed styles while admins pick each wing's. Evidence: `docs/build/evidence/walk/`.
+
+- **Budget, measured.** The walk is its own lazy chunk: 8.4 KB gzipped (MuseumWalk), plus 2.2 KB in the Museum page for the room plan and the view switch (≈ 10.6 KB of the 12 KB). The home page's first load is unchanged (160.8 KB of 200 KB; 161.0 KB before). No new requests: the walk uses what the Museum page already loads. On a production build in headless Chromium **without a GPU**, walking past 200 exhibits costs about 1.2 ms per frame in the walk's own loop and about 9 ms of main-thread work in all (style, layout, paint, layer commit), within the 16.7 ms of a 60 fps frame; standing still costs under 1 ms, because the level isn't redrawn. Only the exhibit in front of Pip and two on each side are on the page (at most six while walking), whatever the count. That machine rasterises in software, so its frames themselves take 50 ms, the hall's too; a device with a GPU doesn't pay that.
+- **Also:** sprites are now drawn a run of one colour at a time (one rectangle, not one per pixel), which makes every console and cover cheaper to show, in the walk, the list and the hall.
+
 
 **Loop:** enter the Museum → walk Pip through rooms → stop at an exhibit to read its plaque → open it or meet its makers → follow the path to the next room → leave a stamp in your Passport.
 

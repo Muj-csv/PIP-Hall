@@ -52,7 +52,7 @@ test('a maker picks a console for an exhibit; visitors see it; automatic is the 
   const ctx = await browser.newContext();
   const visitor = await ctx.newPage();
   await mockSupabase(visitor, { db });
-  await visitor.goto('http://localhost:5174/museum');
+  await visitor.goto('http://localhost:5174/museum?view=list');
   await expect(exhibits(visitor).first().locator('.exhibit-frame')).toHaveAttribute('data-console', 'arcade');
   await exhibits(visitor).first().getByRole('link', { name: 'Tide Tables' }).click();
   await expect(visitor.getByText('On show on a PIXENDO Arcade')).toBeVisible();
@@ -69,7 +69,7 @@ test('the automatic console is the same on every visit', async ({ page }) => {
   grantMuseum(db);
   db.museumEntries = [{ project_id: P1, member_id: ME.id }, { project_id: P2, member_id: ME.id }];
   await mockSupabase(page, { db });
-  await page.goto('/museum');
+  await page.goto('/museum?view=list');
   const frames = page.locator('.exhibit-frame');
   await expect(frames).toHaveCount(2);
   const first = await frames.evaluateAll((els) => els.map((e) => e.getAttribute('data-console')).sort());

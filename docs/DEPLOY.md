@@ -97,6 +97,12 @@ Both are safe to run again (they only add columns and replace functions).
 1. Supabase **SQL editor:** run `supabase/migrations/20261006000300_project_collaborators.sql`. Safe to run again.
 2. Check: a member opens **My card → Collaborators**, tags another member of the hall on a project; that member sees the request in their own **Collaborators** panel and accepts. After the owner's next approval, the project's public card lists them.
 
+## The walkable Museum (V2-11, D-119, D-125)
+
+1. Supabase **SQL editor:** run `supabase/migrations/20261008000200_museum_walk.sql` (after the officers one) **before** merging the app update. Safe to run again. It only adds a room style to each wing; the app that's live keeps working. If you ever re-run the wings migration, run this one again after it.
+2. Check: `/museum` opens the walk inside the PIXENDO: Pip stands in the first room (the Winners' Hall when there are winners). ◀ ▶ (or the arrow keys, or a drag) walk, **MAP** lists every room, **OPEN** visits the exhibit and Back returns to it. **List view** at the top is the page as it was.
+3. In the app: **Admin → Wings → Room style** for each wing (Arcade, Lab, Library, Garden or Trophy room), then **Save**. The built-in wings start in styles that fit them; a new wing opens as an Arcade unless you pick another.
+
 ## The officers' space (V2-10b, D-123, D-124)
 
 1. Supabase **SQL editor:** run `supabase/migrations/20261008000100_officers.sql` (after the archive one) **before** merging the app update. Safe to run again.
