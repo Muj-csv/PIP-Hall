@@ -161,6 +161,7 @@ describe('the walkable Museum: the corridor', () => {
     ]);
     expect(layout.width).toBe(layout.rooms[1]!.x1);
     expect(layout.stops.map((s) => s.nth)).toEqual([1, 2, 1, 2]);
+    expect(layout.stops.map((s) => s.group)).toEqual(['Health track', null, null, null]);
   });
 
   it('finds the nearest exhibit, the room, and what is near the camera', () => {

@@ -111,5 +111,6 @@ test('a quiet hall says so honestly', async ({ page }) => {
   await skip(page);
   await mockSupabase(page, { db, publishedCards: samples });
   await page.goto('/');
+  await expect(page.getByRole('tab')).toHaveCount(0); // an empty hall: Recent is the only panel, so no tabs
   await expect(page.getByRole('region', { name: 'Recent in the hall' }).locator('.dialogue')).toContainText('Nothing new yet');
 });

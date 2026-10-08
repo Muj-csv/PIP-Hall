@@ -89,7 +89,7 @@ export default function MuseumWalk({ parts, room, at, onRoom }: Props) {
   const hero = useRef<WalkHero>({ x: (xs[start] ?? 0) + PIP_OFFSET, face: 1, t: 0, walking: false });
   const litRef = useRef(-1);
   const iris = useRef<{ t: number; mid: () => void; done: boolean } | null>(null);
-  /** Exhibits and signs on the screen's layer, with their x along the corridor. */
+  /** Exhibits on the screen's layer, with their x along the corridor. */
   const mounted = useRef(new Map<HTMLElement, number>());
   const live = useRef({ layout, xs, spots, reduce });
   useEffect(() => {
@@ -187,7 +187,7 @@ export default function MuseumWalk({ parts, room, at, onRoom }: Props) {
     [layout, jumpTo],
   );
 
-  // ---- positioning the exhibits and signs (also the moment one mounts, so it never flashes at 0)
+  // ---- positioning the exhibits (also the moment one mounts, so it never flashes at 0)
   /** `width` is the screen's, read once per frame by the loop (reading it per element would make
    *  the browser lay the page out again after every move). */
   const place = useCallback(
@@ -196,7 +196,7 @@ export default function MuseumWalk({ parts, room, at, onRoom }: Props) {
     },
     [cam],
   );
-  /** One ref for every exhibit and sign: each carries its x in data-x. */
+  /** One ref for every exhibit: each carries its x in data-x. */
   const register = useCallback(
     (el: HTMLElement | null) => {
       if (!el) return;
@@ -316,14 +316,12 @@ export default function MuseumWalk({ parts, room, at, onRoom }: Props) {
     }
   };
 
-  // Mounted: the exhibits around the nearest one, and the signs in reach.
+  // Mounted: the exhibits around the nearest one.
   const from = Math.max(0, near - MOUNT);
   const to = Math.min(layout.stops.length - 1, near + MOUNT);
   const visible: number[] = [];
   for (let i = from; i <= to; i++) visible.push(i);
   if (index < from || index > to) visible.push(index);
-  const centre = xs[near] ?? 0;
-  const signs = layout.signs.filter((s) => Math.abs(s.x - centre) <= MOUNT * STOP_SPACING + 40);
 
   const stop = layout.stops[index];
   const line = !moved1 && missing ? 'That room has nothing on show right now, so Pip starts at the first one. MAP shows every room.' : stopLine(layout, index);
@@ -348,12 +346,6 @@ export default function MuseumWalk({ parts, room, at, onRoom }: Props) {
       <div ref={playRef} className="play">
         <canvas ref={bgRef} data-layer="bg" aria-hidden="true" />
         <div className="walk-layer">
-          {signs.map((s) => (
-            <p key={`${s.kind}-${s.x}`} ref={register} data-x={s.x} className="walk-sign" data-kind={s.kind} aria-hidden="true">
-              {s.text}
-              {s.sub && <span className="walk-sign-sub">{s.sub}</span>}
-            </p>
-          ))}
           {visible.map((i) => (
             <StopView
               key={`${layout.rooms[layout.stops[i]!.room]!.id}|${layout.stops[i]!.exhibit.project_id}|${layout.stops[i]!.x}`}
@@ -370,13 +362,15 @@ export default function MuseumWalk({ parts, room, at, onRoom }: Props) {
           ))}
         </div>
         <canvas ref={fgRef} data-layer="fg" aria-hidden="true" />
+        {/* The room's name stays put at the top while Pip walks (the dialogue line says it too). */}
         {current && stop && (
-          <div className="hud walk-hud" aria-hidden="true">
-            <span>{current.name}</span>
-            <span>
-              {stop.nth}/{current.count}
+          <p className="walk-title" aria-hidden="true">
+            <span className="walk-title-name">{current.name}</span>
+            <span className="walk-title-sub">
+              {stop.group ? `${stop.group} · ` : ''}
+              {stop.nth} of {current.count}
             </span>
-          </div>
+          </p>
         )}
       </div>
       <DialogueBox text={line} />

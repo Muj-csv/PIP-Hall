@@ -116,7 +116,7 @@ test('a member enters a project in a track while submissions are open; it hangs 
   await panel.getByRole('link', { name: 'See the entries in the Museum' }).click();
   await expect(page).toHaveURL(/\/museum\?event=spring-hack$/);
   // The walk opens in the event's room; the List view keeps the room.
-  await expect(page.locator('.walk-hud')).toContainText('Spring Hackathon');
+  await expect(page.locator('.walk-title')).toContainText('Spring Hackathon');
   await page.getByRole('navigation', { name: 'How to see the Museum' }).getByRole('link', { name: /List view/ }).click();
   await expect(page).toHaveURL(/\/museum\?event=spring-hack&view=list$/);
   const doors = page.getByRole('navigation', { name: 'Rooms' });

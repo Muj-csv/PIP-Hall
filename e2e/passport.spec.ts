@@ -14,7 +14,8 @@ test.beforeEach(async ({ page }) => {
 
 test('a guest Passport starts empty, fills as you meet people, and keeps on this device', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: /Passport/ }).click();
+  await page.getByRole('button', { name: 'START', exact: true }).click();
+  await page.getByRole('region', { name: 'START', exact: true }).getByRole('button', { name: /Passport/ }).click();
   await expect(page).toHaveURL(/\/passport$/);
   await expect(page).toHaveTitle('Passport · PIP-Hall');
   await expect(passport(page).getByRole('heading', { name: 'PASSPORT' })).toBeVisible();
@@ -51,8 +52,9 @@ test('visiting an exhibit stamps it', async ({ page }) => {
   await page.goto('/passport');
   const visited = passport(page).getByRole('list', { name: 'Exhibits you’ve visited' });
   await expect(visited.locator('li')).toHaveCount(1);
-  await expect(passport(page).getByRole('button', { name: /Passport · / })).toHaveCount(0); // the button lives outside the screen
-  await expect(page.getByRole('button', { name: 'Passport · 1' })).toBeVisible();
+  await expect(passport(page).getByRole('button', { name: /Passport · / })).toHaveCount(0); // the button lives in START
+  await page.getByRole('button', { name: 'START', exact: true }).click();
+  await expect(page.getByRole('region', { name: 'START', exact: true }).getByRole('button', { name: /^Passport · 1/ })).toBeVisible();
 });
 
 test('Why Pip picked explains the match, and a listed result walks Pip there', async ({ page }) => {

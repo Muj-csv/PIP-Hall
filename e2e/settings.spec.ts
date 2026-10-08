@@ -57,7 +57,7 @@ test('the world switch here and in the top bar stay in step', async ({ page }) =
   await page.goto('/settings');
   await page.getByRole('region', { name: 'World' }).getByText('NIGHT', { exact: true }).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
-  await expect(page.locator('header').getByRole('radio', { name: 'NIGHT' })).toBeChecked();
+  await expect(page.locator('header').getByRole('button', { name: /^World:/ })).toHaveText('World: NIGHT');
 });
 
 test('delete account: confirm by typing the username; images, account and card go, then signed out', async ({ page }) => {

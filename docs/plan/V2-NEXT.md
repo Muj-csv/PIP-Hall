@@ -1,6 +1,6 @@
 # PIP-Hall v2, part two: the Museum, hackathons, and a hall that comes alive
 
-Status: **V2-9, V2-10, V2-10b and V2-11 built** (2026-10-08); V2-12 next. Follows `V2-LIVING-HALL.md` (V2-0 to V2-8, all built). No deadline (D-093). Decisions: D-106 to D-120 (the owner's answers, 2026-10-07), D-123 (the officers' space, 2026-10-08); build details D-121, D-122, D-124, D-125. Rules: `CLAUDE.md` → Product rules.
+Status: **V2-9, V2-10, V2-10b, V2-11 and V2-15 built** (2026-10-08; V2-15 pulled forward with the calmer hall, D-126); V2-12 next. Follows `V2-LIVING-HALL.md` (V2-0 to V2-8, all built). No deadline (D-093). Decisions: D-106 to D-120 (the owner's answers, 2026-10-07), D-123 (the officers' space, 2026-10-08); build details D-121, D-122, D-124, D-125; the calmer hall D-126. Rules: `CLAUDE.md` → Product rules.
 
 ## Why this round
 
@@ -144,7 +144,10 @@ Built as planned (details: D-125), with three changes: a room for **All exhibits
 - **SQL:** a public first-approval date; `hall_seasons.sky` (checked list).
 - Budget: ≤ 6 KB gzipped JS; threads drawn only for badges on screen.
 
-### V2-15 · The device is the world (#25) (P1)
+### V2-15 · The device is the world (#25) (P1) · built
+
+Built early, with the owner's call for a calmer first screen (D-126): START is the device's third button and opens its menu over the screen (Random player, Passport, Officers, Museum, Map when open, PIP MART for members, Share the hall, DAY/NIGHT); S opens it, Esc and BACK close it; the search row above the device keeps only the search and Filters, and the panels below it became tabs. The Museum and PIP MART stay full pages (D-107), so their items are links rather than an iris. Budget: 3.0 KB gzipped on the first load, measured (the menu, the tabs and the theme button; the home page now loads 163.8 KB of its 200 KB). No new requests: the tabs use the event the banner already asked for. Evidence: `docs/build/evidence/calm/`.
+
 
 **Loop:** press START → pick a place → iris into it → BACK brings you home.
 

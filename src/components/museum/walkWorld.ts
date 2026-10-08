@@ -10,10 +10,16 @@ import type { RoomStyle } from '../../lib/wings';
 
 export const WALK_H = 144;
 /** The wall's chair rail, the floor's edge, and where Pip's feet stand. */
-const RAIL_Y = 96;
+const RAIL_Y = 104;
 const BASE_Y = 118;
 export const FLOOR_Y = 121;
 const FEET_Y = 134;
+/** Where an exhibit hangs (its console's top), in units: the room's title above, the picture
+ *  light just over it, the plaque under it, all on the wall above the chair rail. Matches the CSS. */
+export const EXHIBIT_TOP = 30;
+const LAMP_Y = EXHIBIT_TOP - 7;
+/** A winner's pedestal starts right under the console (44 units tall). */
+const PEDESTAL_Y = EXHIBIT_TOP + 45;
 /** Where Pip stands to look at an exhibit: just left of it, facing it. */
 export const PIP_OFFSET = -31;
 const TILE = 64;
@@ -129,25 +135,25 @@ function drawTile(style: RoomStyle, read: Read): HTMLCanvasElement {
   }
   // What runs along every room of a style: neon, a pipe, gold trim.
   if (style === 'arcade') {
-    px(accent, 0, 22, TILE, 1);
-    px(accent, 0, 90, TILE, 1);
+    px(accent, 0, 26, TILE, 1);
+    px(accent, 0, RAIL_Y - 4, TILE, 1);
   } else if (style === 'lab') {
     px(accent, 0, 12, TILE, 3);
     px(trim, 0, 12, TILE, 1);
     for (const x of [8, 40]) px(ink, x, 11, 3, 5);
   } else if (style === 'trophy') {
     px(accent, 0, 13, TILE, 1);
-    px(accent, 0, 92, TILE, 1);
+    px(accent, 0, RAIL_Y - 3, TILE, 1);
   }
 
   // Chair rail and wainscot panels.
   px(trim, 0, RAIL_Y, TILE, 2);
   px(tok('wall-shade'), 0, RAIL_Y + 2, TILE, BASE_Y - RAIL_Y - 2);
   for (const x0 of [4, 36]) {
-    px(pattern, x0, 101, 24, 1);
-    px(pattern, x0, 114, 24, 1);
-    px(pattern, x0, 101, 1, 14);
-    px(pattern, x0 + 23, 101, 1, 14);
+    px(pattern, x0, RAIL_Y + 4, 24, 1);
+    px(pattern, x0, BASE_Y - 3, 24, 1);
+    px(pattern, x0, RAIL_Y + 4, 1, BASE_Y - RAIL_Y - 6);
+    px(pattern, x0 + 23, RAIL_Y + 4, 1, BASE_Y - RAIL_Y - 6);
   }
   // Baseboard.
   px(trim, 0, BASE_Y, TILE, 1);
@@ -195,7 +201,7 @@ function drawProp(style: RoomStyle, read: Read): { canvas: HTMLCanvasElement; y:
       ctx.fillStyle = read('--color-museum-light');
       ctx.fillRect(1, 4, 1, 62);
     }
-    return { canvas: c, y: 24 };
+    return { canvas: c, y: EXHIBIT_TOP };
   }
   if (style === 'lab') {
     // A shelf with two flasks on it.
@@ -212,11 +218,11 @@ function drawProp(style: RoomStyle, read: Read): { canvas: HTMLCanvasElement; y:
       ctx.fillRect(3, 11, 1, 1);
       ctx.fillRect(14, 11, 1, 1);
     }
-    return { canvas: c, y: 62 };
+    return { canvas: c, y: EXHIBIT_TOP + 34 };
   }
   if (style === 'library') {
     // A bookcase: four shelves of spines of different heights and colours.
-    const [c, ctx] = canvas(18, BASE_Y + 1 - 22);
+    const [c, ctx] = canvas(18, BASE_Y + 1 - LAMP_Y);
     if (ctx) {
       const books = BOOKS.map(read);
       ctx.fillStyle = ink;
@@ -239,7 +245,7 @@ function drawProp(style: RoomStyle, read: Read): { canvas: HTMLCanvasElement; y:
         ctx.fillRect(1, base, 16, 1);
       }
     }
-    return { canvas: c, y: 22 };
+    return { canvas: c, y: LAMP_Y };
   }
   if (style === 'garden') {
     // Ivy hanging from the molding, and a potted plant on the floor.
@@ -338,7 +344,7 @@ function drawLight(read: Read): { cone: HTMLCanvasElement; pool: HTMLCanvasEleme
 /** A winner's pedestal: a slab, a marble column lit on the left, and a base, standing on the floor. */
 function drawPedestal(read: Read): HTMLCanvasElement {
   const w = 54;
-  const h = FLOOR_Y - 61;
+  const h = FLOOR_Y - PEDESTAL_Y;
   const [c, ctx] = canvas(w, h);
   if (!ctx) return c;
   const ink = read('--color-card-ink');
@@ -449,12 +455,12 @@ export function drawWalk(ctx: CanvasRenderingContext2D, f: WalkFrame, a: WalkAss
     const x = s.x + off;
     const lit = i === f.lit;
     if (lit) {
-      ctx.drawImage(a.cone, x - 24, 16);
+      ctx.drawImage(a.cone, x - 24, LAMP_Y + 6);
       ctx.drawImage(a.pool, x - 24, FLOOR_Y + 2);
     }
-    ctx.drawImage(lit ? a.lamp.on : a.lamp.off, x - 6, 10);
+    ctx.drawImage(lit ? a.lamp.on : a.lamp.off, x - 6, LAMP_Y);
     if (s.awards.length > 0) {
-      ctx.drawImage(a.pedestal, x - 27, 61);
+      ctx.drawImage(a.pedestal, x - 27, PEDESTAL_Y);
       // The cup (a place) or the rosette (a named award) stands in front of the pedestal's base.
       const best = Math.min(...s.awards.map((p) => p.award.place ?? 9));
       const prize = best <= 3 ? a.trophies[best as 1 | 2 | 3] : a.rosette;

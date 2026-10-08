@@ -1,12 +1,15 @@
 // The PIP-Hall level inside the PIXENDO handheld (brief §3, §7, §15). One animation loop steps the
 // camera, swings every badge, walks and jumps Pip, and draws the world; React only re-renders when
 // the current player, flips, coins or the dialogue line change. Search and filters (HallSearch,
-// D-072) narrow which badges hang in the level; they live in the address like /explore did.
+// D-072) narrow which badges hang in the level; they live in the address like /explore did. START
+// (D-107, D-126) opens the device's menu: Random player, the Passport, the Officers door, the map,
+// the Museum, the Mart, sharing and DAY/NIGHT. Below the device, one tab at a time (HallTabs).
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router';
 import { useAppearance } from '../../app/appearanceContext';
-import { memberPath } from '../../lib/publicUrl';
+import { hallUrl, memberPath } from '../../lib/publicUrl';
+import { pipsEnabled } from '../../lib/features';
 import { slotLook, slotX } from '../../lib/carousel';
 import { cssVarReader } from '../../lib/sprites';
 import { stepHeld } from '../../lib/grab';
@@ -19,7 +22,7 @@ import { discoverLine } from '../../lib/pips';
 import { facets, filtersFromParams, filtersToParams, indexCards, isFiltered, NO_FILTERS, randomCard, search, type Filters } from '../../lib/search';
 import { useTheme } from '../../app/themeContext';
 import type { PublicCard } from '../../types/card';
-import { QrFullscreen } from '../cards/QrFullscreen';
+import { QrFullscreen, QrSheet } from '../cards/QrFullscreen';
 import { CardCarousel, SkeletonBadges } from '../carousel/CardCarousel';
 import { UNIT_PX, useCarousel } from '../carousel/useCarousel';
 import { DialogueBox } from '../dialogue/DialogueBox';
@@ -43,18 +46,17 @@ import {
 } from '../world/world';
 import { HallSearch } from './HallSearch';
 import { Hud } from './Hud';
-import { MissionsPanel } from './MissionsPanel';
 import { density } from '../../lib/network';
 import { currentByMember } from '../../lib/officers';
 import { useSession } from '../../app/sessionContext';
-import { SeasonPanel } from './SeasonPanel';
-import { recentAvailable, RecentStrip } from './RecentStrip';
+import { HallTabs } from './HallTabs';
 import { PassportScreen } from './PassportScreen';
+import { START_MENU_ID, StartMenu } from './StartMenu';
 import { MissingScreen, ProfileScreen } from './ProfileScreen';
 
 const BADGE_HALF_W = 28; // units
 const BOOT_KEY = 'piphall-booted';
-const HINT = 'Drag to browse. Tap a card to flip it. Hold one to swing it.';
+const HINT = 'Drag to browse, tap a card to flip it. START has your Passport, a random player and more.';
 const HALL_TITLE = 'PIP-Hall · Where every person has a place';
 
 type Line = { text: string; emote?: EmoteKind };
@@ -117,6 +119,9 @@ export function Hall({ profile = null, passport = false }: HallProps) {
   const shownOnce = useRef(false);
   const startedOnProfile = useRef(Boolean(profile) || passport);
   const [qrCard, setQrCard] = useState<PublicCard | null>(null);
+  /** The START menu is open over the screen (D-126), and the hall's QR sheet is showing. */
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const [ledBlink, setLedBlink] = useState(false);
 
   /** The player at the current index, so a new search can keep them in front if they still match. */
@@ -508,7 +513,23 @@ export function Hall({ profile = null, passport = false }: HallProps) {
   }, [step, camRef, indexRef, grab, placeSlot, toggleFlip]);
 
   // ---- keyboard: ←/→ move, Enter/Space flip, O opens, Esc goes back (README, ADR-001)
+  const closeMenu = useCallback(() => {
+    setMenuOpen(false);
+    screenRef.current?.focus({ preventScroll: true });
+  }, []);
   const onKeyDown = (e: React.KeyboardEvent) => {
+    if (menuOpen) {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        closeMenu();
+      }
+      return;
+    }
+    if ((e.key === 's' || e.key === 'S') && e.target === e.currentTarget) {
+      e.preventDefault();
+      setMenuOpen(true);
+      return;
+    }
     if (mode !== 'level') {
       if (e.key === 'Escape') {
         e.preventDefault();
@@ -583,7 +604,7 @@ export function Hall({ profile = null, passport = false }: HallProps) {
       tabIndex={0}
       role="region"
       aria-roledescription="carousel"
-      aria-label="PIP-Hall players. Left and right arrow keys move, Enter flips, O opens the profile."
+      aria-label="PIP-Hall players. Left and right arrow keys move, Enter flips, O opens the profile, S opens START."
       onKeyDown={onKeyDown}
       onPointerDown={mode === 'level' ? car.onPointerDown : undefined}
       // A long press would open the phone's context menu; while a badge is held, it swings instead.
@@ -625,6 +646,33 @@ export function Hall({ profile = null, passport = false }: HallProps) {
       )}
       {mode === 'missing' && <MissingScreen username={profile ?? ''} onBack={closeProfile} />}
       {mode === 'passport' && <PassportScreen hall={all} onBack={closeProfile} />}
+      {menuOpen && (
+        <StartMenu
+          onBack={closeMenu}
+          onRandom={() => {
+            setMenuOpen(false);
+            randomPlayer();
+          }}
+          onPassport={() => {
+            setMenuOpen(false);
+            openPassport();
+          }}
+          stamps={stamps.data.people.length + stamps.data.exhibits.length}
+          officers={seats.size > 0}
+          officersOn={Boolean(filters.officers)}
+          onOfficers={() => {
+            setMenuOpen(false);
+            setFilters({ officers: !filters.officers });
+            screenRef.current?.focus({ preventScroll: true });
+          }}
+          mapOpen={mapOpen}
+          mart={pipsEnabled && mapSession.status === 'signed-in'}
+          onShare={() => {
+            setMenuOpen(false);
+            setSharing(true);
+          }}
+        />
+      )}
       <canvas ref={overlayRef} className="overlay-canvas pixelated" hidden aria-hidden="true" />
     </div>
   );
@@ -635,13 +683,9 @@ export function Hall({ profile = null, passport = false }: HallProps) {
         filters={filters}
         onChange={setFilters}
         onClear={clearFilters}
-        onRandom={randomPlayer}
-        onPassport={openPassport}
-        stamps={stamps.data.people.length + stamps.data.exhibits.length}
         results={cards}
         current={mode === 'level' ? current : undefined}
         onPick={pickResult}
-        mapOpen={mapOpen}
         officers={seats}
         options={options}
         shown={count}
@@ -653,13 +697,14 @@ export function Hall({ profile = null, passport = false }: HallProps) {
         onPrev={() => go(indexRef.current - 1)}
         onNext={() => go(indexRef.current + 1)}
         onFlip={requestFlip}
-        onOpen={mode === 'level' ? openProfile : closeProfile}
-        openLabel={mode === 'level' ? 'OPEN' : 'BACK'}
+        onOpen={menuOpen ? closeMenu : mode === 'level' ? openProfile : closeProfile}
+        openLabel={menuOpen || mode !== 'level' ? 'BACK' : 'OPEN'}
         controlsDisabled={count === 0}
         ledBlink={ledBlink}
+        start={{ onClick: () => (menuOpen ? closeMenu() : setMenuOpen(true)), open: menuOpen, controls: START_MENU_ID }}
       />
-      {recentAvailable && cardsState.status === 'ready' && all.length > 0 && (
-        <SeasonPanel
+      {cardsState.status === 'ready' && (
+        <HallTabs
           cards={all}
           onSearch={(patch) => {
             const next = filtersToParams({ ...NO_FILTERS, q: patch.q ?? '', skill: patch.skill ?? null, department: patch.department ?? null });
@@ -671,20 +716,16 @@ export function Hall({ profile = null, passport = false }: HallProps) {
           onPips={pips.setBalance}
         />
       )}
-      {cardsState.status === 'ready' && all.length > 0 && (
-        <MissionsPanel
-          cards={all}
-          onSearch={(patch) => {
-            const next = filtersToParams({ ...NO_FILTERS, q: patch.q ?? '', skill: patch.skill ?? null, department: patch.department ?? null });
-            if (mode !== 'level') navigate({ pathname: '/', search: next.toString() });
-            else setParams(next, { replace: true });
-            screenRef.current?.focus({ preventScroll: true });
-          }}
-          onRandom={randomPlayer}
-          onPips={pips.setBalance}
+      {sharing && (
+        <QrSheet
+          url={hallUrl()}
+          heading="JOIN THE HALL"
+          lead="Scan to meet the members of PIP-Hall."
+          codeTitle="QR code for the PIP-Hall website"
+          onClose={() => setSharing(false)}
+          returnTo={() => screenRef.current} // the START item that opened it is gone
         />
       )}
-      {recentAvailable && cardsState.status === 'ready' && <RecentStrip />}
       {qrCard && <QrFullscreen card={qrCard} onClose={() => setQrCard(null)} />}
     </>
   );

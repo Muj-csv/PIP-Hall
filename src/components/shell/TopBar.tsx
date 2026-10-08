@@ -30,7 +30,7 @@ export function TopBar() {
           </span>
         </Link>
         <div className="topbar-world">
-          <ThemeToggle />
+          <ThemeToggle compact />
         </div>
         <nav aria-label="Account" className="topbar-nav">
           <Link to="/" className="pixel-btn nav-btn" aria-current={current('hall')}>
