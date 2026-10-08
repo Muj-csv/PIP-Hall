@@ -4,9 +4,13 @@
 // Since V2-9 (D-115, D-116) a project entered in a hall event opens here too, and its plaque says
 // which event it was entered in, and what it won there. Since V2-10 (D-118) so does a past project
 // from the archive: where and when it was made, by whom, what it won, and "Is this yours?".
+// The phone companion (V2-12, D-120): a placard's QR opens it here (?via=placard&room=…): "You found
+// this exhibit!", its Passport stamp, its makers, and the next exhibit in the room it hangs in. Its
+// poster (PNG) is drawn in the browser, like the badge.
 
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router';
+import { Link, useParams, useSearchParams } from 'react-router';
+import { useSession } from '../app/sessionContext';
 import { useAppearance } from '../app/appearanceContext';
 import { FlipBadge } from '../components/cards/BadgeStage';
 import { QrFullscreen } from '../components/cards/QrFullscreen';
@@ -30,9 +34,11 @@ import { archiveAsExhibit, archiveAward, archiveOrigin, archiveRoomPath } from '
 import { archiveService } from '../services/archiveService';
 import { eventService } from '../services/eventService';
 import { museumService } from '../services/museumService';
+import { awardsByProject } from '../lib/museumWalk';
+import { inRoomPath, nextInRoom, showcaseRooms, type MuseumData } from '../lib/showcase';
 import type { Exhibit as ExhibitRow } from '../types/museum';
 
-type Load = { status: 'loading' } | { status: 'error' } | { status: 'ready'; exhibits: ExhibitRow[]; events: MuseumEvent[] };
+type Load = { status: 'loading' } | { status: 'error' } | { status: 'ready'; exhibits: ExhibitRow[]; events: MuseumEvent[]; data: Omit<MuseumData, 'wings'> };
 
 export default function Exhibit() {
   const { id = '' } = useParams();
@@ -41,7 +47,21 @@ export default function Exhibit() {
   const [shared, setShared] = useState<string | null>(null);
   const [qrCard, setQrCard] = useState<PublicCard | null>(null);
   const [wings, setWings] = useState<Wing[]>([]);
+  const [poster, setPoster] = useState<'idle' | 'busy' | 'failed'>('idle');
   const cards = useCards();
+  const { session } = useSession();
+  // Scanned from a placard (?via=placard): greet the finder once, then tidy the address. The room
+  // stays, so "Next in this room" keeps leading round the room the placard hangs in.
+  const [params, setParams] = useSearchParams();
+  const [scanned] = useState(() => (params.get('via') === 'placard' ? id : null));
+  const found = scanned === id; // walking on to the next exhibit is not a scan
+  const roomId = params.get('room');
+  useEffect(() => {
+    if (!params.has('via')) return;
+    const next = new URLSearchParams(params);
+    next.delete('via');
+    setParams(next, { replace: true });
+  }, [params, setParams]);
 
   useEffect(() => {
     let on = true;
@@ -51,7 +71,7 @@ export default function Exhibit() {
         if (!on) return;
         const seen = new Set(shown.map((e) => e.project_id));
         const entered = events.flatMap((ev) => ev.entries).filter((e) => !seen.has(e.project_id) && (seen.add(e.project_id), true));
-        setLoad({ status: 'ready', exhibits: [...shown, ...entered, ...past.map(archiveAsExhibit)], events });
+        setLoad({ status: 'ready', exhibits: [...shown, ...entered, ...past.map(archiveAsExhibit)], events, data: { exhibits: shown, events, archive: past } });
       })
       .catch(() => on && setLoad({ status: 'error' }));
     museumService
@@ -85,6 +105,26 @@ export default function Exhibit() {
   const officerNames = useMemo(() => officerUsernames(officers), [officers]);
   const around = useMemo(() => (exhibit ? relatedTo(exhibit, wings, ordered, 4, { officers: officerNames }) : { wings: [], related: [] }), [exhibit, wings, ordered, officerNames]);
   const rooms = useMemo(() => new Set(load.status === 'ready' ? load.events.map((e) => e.key) : []), [load]);
+  // The room the placard hangs in, in the showcase's fixed order (the same as the printed placards).
+  const nextHere = useMemo(
+    () => (roomId && exhibitId && load.status === 'ready' ? nextInRoom(showcaseRooms({ ...load.data, wings }, { officers: officerNames }), roomId, exhibitId) : null),
+    [roomId, exhibitId, load, wings, officerNames],
+  );
+  const me = session.status === 'signed-in' ? session.user.id : null;
+  const mine = Boolean(me && makers.some((m) => m.profile_id === me));
+
+  const savePoster = async () => {
+    if (!exhibit || load.status !== 'ready') return;
+    setPoster('busy');
+    try {
+      const won = awardsByProject(load.events, load.data.archive).get(exhibit.project_id) ?? [];
+      const { saveExhibitPoster } = await import('../services/posterService');
+      await saveExhibitPoster(exhibit, won);
+      setPoster('idle');
+    } catch {
+      setPoster('failed');
+    }
+  };
   // The events it was entered in, each with what it won (announced results only).
   const entries = useMemo(
     () =>
@@ -138,6 +178,26 @@ export default function Exhibit() {
         <DialogueBox text="This exhibit isn’t on show anymore. Its maker may have taken it down. The rest of the Museum is one step back." emote="attention">
           <Link to="/museum" className="hw-btn no-underline" data-variant="small">
             MUSEUM
+          </Link>
+        </DialogueBox>
+      )}
+
+      {exhibit && found && (
+        <DialogueBox
+          text={
+            mine
+              ? `That’s yours! This is what visitors see when they scan the placard of ${exhibit.project.title}.`
+              : `You found this exhibit! ${exhibit.project.title} is stamped in your Passport’s Museum stamp book.`
+          }
+          emote="approved"
+        >
+          {makers.length > 0 && (
+            <a href="#made-by-title" className="hw-btn no-underline" data-variant="small">
+              MAKERS
+            </a>
+          )}
+          <Link to="/passport" className="hw-btn no-underline" data-variant="small">
+            PASSPORT
           </Link>
         </DialogueBox>
       )}
@@ -223,7 +283,15 @@ export default function Exhibit() {
               <button type="button" className="pixel-btn" onClick={() => void share()}>
                 Share
               </button>
+              <button type="button" className="pixel-btn" disabled={poster === 'busy'} onClick={() => void savePoster()}>
+                {poster === 'busy' ? 'Drawing the poster…' : 'Save poster'}
+              </button>
             </div>
+            {poster === 'failed' && (
+              <p className="notice notice-bad m-0" role="status">
+                <span aria-hidden="true">! </span>Couldn’t draw the poster. Try again.
+              </p>
+            )}
             {shared && (
               <p className="notice m-0" role="status">
                 {shared}
@@ -231,6 +299,18 @@ export default function Exhibit() {
             )}
           </div>
         </article>
+      )}
+
+      {exhibit && nextHere && (
+        <nav className="menu-panel next-in-room" aria-label="Next in this room">
+          <p className="m-0 font-display tracking-[0.04em]">
+            Next in {nextHere.stop.roomName} · {nextHere.nth} of {nextHere.count}
+          </p>
+          <Link to={inRoomPath(nextHere.stop.exhibit.project_id, nextHere.stop.room)} className="pixel-btn justify-self-start" data-variant="primary">
+            {nextHere.stop.exhibit.project.title}
+            <span aria-hidden="true"> ▶</span>
+          </Link>
+        </nav>
       )}
 
       {exhibit?.archive && <ArchiveClaim exhibitId={exhibit.project_id} title={exhibit.project.title} />}

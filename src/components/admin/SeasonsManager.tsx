@@ -3,6 +3,8 @@
 // started can be changed but stays in the hall's record. The database checks everything again.
 // Hackathons and building events (V2-9, D-115) add tracks, a submissions deadline and a results
 // time, and a Results panel where admins record places and awards and announce them (D-116).
+// The showcase (V2-12, D-120): each event's Showcase panel has the kiosk's link (with its check-in
+// code) and the way to its placards and winners poster.
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { EVENT_KINDS, fromManilaInput, KIND_NAME, kindOf, MAX_TRACKS, parseTracks, toManilaInput, type EventKind } from '../../lib/events';
@@ -13,6 +15,7 @@ import { seasonErrorMessage, seasonService, type AdminSeason } from '../../servi
 import { DialogueBox } from '../dialogue/DialogueBox';
 import { SelectField, TextArea, TextField } from '../editor/fields';
 import { EventResults } from './EventResults';
+import { ShowcasePanel } from './ShowcasePanel';
 
 type Kind = '' | 'people' | 'exhibits' | 'departments' | 'skill' | 'department' | 'tech' | 'team';
 const KINDS: readonly { value: Kind; label: string }[] = [
@@ -57,6 +60,7 @@ export function SeasonsManager({ onDone }: { onDone: (message: string) => void }
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | undefined>();
   const [judging, setJudging] = useState<AdminSeason | null>(null);
+  const [showing, setShowing] = useState<AdminSeason | null>(null);
   const set = <K extends keyof Form>(k: K, v: Form[K]) => setForm((f) => ({ ...f, [k]: v }));
 
   const reload = useCallback(() => {
@@ -191,6 +195,11 @@ export function SeasonsManager({ onDone }: { onDone: (message: string) => void }
                       Results<span className="sr-only"> of {s.name}</span>
                     </button>
                   )}
+                  {s.state !== 'over' && (
+                    <button type="button" className="pixel-btn" aria-pressed={showing?.key === s.key} onClick={() => setShowing((x) => (x?.key === s.key ? null : s))}>
+                      Showcase<span className="sr-only"> of {s.name}</span>
+                    </button>
+                  )}
                   {s.state === 'upcoming' && (
                     <button type="button" className="pixel-btn" disabled={busy} onClick={() => void remove(s)}>
                       Remove<span className="sr-only"> {s.name}</span>
@@ -212,6 +221,7 @@ export function SeasonsManager({ onDone }: { onDone: (message: string) => void }
           }}
         />
       )}
+      {showing && <ShowcasePanel key={showing.key} event={showing} />}
       <form className="menu-panel" aria-labelledby="event-form" onSubmit={(e) => void submit(e)}>
         <h3 id="event-form" className="panel-title">
           {form.key ? `Edit ${form.name || 'event'}` : 'Schedule an event'}

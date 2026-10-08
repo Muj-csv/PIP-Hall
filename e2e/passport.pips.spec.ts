@@ -52,6 +52,6 @@ test('a member’s Passport is in their account: exhibits stamp there, and devic
   await expect(screen.getByRole('list', { name: 'People you found' })).toContainText('From this device');
   expect(db.discoveries).toEqual([expect.objectContaining({ member_id: ME.id, card_id: THIRD, source: 'imported' })]);
   expect((db.ledger ?? []).length).toBe(ledgerBefore); // no PIPs for history
-  expect(await page.evaluate(() => localStorage.getItem('piphall-passport-v1'))).toBe(JSON.stringify({ people: [], exhibits: [] }));
+  expect(await page.evaluate(() => localStorage.getItem('piphall-passport-v1'))).toBe(JSON.stringify({ people: [], exhibits: [], checkins: [] }));
   await expect(screen.getByRole('button', { name: 'Bring them over' })).toHaveCount(0);
 });

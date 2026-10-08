@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import samples from '../data/sample-cards.json';
 import type { PublicCard } from '../types/card';
 import type { Exhibit } from '../types/museum';
-import { EMPTY_PASSPORT, missingFrom, parsePassport, passportPages, stamp, teamProjects } from './passport';
+import { EMPTY_PASSPORT, missingFrom, parsePassport, passportPages, stamp, stampCheckin, teamProjects } from './passport';
 import { NO_FILTERS, whyPicked } from './search';
 
 const cards = (samples as unknown as PublicCard[]).map((c) => ({ ...c, no: c.member_no }));
@@ -23,6 +23,7 @@ describe('passport (V2-2)', () => {
     expect(parsePassport({ people: [{ id: 'a', at: 'nope' }, { id: 'b', at: '2026-10-06T00:00:00Z', extra: 1 }, 'x'], exhibits: 'no' })).toEqual({
       people: [{ id: 'b', at: '2026-10-06T00:00:00Z' }],
       exhibits: [],
+      checkins: [],
     });
   });
 
@@ -61,6 +62,23 @@ describe('passport (V2-2)', () => {
   it('knows which device stamps an account is missing', () => {
     const device = stamp(stamp(EMPTY_PASSPORT, 'people', 'a'), 'people', 'b');
     expect(missingFrom(device, stamp(EMPTY_PASSPORT, 'people', 'a')).people.map((s) => s.id)).toEqual(['b']);
+    const shows = stampCheckin(stampCheckin(EMPTY_PASSPORT, 'spring-hack', 'Spring Hackathon'), 'build-week', 'Build Week');
+    expect(missingFrom(shows, stampCheckin(EMPTY_PASSPORT, 'build-week', 'Build Week')).checkins.map((s) => s.id)).toEqual(['spring-hack']);
+  });
+
+  it('stamps a showcase once per event, with the event’s name (V2-12)', () => {
+    const a = stampCheckin(EMPTY_PASSPORT, 'spring-hack', 'Spring Hackathon', '2026-10-08T03:00:00Z');
+    expect(a.checkins).toEqual([{ id: 'spring-hack', name: 'Spring Hackathon', at: '2026-10-08T03:00:00Z' }]);
+    expect(stampCheckin(a, 'spring-hack', 'Spring Hackathon')).toBe(a);
+    expect(stampCheckin(a, '', 'Nothing')).toBe(a);
+  });
+
+  it('reads stored showcase stamps defensively: a name, a date, at most 50', () => {
+    const many = Array.from({ length: 60 }, (_, i) => ({ id: `e${i}`, name: `Event ${i}`, at: '2026-10-08T00:00:00Z' }));
+    const read = parsePassport({ checkins: [{ id: 'a', at: '2026-10-08T00:00:00Z' }, { id: 'b', name: '  Fair  ', at: '2026-10-08T00:00:00Z', imported: true }, { id: 'c', name: 'X', at: 'never' }, ...many] });
+    expect(read.checkins[0]).toEqual({ id: 'b', name: 'Fair', at: '2026-10-08T00:00:00Z', imported: true });
+    expect(read.checkins).toHaveLength(50);
+    expect(parsePassport({ people: [] }).checkins).toEqual([]); // a Passport saved before V2-12
   });
 });
 

@@ -1,5 +1,5 @@
 // One Passport for the whole app (V2-2): the hall stamps people, the exhibit page stamps exhibits,
-// the Passport screen reads both. A small module store (no state library, CLAUDE.md) shared through
+// the check-in page stamps showcases (V2-12), the Passport screen reads them all. A small module store (no state library, CLAUDE.md) shared through
 // useSyncExternalStore.
 //
 // Mode: an approved member with PIPs on keeps it in their account (people are stamped by the
@@ -9,8 +9,9 @@
 import { useCallback, useEffect, useSyncExternalStore } from 'react';
 import { useSession } from '../app/sessionContext';
 import { passportService } from '../services/passportService';
+import { showcaseService } from '../services/showcaseService';
 import { pipsEnabled } from './features';
-import { EMPTY_PASSPORT, missingFrom, stamp, type PassportData } from './passport';
+import { EMPTY_PASSPORT, missingFrom, stamp, stampCheckin, type PassportData } from './passport';
 
 interface State {
   /** Whose Passport is loaded ('' for a guest). */
@@ -64,6 +65,9 @@ export interface Passport {
   importable: PassportData;
   stampPerson: (profileId: string) => void;
   stampExhibit: (projectId: string) => void;
+  /** The showcase at an event (V2-12): in the account (the database checks the code again) or on
+   *  this device. Throws if the database refuses it. True if it's a new stamp. */
+  checkIn: (key: string, name: string, code: string) => Promise<boolean>;
   importDevice: () => Promise<number>;
 }
 
@@ -101,6 +105,24 @@ export function usePassport(): Passport {
     }
   }, []);
 
+  const checkIn = useCallback(async (key: string, name: string, code: string) => {
+    if (state.mode === 'account') {
+      const fresh = await showcaseService.checkIn(key, code);
+      const had = state.account.checkins.some((s) => s.id === key);
+      // Fresh over an imported stamp: it counts now (D-127).
+      const account = had
+        ? { ...state.account, checkins: state.account.checkins.map((s) => (s.id === key && fresh ? { id: s.id, at: new Date().toISOString(), name: s.name } : s)) }
+        : stampCheckin(state.account, key, name);
+      set({ account });
+      return fresh;
+    }
+    const device = stampCheckin(state.device, key, name);
+    if (device === state.device) return false;
+    passportService.device.save(device);
+    set({ device });
+    return true;
+  }, []);
+
   const importDevice = useCallback(async () => {
     if (state.mode !== 'account') return 0;
     const extra = missingFrom(state.device, state.account);
@@ -108,7 +130,7 @@ export function usePassport(): Passport {
     const fresh = await passportService.mine();
     passportService.device.save(EMPTY_PASSPORT); // it lives in the account now
     set({ account: fresh.data, device: EMPTY_PASSPORT });
-    return r.people + r.exhibits;
+    return r.people + r.exhibits + r.checkins;
   }, []);
 
   return {
@@ -118,6 +140,7 @@ export function usePassport(): Passport {
     importable: s.mode === 'account' ? missingFrom(s.device, s.account) : EMPTY_PASSPORT,
     stampPerson,
     stampExhibit,
+    checkIn,
     importDevice,
   };
 }

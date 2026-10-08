@@ -1,4 +1,5 @@
-// The pictures PIP-Hall makes of itself (D-095): link-preview images and the downloadable badge.
+// The pictures PIP-Hall makes of itself (D-095): link-preview images, the downloadable badge, and
+// the showcase's posters (V2-12, D-120): one for an exhibit, one for an event's winners.
 // This file only lays them out as satori elements from the hall's own sprites and theme colours,
 // so the same drawing runs on the server (api/_lib/render.ts, link previews) and in the browser
 // (lib/badgeExport.ts, Save badge). Text is never invented: every word comes from the published
@@ -14,7 +15,7 @@ import { clip } from './clip.js';
 import { creditLine } from './collab.js';
 import { consoleFor } from './museum.js';
 import { avatarToSvg, paletteColors, spriteToSvg, svgDataUrl } from './spriteSvg.js';
-import { CLIP_PALETTE, CONSOLE_NAMES, COVER_PALETTE, consoleArt, coverSprite, SPR, WORLD_OVERRIDES, WORLD_PALETTE, type SpriteMap } from './sprites.js';
+import { CLIP_PALETTE, CONSOLE_NAMES, COVER_PALETTE, consoleArt, coverSprite, RIBBON_PALETTES, RIBBON_SPRITES, SPR, WORLD_OVERRIDES, WORLD_PALETTE, type SpriteMap } from './sprites.js';
 
 /** The font files the pictures use, by satori family name (from @fontsource, `.woff`). */
 export const ART_FONTS = [
@@ -40,6 +41,30 @@ export const OG_BADGE = 380;
 export const PNG_BADGE = 720;
 export const PNG_SIZE = { width: 1080, height: 1350 } as const;
 export const OG_SIZE = { width: 1200, height: 630 } as const;
+/** The showcase's posters: a portrait post, the same size as the badge. */
+export const POSTER_SIZE = PNG_SIZE;
+/** The screen of an exhibit's console on its poster (fetch its picture at this size). */
+export function posterScreen(e: Pick<Exhibit, 'project_id' | 'console'>): { w: number; h: number; scale: number } {
+  const art = consoleArt(consoleFor(e.project_id, e.console));
+  const scale = Math.max(1, Math.floor(Math.min(600 / art.sprite[0]!.length, 500 / art.sprite.length)));
+  return { w: art.screen.w * scale, h: art.screen.h * scale, scale };
+}
+
+type RibbonKind = keyof typeof RIBBON_SPRITES;
+/** An award on an exhibit's poster: its ribbon, what it is, where, and the judges' note. */
+export interface PosterAward {
+  ribbon: RibbonKind;
+  label: string;
+  event: string | null;
+  note: string | null;
+}
+/** A row of a winners poster. */
+export interface PosterWinner {
+  ribbon: RibbonKind;
+  label: string;
+  title: string;
+  by: string | null;
+}
 
 /** Every picture, drawn with the theme's colours (`--color-*` → hex, from theme.css). */
 export function shareArt(colors: Readonly<Record<string, string>>) {
@@ -126,6 +151,21 @@ export function shareArt(colors: Readonly<Record<string, string>>) {
     );
   };
 
+  /** A poster's QR, bottom right above the ground, with what scanning it does. */
+  const qrPanel = (url: string, title: string, line: string): El =>
+    h(
+      'div',
+      { position: 'absolute', right: 64, bottom: 128, alignItems: 'center', gap: 20, padding: 16, background: col('card-face'), border: `4px solid ${col('card-ink')}`, boxShadow: `8px 8px 0 ${col('card-ink')}` },
+      img(svgDataUrl(qrSvg(url)), 200, 200),
+      h(
+        'div',
+        { flexDirection: 'column', width: 340, fontFamily: 'Atkinson', fontSize: 22, color: col('card-ink') },
+        h('div', { fontFamily: 'Jersey', fontSize: 40, lineHeight: 1 }, title),
+        h('div', { marginTop: 6 }, line),
+        h('div', { marginTop: 10, fontFamily: 'Mono', fontSize: 18, color: col('card-plum') }, clip(url.replace(/^https?:\/\//, ''), 36)),
+      ),
+    );
+
   const textCol = (...children: Child[]) => h('div', { position: 'absolute', flexDirection: 'column', left: 500, top: 64, width: 640 }, ...children);
   const kicker = (s: string) => h('div', { fontFamily: 'Jersey', fontSize: 32, color: col('card-plum') }, s);
   const pip = () => sprite(SPR.pipIdle, world('pipIdle'), 8, { position: 'absolute', right: 70, bottom: 92 });
@@ -196,6 +236,86 @@ export function shareArt(colors: Readonly<Record<string, string>>) {
           ),
         ),
         pip(),
+      );
+    },
+
+    /** An exhibit's poster (1080×1350): its console on the ground, title, makers, what it won, QR. */
+    exhibitPoster(e: Exhibit, picture: string | null, info: { by: string | null; origin: string | null; awards: readonly PosterAward[] }, url: string): El {
+      const kind = consoleFor(e.project_id, e.console);
+      const art = consoleArt(kind);
+      const { w: sw, h: sh, scale } = posterScreen(e);
+      const aw = art.sprite[0]!.length * scale;
+      const left = Math.floor((1080 - aw) / 2);
+      const top = 770 - art.sprite.length * scale;
+      const screen = picture ? img(picture, sw, sh) : sprite(coverSprite(e.project.title), COVER_PALETTE, sw / 32);
+      const shown = info.awards.slice(0, 3);
+      const note = info.awards.map((a) => a.note).find(Boolean);
+      return scene(
+        1080,
+        1350,
+        h(
+          'div',
+          { position: 'absolute', left: 64, top: 52, width: 952, flexDirection: 'column' },
+          kicker(`PIXENDO MUSEUM · ON A ${CONSOLE_NAMES[kind].toUpperCase()}`),
+          h('div', { marginTop: 6, fontFamily: 'Jersey', fontSize: 92, lineHeight: 1, color: col('card-ink') }, clip(e.project.title, 24)),
+          info.by ? h('div', { marginTop: 10, fontFamily: 'Atkinson', fontWeight: 700, fontSize: 32, color: col('card-ink') }, clip(`By ${info.by}`, 56)) : null,
+          info.origin ? h('div', { marginTop: 6, fontFamily: 'Atkinson', fontSize: 28, color: col('card-plum') }, clip(info.origin, 60)) : null,
+        ),
+        sprite(art.sprite, art.palette, scale, { position: 'absolute', left, top }),
+        h('div', { position: 'absolute', left: left + art.screen.x * scale, top: top + art.screen.y * scale, width: sw, height: sh, overflow: 'hidden' }, screen),
+        h('div', { position: 'absolute', left: left + art.led.x * scale, top: top + art.led.y * scale, width: art.led.w * scale, height: art.led.h * scale, background: col('console-led') }),
+        h(
+          'div',
+          { position: 'absolute', left: 64, top: 790, width: 952, flexDirection: 'column', gap: 10 },
+          ...shown.map((a) =>
+            h(
+              'div',
+              { alignItems: 'center', gap: 16 },
+              sprite(RIBBON_SPRITES[a.ribbon], RIBBON_PALETTES[a.ribbon], 4),
+              h('div', { fontFamily: 'Atkinson', fontWeight: 700, fontSize: 30, color: col('card-ink') }, clip([a.label, a.event].filter(Boolean).join(' · '), 58)),
+            ),
+          ),
+          note ? h('div', { marginTop: 4, fontFamily: 'Atkinson', fontSize: 26, color: col('card-ink') }, clip(`“${note}”`, 120)) : null,
+          !shown.length && e.project.description ? h('div', { fontFamily: 'Atkinson', fontSize: 28, color: col('card-ink') }, clip(e.project.description, 130)) : null,
+        ),
+        qrPanel(url, 'SCAN TO VISIT', 'Open it on your phone and stamp your Passport.'),
+      );
+    },
+
+    /** An event's winners poster (1080×1350): every announced place and award, with the room's QR. */
+    winnersPoster(event: { name: string; sub: string }, winners: readonly PosterWinner[], url: string): El {
+      const rows = winners.slice(0, 8);
+      const more = winners.length - rows.length;
+      return scene(
+        1080,
+        1350,
+        h(
+          'div',
+          { position: 'absolute', left: 64, top: 52, width: 952, flexDirection: 'column' },
+          kicker('PIXENDO MUSEUM · WINNERS'),
+          h('div', { marginTop: 6, fontFamily: 'Jersey', fontSize: 92, lineHeight: 1, color: col('card-ink') }, clip(event.name, 24)),
+          h('div', { marginTop: 6, fontFamily: 'Atkinson', fontSize: 28, color: col('card-plum') }, clip(event.sub, 60)),
+          h(
+            'div',
+            { marginTop: 28, flexDirection: 'column', gap: 14 },
+            ...rows.map((w) =>
+              h(
+                'div',
+                { alignItems: 'center', gap: 18, padding: '10px 16px', background: col('card-face'), border: `4px solid ${col('card-ink')}` },
+                sprite(RIBBON_SPRITES[w.ribbon], RIBBON_PALETTES[w.ribbon], 4),
+                h(
+                  'div',
+                  { flexDirection: 'column' },
+                  h('div', { fontFamily: 'Jersey', fontSize: 34, lineHeight: 1, color: col('card-plum') }, clip(w.label, 44)),
+                  h('div', { fontFamily: 'Atkinson', fontWeight: 700, fontSize: 30, color: col('card-ink') }, clip(w.title, 40)),
+                  w.by ? h('div', { fontFamily: 'Atkinson', fontSize: 22, color: col('card-ink') }, clip(`by ${w.by}`, 60)) : null,
+                ),
+              ),
+            ),
+            more > 0 ? h('div', { fontFamily: 'Atkinson', fontWeight: 700, fontSize: 26, color: col('card-ink') }, `And ${more} more ${more === 1 ? 'award' : 'awards'} in the Museum.`) : null,
+          ),
+        ),
+        qrPanel(url, 'SCAN FOR THE ROOM', 'Every entry and award, in the Museum.'),
       );
     },
 

@@ -19,6 +19,10 @@ const Exhibit = lazy(() => import('../pages/Exhibit'));
 const Mart = lazy(() => import('../pages/Mart'));
 const Settings = lazy(() => import('../pages/Settings'));
 const Network = lazy(() => import('../pages/Network'));
+// The showcase (V2-12): the kiosk, the print page and the check-in are lazy chunks too.
+const Booth = lazy(() => import('../pages/Booth'));
+const Print = lazy(() => import('../pages/Print'));
+const CheckIn = lazy(() => import('../pages/CheckIn'));
 /** /explore became the hall's search (D-072): old links and shared searches keep working. */
 function ExploreRedirect() {
   const { search } = useLocation();
@@ -44,6 +48,9 @@ export const router = createBrowserRouter([
       { path: '/museum/:id', element: lazyPage(<Exhibit />) },
       { path: '/privacy', element: lazyPage(<Privacy />) },
       { path: '/network', element: lazyPage(<Network />) },
+      { path: '/booth', element: lazyPage(<Booth />) },
+      { path: '/print', element: lazyPage(<Print />) },
+      { path: '/checkin/:key', element: lazyPage(<CheckIn />) },
       { path: '/edit', element: <RequireAuth>{lazyPage(<Edit />)}</RequireAuth> },
       { path: '/create', element: <Navigate to="/edit" replace /> },
       { path: '/mart', element: <RequireAuth>{lazyPage(<Mart />)}</RequireAuth> },

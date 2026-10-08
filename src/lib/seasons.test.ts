@@ -34,5 +34,7 @@ describe('seasons', () => {
 
   it('says every count, zeros too, and nothing else', () => {
     expect(countsLine(week.counts!)).toBe('1 joined · 0 projects · 2 exhibits · 1 team-up');
+    expect(countsLine({ ...week.counts!, checkins: 0 })).toBe('1 joined · 0 projects · 2 exhibits · 1 team-up'); // no showcase, no line
+    expect(countsLine({ ...week.counts!, checkins: 14 })).toBe('1 joined · 0 projects · 2 exhibits · 1 team-up · 14 checked in at the showcase');
   });
 });

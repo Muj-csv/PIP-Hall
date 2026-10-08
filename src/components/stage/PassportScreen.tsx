@@ -1,5 +1,7 @@
 // The Passport inside the PIXENDO screen (V2-2, D-097, D-098): who you've met, the skills they
-// showed you, the team projects whose makers you've all met, and the exhibits you've visited.
+// showed you, the team projects whose makers you've all met, the Museum stamp book (every exhibit
+// you've opened, from members, event rooms and the archive) and the showcases you checked in at
+// (V2-12, D-109).
 // Progress reads as pages filling with stamps, not as statistics. Every stamp links back into the
 // hall, so the Passport is also a way around it.
 
@@ -9,6 +11,9 @@ import { useSession } from '../../app/sessionContext';
 import { passportPages, stampDate } from '../../lib/passport';
 import { exhibitPath, memberPath } from '../../lib/publicUrl';
 import { usePassport } from '../../lib/usePassport';
+import { archiveAsExhibit } from '../../lib/archive';
+import { archiveService } from '../../services/archiveService';
+import { eventService } from '../../services/eventService';
 import { museumService } from '../../services/museumService';
 import type { PublicCard } from '../../types/card';
 import type { Exhibit } from '../../types/museum';
@@ -50,9 +55,14 @@ export function PassportScreen({ hall, onBack }: Props) {
 
   useEffect(() => {
     let on = true;
-    museumService
-      .exhibits()
-      .then((e) => on && setExhibits(e))
+    // The whole Museum: members' exhibits, event entries and the archive (the extras may fail alone).
+    Promise.all([museumService.exhibits(), eventService.museumEvents().catch(() => []), archiveService.list().catch(() => [])])
+      .then(([shown, events, past]) => {
+        if (!on) return;
+        const seen = new Set(shown.map((e) => e.project_id));
+        const entered = events.flatMap((ev) => ev.entries).filter((e) => !seen.has(e.project_id) && (seen.add(e.project_id), true));
+        setExhibits([...shown, ...entered, ...past.filter((a) => !seen.has(a.id)).map(archiveAsExhibit)]);
+      })
       .catch(() => on && setMuseumFailed(true));
     return () => {
       on = false;
@@ -60,8 +70,9 @@ export function PassportScreen({ hall, onBack }: Props) {
   }, []);
 
   const pages = useMemo(() => passportPages(passport.data, hall, exhibits, me), [passport.data, hall, exhibits, me]);
-  const extra = passport.importable.people.length + passport.importable.exhibits.length;
-  const empty = pages.people.length === 0 && pages.exhibits.length === 0;
+  const extra = passport.importable.people.length + passport.importable.exhibits.length + passport.importable.checkins.length;
+  const showcases = passport.data.checkins;
+  const empty = pages.people.length === 0 && pages.exhibits.length === 0 && showcases.length === 0;
   const left = pages.peopleTotal - pages.people.length;
 
   const bringOver = async () => {
@@ -189,9 +200,9 @@ export function PassportScreen({ hall, onBack }: Props) {
 
       <section className="menu-panel" aria-labelledby="pp-exhibits">
         <h3 id="pp-exhibits" className="panel-title">
-          Exhibits visited
+          Museum stamp book
         </h3>
-        <Progress have={pages.exhibits.length} total={pages.exhibitsTotal} label="Exhibits visited" />
+        <Progress have={pages.exhibits.length} total={pages.exhibitsTotal} label="Museum stamps" />
         {pages.exhibits.length > 0 && (
           <ul className="grid gap-space-2 m-0 p-0 list-none" aria-label="Exhibits you’ve visited">
             {pages.exhibits.map(({ exhibit, stamp }) => (
@@ -200,15 +211,48 @@ export function PassportScreen({ hall, onBack }: Props) {
                   {exhibit.project.title}
                 </Link>{' '}
                 <span className="text-caption text-text-secondary">
-                  by {exhibit.full_name} · {stampDate(stamp.at)}
+                  {exhibit.archive ? 'From the Archive' : `by ${exhibit.full_name}`} · {stamp.imported ? 'From this device · ' : ''}
+                  {stampDate(stamp.at)}
                 </span>
               </li>
             ))}
           </ul>
         )}
         <p className="m-0 field-hint">
-          {museumFailed ? 'Can’t reach the Museum right now.' : exhibits === null ? 'Loading the Museum…' : pages.exhibitsTotal === 0 ? 'No exhibits on show yet.' : 'Open an exhibit in the Museum to stamp it.'}
+          {museumFailed
+            ? 'Can’t reach the Museum right now.'
+            : exhibits === null
+              ? 'Loading the Museum…'
+              : pages.exhibitsTotal === 0
+                ? 'No exhibits on show yet.'
+                : 'Open an exhibit in the Museum, or scan a placard beside a demo, to stamp it.'}
         </p>
+      </section>
+
+      <section className="menu-panel" aria-labelledby="pp-showcases">
+        <h3 id="pp-showcases" className="panel-title">
+          Showcases
+        </h3>
+        {showcases.length > 0 ? (
+          <ul className="showcase-stamps" aria-label="Showcases you checked in at">
+            {showcases.map((s) => (
+              <li key={s.id}>
+                <span className="showcase-stamp-mark" aria-hidden="true">
+                  ◆
+                </span>
+                <span>
+                  Visited the showcase at <b>{s.name}</b>
+                  <span className="block text-caption text-text-secondary">
+                    {s.imported ? 'From this device · ' : ''}
+                    {stampDate(s.at)}
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="m-0 field-hint">At a hall event, scan the check-in QR on the showcase screen for a stamp.</p>
+        )}
       </section>
     </section>
   );

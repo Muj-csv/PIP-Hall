@@ -65,6 +65,9 @@ export interface MockDb {
    *  museum_archive() answers as if the archive update hasn't run. */
   archive?: Row[];
   archiveClaims?: Row[];
+  /** V2-12 (D-127): members' showcase check-ins {member_id, season_key, checked_at, source}. Each
+   *  season row may carry its `checkin_code`. */
+  eventCheckins?: Row[];
 }
 
 /** The wings the wings migration seeds (no notes: the curators write those). */
@@ -410,6 +413,7 @@ export async function handleDb(route: Route, db: MockDb, user: DbUser): Promise<
     const passport = {
       people: (db.discoveries ?? []).filter((r) => r.member_id === userId).map((r) => ({ id: String(r.card_id), at: String(r.created_at), imported: r.source === 'imported' })),
       exhibits: (db.passportVisits ?? []).filter((r) => r.member_id === userId).map((r) => ({ id: String(r.project_id), at: String(r.visited_at), imported: r.source === 'imported' })),
+      checkins: [],
     };
     const cards = db.published.map((c) => ({ ...c, no: c.member_no })) as unknown as PublicCard[];
     if (!missionMet({ scope: p_scope, kind: p_kind, param: p_param, n: p_n, key, title: '', action: { random: true } }, passport, cards, period.starts)) return (await err(400, 'P0001', 'NOT_DONE')), true;
@@ -426,6 +430,9 @@ export async function handleDb(route: Route, db: MockDb, user: DbUser): Promise<
         eligible: inHall(userId),
         people: (db.discoveries ?? []).filter((r) => r.member_id === userId).map((r) => ({ id: r.card_id, at: at(r), imported: r.source === 'imported' })),
         exhibits: (db.passportVisits ?? []).filter((r) => r.member_id === userId).map((r) => ({ id: r.project_id, at: at(r), imported: r.source === 'imported' })),
+        checkins: (db.eventCheckins ?? [])
+          .filter((r) => r.member_id === userId)
+          .map((r) => ({ id: r.season_key, name: (db.seasons ?? []).find((x) => x.key === r.season_key)?.name ?? '', at: r.checked_at, imported: r.source === 'imported' })),
       })
     ), true;
   }
@@ -439,7 +446,7 @@ export async function handleDb(route: Route, db: MockDb, user: DbUser): Promise<
   }
   if (url.pathname === '/rest/v1/rpc/import_passport') {
     if (!inHall(userId)) return (await err(400, 'P0001', 'NOT_ELIGIBLE')), true;
-    const { p_people, p_exhibits } = body() as { p_people: { id: string; at: string }[]; p_exhibits: { id: string; at: string }[] };
+    const { p_people, p_exhibits, p_checkins = [] } = body() as { p_people: { id: string; at: string }[]; p_exhibits: { id: string; at: string }[]; p_checkins?: { id: string; at: string }[] };
     db.discoveries ??= [];
     db.passportVisits ??= [];
     let people = 0;
@@ -454,7 +461,17 @@ export async function handleDb(route: Route, db: MockDb, user: DbUser): Promise<
       db.passportVisits.push({ member_id: userId, project_id: s.id, visited_at: s.at, source: 'imported' });
       exhibits++;
     }
-    return (await json(200, { people, exhibits })), true;
+    // V2-12: a check-in is kept for an event with a check-in QR that was on at the stamp's date.
+    let checkins = 0;
+    db.eventCheckins ??= [];
+    for (const s of p_checkins) {
+      const ev = (db.seasons ?? []).find((x) => x.key === s.id);
+      const day = new Date(Date.parse(s.at) + 8 * 3600_000).toISOString().slice(0, 10);
+      if (!ev?.checkin_code || day < String(ev.starts_on) || day > String(ev.ends_on) || db.eventCheckins.some((r) => r.member_id === userId && r.season_key === s.id)) continue;
+      db.eventCheckins.push({ member_id: userId, season_key: s.id, checked_at: s.at, source: 'imported' });
+      checkins++;
+    }
+    return (await json(200, { people, exhibits, checkins })), true;
   }
   if (url.pathname === '/rest/v1/pip_ledger' && method === 'GET') {
     const rows = (db.ledger ?? []).filter((r) => r.member_id === userId).sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
@@ -586,7 +603,13 @@ export async function handleDb(route: Route, db: MockDb, user: DbUser): Promise<
   };
   const withPhase = (x: Row, counts: boolean) => ({
     kind: 'event', tracks: [], submissions_close: null, results_at: null, announced_at: null, ...x, phase: phaseOf(x),
-    counts: counts ? { ...((x.counts as Row | undefined) ?? { joined: 0, projects: 0, exhibits: 0, teamups: 0 }), submissions: (db.submissions ?? []).filter((r) => r.season_key === x.key).length } : null,
+    counts: counts
+      ? {
+          ...((x.counts as Row | undefined) ?? { joined: 0, projects: 0, exhibits: 0, teamups: 0 }),
+          submissions: (db.submissions ?? []).filter((r) => r.season_key === x.key).length,
+          checkins: (db.eventCheckins ?? []).filter((r) => r.season_key === x.key && r.source === 'verified').length,
+        }
+      : null,
   });
   const cardProject = (memberId: unknown, projectId: unknown) => {
     const c = db.published.find((r) => r.profile_id === memberId);
@@ -614,6 +637,38 @@ export async function handleDb(route: Route, db: MockDb, user: DbUser): Promise<
     const next = db.seasons.filter((x) => String(x.starts_on) > manilaToday()).sort((a, b) => String(a.starts_on).localeCompare(String(b.starts_on)))[0];
     const results = db.seasons.filter((x) => x.announced_at && Date.now() - Date.parse(String(x.announced_at)) < 7 * 86400_000).sort((a, b) => String(b.announced_at).localeCompare(String(a.announced_at)))[0];
     return (await json(200, { live: live ? withPhase(live, true) : null, next: next ? withPhase(next, false) : null, results: results ? withPhase(results, false) : null })), true;
+  }
+  // ---- V2-12 the showcase (mirrors 20261008000300_showcase.sql): check-in codes and check-ins.
+  const codeOk = (x: Row, c: unknown) => Boolean(x.checkin_code) && x.checkin_code === String(c ?? '').trim().toLowerCase();
+  const isLive = (x: Row) => String(x.starts_on) <= manilaToday() && manilaToday() <= String(x.ends_on);
+  if (url.pathname === '/rest/v1/rpc/checkin_event') {
+    if (!db.seasons) return (await err(404, 'PGRST202', 'Could not find the function public.checkin_event in the schema cache')), true;
+    const b = body() as { p_key: string; p_code: string | null };
+    const x = db.seasons.find((r) => r.key === b.p_key);
+    return (await json(200, x ? { key: x.key, name: x.name, live: isLive(x), ok: isLive(x) && codeOk(x, b.p_code) } : null)), true;
+  }
+  if (url.pathname === '/rest/v1/rpc/check_in') {
+    if (!userId) return (await err(401, '42501', 'permission denied for function check_in')), true;
+    const b = body() as { p_key: string; p_code: string | null };
+    const x = (db.seasons ?? []).find((r) => r.key === b.p_key);
+    if (!x) return (await err(400, 'P0001', 'NO_SUCH_EVENT')), true;
+    if (!isLive(x)) return (await err(400, 'P0001', 'NOT_LIVE')), true;
+    if (!codeOk(x, b.p_code)) return (await err(400, 'P0001', 'BAD_CODE')), true;
+    if (!inHall(userId)) return (await json(200, false)), true;
+    db.eventCheckins ??= [];
+    const had = db.eventCheckins.find((r) => r.member_id === userId && r.season_key === x.key);
+    if (had?.source === 'verified') return (await json(200, false)), true;
+    if (had) Object.assign(had, { source: 'verified', checked_at: new Date().toISOString() });
+    else db.eventCheckins.push({ member_id: userId, season_key: x.key, checked_at: new Date().toISOString(), source: 'verified' });
+    return (await json(200, true)), true;
+  }
+  if (url.pathname === '/rest/v1/rpc/admin_checkin_code') {
+    if (!admin) return (await err(403, '42501', 'NOT_ADMIN')), true;
+    const b = body() as { p_key: string; p_renew?: boolean };
+    const x = (db.seasons ?? []).find((r) => r.key === b.p_key);
+    if (!x) return (await err(400, 'P0001', 'NO_SUCH_EVENT')), true;
+    if (!x.checkin_code || b.p_renew) x.checkin_code = Array.from({ length: 12 }, () => '0123456789abcdef'[Math.floor(Math.random() * 16)]).join('');
+    return (await json(200, x.checkin_code)), true;
   }
   if (url.pathname === '/rest/v1/rpc/my_season') {
     const live = liveSeason();
