@@ -1,6 +1,6 @@
 # PIP-Hall v2, part two: the Museum, hackathons, and a hall that comes alive
 
-Status: **V2-9 and V2-10 built** (2026-10-08); V2-11 next. Follows `V2-LIVING-HALL.md` (V2-0 to V2-8, all built). No deadline (D-093). Decisions: D-106 to D-120 (the owner's answers, 2026-10-07). Rules: `CLAUDE.md` → Product rules.
+Status: **V2-9, V2-10 and V2-10b built** (2026-10-08); V2-11 next. Follows `V2-LIVING-HALL.md` (V2-0 to V2-8, all built). No deadline (D-093). Decisions: D-106 to D-120 (the owner's answers, 2026-10-07), D-123 (the officers' space, 2026-10-08). Rules: `CLAUDE.md` → Product rules.
 
 ## Why this round
 
@@ -69,12 +69,27 @@ Built as planned (details: D-122), with one change: the archive is read through 
 - **SQL:** `archive_exhibits` (admin-written, public read of published rows), `archive_claims`, admin functions, the archive in `museum_exhibits()` (marked `archive`), security tests.
 - Budget: ≤ 5 KB gzipped JS (admin screens are a lazy chunk).
 
+### V2-10b · The officers' space (P0, added 2026-10-08) · built
+
+Asked for by the owner after V2-10: the organization's officers want a part of the hall and the Museum where they can show their projects (D-123; details D-124). Evidence: `docs/build/evidence/officers/`.
+
+**Loop:** an admin names this term's officers → they wear an officer pin, open the hall's Officers door and fill the Officers' Wing → visitors meet the people running the organization and their work → when the term ends, the next team takes the space and the old one stays on profiles as past officers.
+
+- **Admin → Affiliations:** "Make it an officers' team" on an affiliation (e.g. "Officers 2026–27", typed by the admin), the day the term ends (optional), then each officer with a **position** (President, Vice President…) and an **order**. Taking someone off is the usual affiliation switch. Only admins name officers (D-068).
+- **Hall:** an **Officers** button in the search (with Filters, Random player, Passport) shows only the current officers, in the team's order, with "The officers of <team>, as named by the hall's admins" and a "Why Pip picked" line. It's a door, not top placement: the default hall stays unranked (rule 5). Shareable as `/?officers=1`.
+- **Badge:** current officers wear an original **officer pin** (a double chevron, `OFFICER_PIN` in `sprites.ts`) first on the lanyard holder, before ribbons and admin pins, with the position in words for screen readers (not colour alone).
+- **Profile:** the team chip reads "Officers 2026–27 · President"; past terms read "(past)". Proof lists "✓ Officer: President, Officers 2026–27 (named by the hall's admins)" and past terms.
+- **Museum:** a built-in **Officers' Wing** (like Featured and Collab; admins can rename it, write its note or close it) holds exhibits whose maker or a credited collaborator is a current officer. With V2-11 it becomes a room in the walkable Museum, like every wing.
+- Doesn't depend on the PIPs switch; no PIPs, no ranking, nothing bought (rules 3, 5, 6). Every officer traces to an admin's entry (rule 4).
+- **SQL** (`20261008000100_officers.sql`): `affiliations.officers` and `term_ends`; `member_affiliations.position` and `seat`; the `officers` wing kind and its seeded wing; `hall_officers()` (public), `admin_set_officers()`, `admin_set_officer()`; security tests.
+- Budget: about 1 KB gzipped JS on the first load (the pin, the door, the wing rule); the admin panel is in the lazy admin chunk. One extra small request (`hall_officers`) with the hall's appearance data; no per-frame work.
+
 ### V2-11 · The walkable Museum (P0)
 
 **Loop:** enter the Museum → walk Pip through rooms → stop at an exhibit to read its plaque → open it or meet its makers → follow the path to the next room → leave a stamp in your Passport.
 
 - **A museum level** (D-119), drawn on the hall's own animation loop (D-031, ADR-001: hand-written, no library): a floor, walls, room signs and doorways; exhibits hang on the walls **inside their consoles** (D-091), with a **plaque** under each (title, makers, event, award).
-- **Rooms**, in this order: **Winners' Hall** (trophies, latest results first, by event) → **each event** (submissions, by track) → **each wing** (Featured, Collab, Web, Games, Data…) → **The Archive** (by year).
+- **Rooms**, in this order: **Winners' Hall** (trophies, latest results first, by event) → **each event** (submissions, by track) → **each wing** (Featured, Collab, the Officers' Wing, Web, Games, Data…) → **The Archive** (by year). The Officers' room (D-123) is the Officers' Wing, so it needs nothing extra.
 - **Walking:** arrow keys, drag or the device's MOVE rocker; Pip stops in front of an exhibit and its plaque lights up; Enter or OPEN opens the exhibit page. A **room map** jumps straight to any room.
 - **Wing styles** (the old V2-13, #5): each room gets a style from fixed presets (Arcade, Lab, Library, Garden, Trophy room), original art and tokens; each room shows **Makers in this room** and **Next room →**.
 - **Trophies:** winning exhibits stand on a pedestal with a pixel trophy or ribbon and the judges' note on the plaque.

@@ -109,7 +109,7 @@ export function wingErrorMessage(e: unknown): string {
 export const affiliationService = {
   async list(): Promise<Affiliation[]> {
     if (!useSupabase) return [];
-    const { data, error } = await requireSupabase().from('affiliations').select('key, name, grants_museum, frame_key, sort').order('sort');
+    const { data, error } = await requireSupabase().from('affiliations').select('*').order('sort');
     if (error) throw error;
     return (data ?? []) as Affiliation[];
   },

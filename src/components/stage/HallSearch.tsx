@@ -1,9 +1,11 @@
 // Search, filters and Random player above the device (FR-13, D-072): what used to be /explore now
 // narrows the badges hanging in the hall, so the swing, flip and OPEN stay the way to meet people.
-// The filters live in the address (?q=&dept=&skill=&featured=1), so a search can be shared.
+// The filters live in the address (?q=&dept=&skill=&featured=1&officers=1), so a search can be shared.
+// The Officers door (V2-10b, D-123) shows only the current officers, in their team's order.
 
 import { useId, useRef, useState } from 'react';
 import { hallUrl } from '../../lib/publicUrl';
+import type { Officer } from '../../lib/officers';
 import { whyPicked, type Facet, type Filters } from '../../lib/search';
 import type { PublicCard } from '../../types/card';
 import { Link } from 'react-router';
@@ -30,9 +32,13 @@ interface Props {
   onPick: (username: string) => void;
   /** The map of the hall is open (V2-8: dense enough, or an admin previewing). */
   mapOpen?: boolean;
+  /** The current officers by member id; the Officers door shows when there are any (D-123). */
+  officers?: ReadonlyMap<string, Officer>;
 }
 
-export function HallSearch({ filters, onChange, onClear, onRandom, options, shown, total, ready, onPassport, stamps, results, current, onPick, mapOpen = false }: Props) {
+const NO_OFFICERS: ReadonlyMap<string, Officer> = new Map();
+
+export function HallSearch({ filters, onChange, onClear, onRandom, options, shown, total, ready, onPassport, stamps, results, current, onPick, mapOpen = false, officers = NO_OFFICERS }: Props) {
   const input = useRef<HTMLInputElement>(null);
   const panelId = useId();
   const picked = [filters.department, filters.skill, filters.featured || null].filter(Boolean).length;
@@ -40,7 +46,8 @@ export function HallSearch({ filters, onChange, onClear, onRandom, options, show
   const [sharing, setSharing] = useState(false);
   const [listing, setListing] = useState(false);
   const listId = useId();
-  const filtered = Boolean(filters.q.trim()) || picked > 0;
+  const filtered = Boolean(filters.q.trim()) || picked > 0 || Boolean(filters.officers);
+  const teams = [...new Set([...officers.values()].map((o) => o.team))];
   const count = filtered ? `${shown} of ${total} ${total === 1 ? 'player' : 'players'} match` : `${total} ${total === 1 ? 'player' : 'players'} in the hall`;
 
   const clear = () => {
@@ -81,6 +88,11 @@ export function HallSearch({ filters, onChange, onClear, onRandom, options, show
               <span aria-hidden="true">✶ </span>Map
             </Link>
           )}
+          {(officers.size > 0 || filters.officers) && (
+            <button type="button" className="pixel-btn" aria-pressed={Boolean(filters.officers)} onClick={() => onChange({ officers: !filters.officers })}>
+              <span aria-hidden="true">{filters.officers ? '✓ ' : '» '}</span>Officers
+            </button>
+          )}
         </div>
       </form>
 
@@ -95,11 +107,16 @@ export function HallSearch({ filters, onChange, onClear, onRandom, options, show
         </div>
       </div>
 
+      {filters.officers && (
+        <p className="m-0 officers-caption">
+          {teams.length > 0 ? `The officers of ${teams.join(' and ')}, as named by the hall’s admins.` : 'The officers will appear here once the admins name them.'}
+        </p>
+      )}
       {filtered && current && (
         <div className="why-picked" aria-live="polite">
           <p className="m-0 font-display tracking-[0.04em]">Why Pip picked {current.card.full_name}</p>
           <ul aria-label={`Why ${current.card.full_name} matches`}>
-            {whyPicked(current, filters).map((r) => (
+            {whyPicked(current, filters, officers.get(current.profile_id) ?? null).map((r) => (
               <li key={r}>
                 <span aria-hidden="true">✓ </span>
                 {r}
@@ -114,7 +131,7 @@ export function HallSearch({ filters, onChange, onClear, onRandom, options, show
             <li key={c.username}>
               <button type="button" className="result-pick" aria-current={current?.username === c.username || undefined} onClick={() => onPick(c.username)}>
                 <b>{c.card.full_name}</b> <span className="font-mono text-caption">@{c.username}</span>
-                <span className="text-caption text-text-secondary">{whyPicked(c, filters)[0]}</span>
+                <span className="text-caption text-text-secondary">{whyPicked(c, filters, officers.get(c.profile_id) ?? null)[0]}</span>
               </button>
             </li>
           ))}

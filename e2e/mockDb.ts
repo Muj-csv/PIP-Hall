@@ -71,6 +71,7 @@ export interface MockDb {
 export const SEED_WINGS: Row[] = [
   { key: 'featured', kind: 'featured', name: 'Featured Wing', note: '', tags: [], sort: 0, active: true },
   { key: 'collab', kind: 'collab', name: 'Collab Wing', note: '', tags: [], sort: 1, active: true },
+  { key: 'officers', kind: 'officers', name: "Officers' Wing", note: '', tags: [], sort: 2, active: true },
   { key: 'web', kind: 'tags', name: 'Web Wing', note: '', tags: ['JavaScript', 'TypeScript', 'HTML', 'CSS', 'React', 'Vue', 'Svelte', 'Next.js', 'PWA', 'Node.js'], sort: 10, active: true },
   { key: 'games', kind: 'tags', name: 'Games Wing', note: '', tags: ['Unity', 'Godot', 'C#', 'Phaser', 'Pygame', 'Game', 'Lua', 'GDScript'], sort: 11, active: true },
   { key: 'data', kind: 'tags', name: 'Data Wing', note: '', tags: ['Python', 'SQL', 'Postgres', 'Pandas', 'Jupyter', 'R', 'Machine Learning', 'Data'], sort: 12, active: true },
@@ -491,6 +492,45 @@ export async function handleDb(route: Route, db: MockDb, user: DbUser): Promise<
       db.memberAffiliations = db.memberAffiliations.filter((r) => !(r.member_id === a.p_member && r.key === a.p_key));
       if (a.p_on) db.memberAffiliations.push({ member_id: a.p_member, key: a.p_key });
     }
+    return (await json(200, null)), true;
+  }
+  // ---- V2-10b officers (mirrors 20261008000100_officers.sql).
+  if (url.pathname === '/rest/v1/rpc/hall_officers') {
+    const today = new Date(Date.now() + 8 * 3600_000).toISOString().slice(0, 10);
+    const team = (m: Row) => (db.affiliations ?? []).find((x) => x.key === m.key && x.officers);
+    const current = (a: Row) => !a.term_ends || String(a.term_ends) >= today;
+    const out = (db.memberAffiliations ?? [])
+      .filter((m) => team(m) && inHall(String(m.member_id)))
+      .sort((x, y) => {
+        const a = team(x)!;
+        const b = team(y)!;
+        return Number(current(b)) - Number(current(a)) || String(b.term_ends ?? '9999').localeCompare(String(a.term_ends ?? '9999')) || Number(a.sort) - Number(b.sort) || Number(x.seat ?? 100) - Number(y.seat ?? 100);
+      })
+      .map((m) => {
+        const a = team(m)!;
+        const c = db.published.find((r) => r.profile_id === m.member_id)!;
+        return { profile_id: c.profile_id, username: c.username, full_name: (c.card as Row).full_name, position: m.position ?? null, seat: m.seat ?? 100, team: a.name, team_key: a.key, term_ends: a.term_ends ?? null, current: current(a) };
+      });
+    return (await json(200, out)), true;
+  }
+  if (url.pathname === '/rest/v1/rpc/admin_set_officers' || url.pathname === '/rest/v1/rpc/admin_set_officer') {
+    if (!admin) return (await err(403, '42501', 'NOT_ADMIN')), true;
+    const b = body() as { p_key: string; p_officers?: boolean; p_term_ends?: string | null; p_member?: string; p_position?: string; p_seat?: number };
+    const a = (db.affiliations ?? []).find((x) => x.key === b.p_key);
+    if (!a) return (await err(400, 'P0001', 'NO_SUCH_AFFILIATION')), true;
+    if (url.pathname.endsWith('admin_set_officers')) {
+      Object.assign(a, { officers: Boolean(b.p_officers), term_ends: b.p_officers ? (b.p_term_ends ?? null) : null });
+      return (await json(200, null)), true;
+    }
+    if (!a.officers) return (await err(400, 'P0001', 'NOT_OFFICERS')), true;
+    const position = b.p_position?.trim() || null;
+    if (position && (position.length < 2 || position.length > 40)) return (await err(400, 'P0001', 'BAD_POSITION')), true;
+    if (!b.p_seat || b.p_seat < 1 || b.p_seat > 100) return (await err(400, 'P0001', 'BAD_SEAT')), true;
+    if (!inHall(String(b.p_member))) return (await err(400, 'P0001', 'NOT_IN_HALL')), true;
+    db.memberAffiliations ??= [];
+    const row = db.memberAffiliations.find((m) => m.member_id === b.p_member && m.key === b.p_key);
+    if (row) Object.assign(row, { position, seat: b.p_seat });
+    else db.memberAffiliations.push({ member_id: b.p_member, key: b.p_key, position, seat: b.p_seat });
     return (await json(200, null)), true;
   }
   if (url.pathname === '/rest/v1/rpc/my_museum') {

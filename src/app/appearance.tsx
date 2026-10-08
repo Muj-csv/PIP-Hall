@@ -1,14 +1,17 @@
 // What every badge wears (E2): loaded once from card_appearances() when PIPs are on, so the hall,
 // profiles and the editor preview all show members' frames, plus the admin-made badges pinned on
 // them (card_pins(), D-087) and their titles (hall_titles(), D-101). Off, or on failure: plain badges.
-// Ribbons from hall events (hall_awards(), D-116) aren't part of the PIP economy: always loaded.
+// Ribbons from hall events (hall_awards(), D-116) and the officers (hall_officers(), D-123) aren't
+// part of the PIP economy: always loaded.
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { HallAward } from '../lib/events';
 import { pipsEnabled } from '../lib/features';
+import { currentByMember, type Officer } from '../lib/officers';
 import type { HallTitle } from '../lib/titles';
 import { eventService } from '../services/eventService';
 import { martService } from '../services/martService';
+import { officerService } from '../services/officerService';
 import type { Appearance, Pin } from '../types/mart';
 import { AppearanceContext } from './appearanceContext';
 
@@ -19,6 +22,7 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
   const [pins, setPins] = useState<ReadonlyMap<string, Pin[]>>(() => new Map());
   const [titles, setTitles] = useState<ReadonlyMap<string, HallTitle>>(() => new Map());
   const [awards, setAwards] = useState<ReadonlyMap<string, HallAward[]>>(() => new Map());
+  const [officers, setOfficers] = useState<readonly Officer[]>([]);
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
@@ -27,6 +31,10 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
       .hallAwards()
       .then((a) => on && setAwards(a))
       .catch(() => undefined); // a ribbon is decoration too
+    officerService
+      .hall()
+      .then((o) => on && setOfficers(o))
+      .catch(() => undefined); // without it, nobody wears an officer pin and the Officers door stays shut
     return () => {
       on = false;
     };
@@ -53,15 +61,18 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
   }, [attempt]);
 
   const refresh = useCallback(() => setAttempt((a) => a + 1), []);
+  const seats = useMemo(() => currentByMember(officers), [officers]);
   const value = useMemo(
     () => ({
       of: (profileId: string) => map.get(profileId) ?? null,
       pinsOf: (profileId: string) => pins.get(profileId) ?? [],
       titleOf: (profileId: string) => titles.get(profileId) ?? null,
       awardsOf: (profileId: string) => awards.get(profileId) ?? NO_AWARDS,
+      officers,
+      officerOf: (profileId: string) => seats.get(profileId) ?? null,
       refresh,
     }),
-    [map, pins, titles, awards, refresh],
+    [map, pins, titles, awards, officers, seats, refresh],
   );
   return <AppearanceContext.Provider value={value}>{children}</AppearanceContext.Provider>;
 }

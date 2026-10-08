@@ -680,8 +680,8 @@ try {
 
   console.log('museum wings (D-102)');
   const wings = async (uid = 'anon') => (await as(c, uid, `select museum_wings() as w`)).rows[0].w;
-  await expectOk(c, 'anyone can walk the wings: featured, collab, then the tag wings', 'anon', `select museum_wings() as w`, [],
-    (r) => r.rows[0].w.map((w) => w.key).join() === 'featured,collab,web,games,data' && r.rows[0].w.every((w) => w.note === ''));
+  await expectOk(c, 'anyone can walk the wings: featured, collab, officers (D-123), then the tag wings', 'anon', `select museum_wings() as w`, [],
+    (r) => r.rows[0].w.map((w) => w.key).join() === 'featured,collab,officers,web,games,data' && r.rows[0].w.every((w) => w.note === ''));
   await expectErr(c, 'the wings table is not read directly', 'anon', `select * from museum_wings`, [], /permission denied/);
   await expectErr(c, '…nor written by members', A, `update museum_wings set note='mine'`, [], /permission denied/);
   await expectErr(c, 'members cannot curate', A, `select admin_save_wing('web','Web Wing','Mine',array['JavaScript'],10,true)`, [], /NOT_ADMIN/);
@@ -1063,6 +1063,50 @@ try {
   await expectOk(c, 'an admin deletes an archive exhibit', ADMIN, `select admin_delete_archive($1)`, [K]);
   await expectErr(c, '…once', ADMIN, `select admin_delete_archive($1)`, [K], /NO_SUCH_EXHIBIT/);
   await expectSu(c, '…its makers and claims go with it', `select (select count(*) from archive_makers where exhibit_id=$1)::int + (select count(*) from archive_claims where exhibit_id=$1)::int as n`, [K], (r) => r.rows[0].n === 0);
+
+  console.log('the officers’ space (D-123)');
+  await c.query(readFileSync(join(here, '..', 'migrations', '20261008000100_officers.sql'), 'utf8'));
+  await as(c, ADMIN, `select admin_save_affiliation('officers-2026', 'Officers 2026–27', false)`);
+  await as(c, ADMIN, `select admin_save_affiliation('officers-2025', 'Officers 2025–26', false)`);
+  await as(c, ADMIN, `select admin_save_affiliation('robotics', 'Robotics Club', false)`);
+  await expectErr(c, 'members cannot make an officers’ team', A, `select admin_set_officers('officers-2026', true, null)`, [], /NOT_ADMIN/);
+  await expectErr(c, 'visitors cannot either', 'anon', `select admin_set_officers('officers-2026', true, null)`, [], /permission denied/);
+  await expectErr(c, 'the team must be an affiliation', ADMIN, `select admin_set_officers('nope', true, null)`, [], /NO_SUCH_AFFILIATION/);
+  await expectOk(c, 'an admin makes an affiliation an officers’ team for a term', ADMIN, `select admin_set_officers('officers-2026', true, ${today} + 200)`, []);
+  await expectErr(c, 'only an officers’ team has positions', ADMIN, `select admin_set_officer($1, 'robotics', 'Captain', 1)`, [A], /NOT_OFFICERS/);
+  await expectErr(c, 'members cannot name officers', A, `select admin_set_officer($1, 'officers-2026', 'President', 1)`, [A], /NOT_ADMIN/);
+  await expectErr(c, 'a position is 2 to 40 characters', ADMIN, `select admin_set_officer($1, 'officers-2026', 'P', 1)`, [A], /BAD_POSITION/);
+  await expectErr(c, 'a seat is 1 to 100', ADMIN, `select admin_set_officer($1, 'officers-2026', 'President', 0)`, [A], /BAD_SEAT/);
+  await expectErr(c, 'an officer has a card in the hall', ADMIN, `select admin_set_officer($1, 'officers-2026', 'President', 1)`, [N], /NOT_IN_HALL/);
+  await expectOk(c, 'an admin names a President…', ADMIN, `select admin_set_officer($1, 'officers-2026', ' President ', 1)`, [A]);
+  await expectOk(c, '…and a Vice President', ADMIN, `select admin_set_officer($1, 'officers-2026', 'Vice President', 2)`, [Ms[1]]);
+  await expectOk(c, 'visitors see the current officers in their seats, with their team', 'anon', `select hall_officers() as o`, [], (r) => {
+    const o = r.rows[0].o;
+    return o.length === 2 && o[0].profile_id === A && o[0].position === 'President' && o[0].team === 'Officers 2026–27' && o[0].current === true && o[1].position === 'Vice President';
+  });
+  await expectOk(c, '…and as affiliation chips with positions', 'anon', `select position, seat from member_affiliations where member_id=$1 and key='officers-2026'`, [Ms[1]], (r) => r.rows[0].position === 'Vice President' && r.rows[0].seat === 2);
+  await expectErr(c, 'members cannot write positions directly', A, `update member_affiliations set position='Supreme Leader' where member_id=$1`, [A], /permission denied/);
+  await expectOk(c, 'a position can be changed', ADMIN, `select admin_set_officer($1, 'officers-2026', 'Treasurer', 3)`, [Ms[1]]);
+  await expectOk(c, '…and the order follows the seats', 'anon', `select hall_officers() as o`, [], (r) => r.rows[0].o[1].position === 'Treasurer' && r.rows[0].o[1].seat === 3);
+  // Last year's team: its term is over.
+  await as(c, ADMIN, `select admin_set_officers('officers-2025', true, ${today} - 30)`);
+  await as(c, ADMIN, `select admin_set_officer($1, 'officers-2025', 'President', 1)`, [Ms[2]]);
+  await expectOk(c, 'past officers stay on record after the current ones', 'anon', `select hall_officers() as o`, [], (r) => {
+    const o = r.rows[0].o;
+    return o.length === 3 && o[2].profile_id === Ms[2] && o[2].current === false && o[2].team === 'Officers 2025–26' && o.slice(0, 2).every((x) => x.current);
+  });
+  await expectOk(c, 'the Officers’ Wing is built in', 'anon', `select museum_wings() as w`, [], (r) => r.rows[0].w.some((w) => w.key === 'officers' && w.kind === 'officers' && w.name === 'Officers’ Wing'.replace('’', "'")));
+  await expectErr(c, '…it can be closed, not removed', ADMIN, `select admin_delete_wing('officers')`, [], /BUILT_IN/);
+  await expectOk(c, '…and renamed, keeping its rule', ADMIN, `select admin_save_wing('officers', 'Officers Room', 'Meet the team.', array['x'], 2, true)`, []);
+  await expectSu(c, '…with no tags', `select kind, tags, name from museum_wings where key='officers'`, [], (r) => r.rows[0].kind === 'officers' && r.rows[0].tags.length === 0 && r.rows[0].name === 'Officers Room');
+  await expectOk(c, 'taking someone off the team removes them', ADMIN, `select set_member_affiliation($1, 'officers-2026', false)`, [Ms[1]]);
+  await expectOk(c, '…from the officers', 'anon', `select hall_officers() as o`, [], (r) => !r.rows[0].o.some((x) => x.profile_id === Ms[1]));
+  await expectOk(c, 'a team that is no longer an officers’ team has no officers', ADMIN, `select admin_set_officers('officers-2025', false, null)`, []);
+  await expectOk(c, '…in public', 'anon', `select hall_officers() as o`, [], (r) => r.rows[0].o.length === 1 && r.rows[0].o[0].profile_id === A);
+  await c.query(readFileSync(join(here, '..', 'migrations', '20261008000100_officers.sql'), 'utf8'));
+  await c.query(readFileSync(join(here, '..', 'migrations', '20261006000900_museum_wings.sql'), 'utf8'));
+  await expectOk(c, 'the officers migration is safe to run twice (and the wings one after it), keeping the officers and the wing', 'anon', `select hall_officers() as o, museum_wings() as w`, [], (r) =>
+    r.rows[0].o[0]?.position === 'President' && r.rows[0].w.some((w) => w.key === 'officers' && w.name === 'Officers Room'));
 
   console.log('account deletion');
   await expectErr(c, 'anon cannot call delete_my_account', 'anon', `select delete_my_account()`, [], /permission denied/);

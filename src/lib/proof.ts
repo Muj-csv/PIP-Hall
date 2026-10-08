@@ -5,6 +5,7 @@
 import type { PublicCard } from '../types/card';
 import type { ArchiveExhibit } from './archive';
 import { collaborationsOf } from './collab';
+import type { Officer } from './officers';
 import { awardLabel, type HallAward } from './events';
 import { titleOf, type HallTitle } from './titles';
 
@@ -35,6 +36,7 @@ export function proofOf(
   titles: HallTitle | null,
   awards: readonly HallAward[] = [],
   archive: readonly Pick<ArchiveExhibit, 'title' | 'event' | 'year'>[] = [],
+  officers: readonly Pick<Officer, 'position' | 'team' | 'current'>[] = [],
 ): ProofLine[] {
   const c = card.card;
   const gh = c.github_username?.toLowerCase() ?? null;
@@ -73,6 +75,12 @@ export function proofOf(
       text: `Card approved ${approved.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}.`,
       sub: 'What you see here is the card as an admin approved it.',
     });
+  }
+
+  // Officer seats the admins gave them (D-123): the current term first, past terms after.
+  for (const o of officers) {
+    const seat = o.position ? `${o.position}, ${o.team}` : o.team;
+    lines.push(o.current ? { mark: '✓', text: `Officer: ${seat}.`, sub: 'Named by the hall’s admins.' } : { mark: '·', text: `Past officer: ${seat}.` });
   }
 
   // Past projects the admins linked them on in the Museum's Archive (D-118).

@@ -12,8 +12,10 @@
 
 import { useCallback, useEffect, useId, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
+import { useAppearance } from '../app/appearanceContext';
 import { DialogueBox } from '../components/dialogue/DialogueBox';
 import { MenuPage } from '../components/shell/MenuPage';
+import { officerUsernames } from '../lib/officers';
 import { exhibitPath, memberPath } from '../lib/publicUrl';
 import { creditLine } from '../lib/collab';
 import { ARCHIVE_ROOM, archiveAsExhibit, archiveAward, archiveCases, archiveOrigin, archiveRoomPath, byYear, withArchive, type ArchiveExhibit, type TrophyCase } from '../lib/archive';
@@ -83,7 +85,10 @@ export default function Museum() {
   // A new order on every visit and every Shuffle (round is the trigger); featured stay pinned.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const { featured, rest } = useMemo(() => arrangeMuseum(exhibits ?? []), [exhibits, round]);
-  const rooms = useMemo(() => wingRooms(wings ?? [], exhibits ?? []), [wings, exhibits]);
+  // The Officers' Wing follows the current officers (D-123).
+  const { officers } = useAppearance();
+  const officerNames = useMemo(() => officerUsernames(officers), [officers]);
+  const rooms = useMemo(() => wingRooms(wings ?? [], exhibits ?? [], { officers: officerNames }), [wings, exhibits, officerNames]);
   const wingKey = params.get('wing');
   const eventKey = params.get('event');
   const archiveOpen = params.get('room') === ARCHIVE_ROOM;
@@ -457,6 +462,7 @@ function ArchiveRoomView({ archive }: { archive: ArchiveExhibit[] }) {
 const RULE: Record<Wing['kind'], (w: Wing) => string> = {
   featured: () => 'Exhibits by members the curators featured.',
   collab: () => 'Projects made by more than one member of the hall.',
+  officers: () => 'Projects by the hall’s current officers, as named by its admins.',
   tags: (w) => `Projects built with ${w.tags.slice(0, 6).join(', ')}${w.tags.length > 6 ? '…' : ''}.`,
 };
 

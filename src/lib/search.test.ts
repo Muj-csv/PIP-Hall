@@ -50,6 +50,13 @@ describe('search (Phase 5 acceptance: name, handle, skill, project title)', () =
   it('filters by skill, ignoring case', () => expect(names({ skill: 'Figma' })).toEqual(['jose', 'ben-o']));
   it('filters featured', () => expect(names({ featured: true })).toEqual(['anacruz']));
   it('combines filters and words', () => expect(names({ department: 'engineering', q: 'ben' })).toEqual(['ben-o']));
+  it('opens the Officers door: current officers only, in their seats', () => {
+    const seat = (id: string, n: number) => [id, { profile_id: id, username: '', full_name: '', position: null, seat: n, team: 'Officers', team_key: 'o', term_ends: null, current: true }] as const;
+    const officers = new Map([seat('p3', 1), seat('p1', 2)]);
+    expect(search(idx, { ...NO_FILTERS, officers: true }, officers).map((c) => c.username)).toEqual(['ben-o', 'jose']);
+    expect(search(idx, { ...NO_FILTERS, officers: true }).map((c) => c.username)).toEqual([]);
+    expect(search(idx, { ...NO_FILTERS, officers: true, q: 'jose' }, officers).map((c) => c.username)).toEqual(['jose', 'ben-o']);
+  });
 });
 
 describe('facets', () => {
@@ -71,7 +78,7 @@ describe('randomCard', () => {
 
 describe('URL round trip', () => {
   it('keeps every filter', () => {
-    const f = { q: 'figma', department: 'Design', skill: 'Go', featured: true };
+    const f = { q: 'figma', department: 'Design', skill: 'Go', featured: true, officers: true };
     expect(filtersFromParams(filtersToParams(f))).toEqual(f);
     expect(filtersToParams(NO_FILTERS).toString()).toBe('');
   });

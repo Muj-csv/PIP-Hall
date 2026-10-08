@@ -97,6 +97,13 @@ Both are safe to run again (they only add columns and replace functions).
 1. Supabase **SQL editor:** run `supabase/migrations/20261006000300_project_collaborators.sql`. Safe to run again.
 2. Check: a member opens **My card → Collaborators**, tags another member of the hall on a project; that member sees the request in their own **Collaborators** panel and accepts. After the owner's next approval, the project's public card lists them.
 
+## The officers' space (V2-10b, D-123, D-124)
+
+1. Supabase **SQL editor:** run `supabase/migrations/20261008000100_officers.sql` (after the archive one) **before** merging the app update. Safe to run again.
+2. In the app: **Admin → Affiliations.** Add the team as an affiliation (e.g. "Officers 2026–27"), then press **Make it an officers' team** on its row. In **Officers' teams** below, set the day the term ends (optional) and **Save term**. Under **Add an officer**, pick a member who has a card in the hall, type their position (e.g. President) and their order (1 shows first), and **Add officer**. **Save** changes a position or order; **Remove** takes someone off the team.
+3. Check: the hall's search shows an **Officers** button; it lists only the officers, in order. Their badges wear the officer pin; their profiles read "Officers 2026–27 · President" and list it under Proof. `/museum` has an **Officers' Wing** with their projects (rename it or write its note in **Admin → Wings**).
+4. Next term: make a new team ("Officers 2027–28") the same way. Once the old term's last day has passed, its officers show as past officers on their profiles, and the door, pins and wing follow the new team.
+
 ## The archive (V2-10, D-118, D-122)
 
 1. Supabase **SQL editor:** run `supabase/migrations/20261008000000_archive.sql` (after the hackathons one). Safe to run again. If you ever re-run the hackathons, events or notifications migration, run this one again after it.
