@@ -62,17 +62,19 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
 
   const refresh = useCallback(() => setAttempt((a) => a + 1), []);
   const seats = useMemo(() => currentByMember(officers), [officers]);
+  const winners = useMemo(() => new Set([...awards.values()].flatMap((list) => list.map((a) => a.project_id))), [awards]);
   const value = useMemo(
     () => ({
       of: (profileId: string) => map.get(profileId) ?? null,
       pinsOf: (profileId: string) => pins.get(profileId) ?? [],
       titleOf: (profileId: string) => titles.get(profileId) ?? null,
       awardsOf: (profileId: string) => awards.get(profileId) ?? NO_AWARDS,
+      winners,
       officers,
       officerOf: (profileId: string) => seats.get(profileId) ?? null,
       refresh,
     }),
-    [map, pins, titles, awards, officers, seats, refresh],
+    [map, pins, titles, awards, winners, officers, seats, refresh],
   );
   return <AppearanceContext.Provider value={value}>{children}</AppearanceContext.Provider>;
 }

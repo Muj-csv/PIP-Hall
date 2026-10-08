@@ -8,6 +8,7 @@ import { GET as badge } from '../badge';
 import { CRAWLER_PATTERN, PREVIEW_CRAWLERS, clip, previewHtml } from './meta';
 import { GET as og } from '../og';
 import { GET as preview, metaFor } from '../preview';
+import { guard, StageError } from './guard';
 
 const SB = 'https://pip-test.supabase.co';
 const ORIGIN = 'https://pip-hall.example';
@@ -37,6 +38,8 @@ const exhibitRow = {
 };
 let webp: Buffer;
 const asked: string[] = [];
+/** What the public badge RPCs answer (V2-13); empty unless a test fills them. */
+const rpc: Record<string, unknown[]> = { hall_titles: [], hall_awards: [], card_pins: [] };
 const out = process.env.SHARE_SHOTS; // set to a folder to save the images for a look
 
 beforeAll(async () => {
@@ -53,6 +56,8 @@ beforeAll(async () => {
     }
     if (url === `${SB}/rest/v1/published_cards?select=profile_id`) return Response.json([{ profile_id: 'a' }, { profile_id: 'b' }]);
     if (url === `${SB}/rest/v1/rpc/museum_exhibits`) return Response.json([exhibitRow]);
+    const fn = /\/rest\/v1\/rpc\/(hall_titles|hall_awards|card_pins)$/.exec(url)?.[1];
+    if (fn) return Response.json(rpc[fn]);
     if (url.startsWith(`${SB}/storage/v1/object/public/`)) return new Response(new Uint8Array(webp), { headers: { 'Content-Type': 'image/webp' } });
     if (url.startsWith('https://opengraph.githubassets.com/')) return new Response('nope', { status: 404 });
     return new Response('not found', { status: 404 });
@@ -164,6 +169,38 @@ describe('preview images and the badge PNG (D-095)', () => {
     await image(await badge(new Request(`${ORIGIN}/api/badge?u=sample-player-1`)), 'badge-sample');
     expect(asked.some((a) => a.includes('/storage/'))).toBe(false);
   }, 20000);
+
+  it('carries the title worn on its plate, the ribbons won and the admin badges, read from public data (V2-13)', async () => {
+    const plain = (await image(await badge(new Request(`${ORIGIN}/api/badge?u=ada`)), 'badge-plain')).buf;
+    rpc.hall_titles = [{ profile_id: ada.profile_id, earned: ['card_holder', 'mentor'], title: 'mentor', plate_style: { plate: 'plum', ink: 'cream' } }];
+    rpc.hall_awards = [{ profile_id: ada.profile_id, awards: [{ place: 1 }, { place: null, name: 'Best UI' }] }];
+    rpc.card_pins = [{ profile_id: ada.profile_id, pins: [{ key: 'helper', name: 'Helper', gem: 'heart', tone: 'red' }] }];
+    asked.length = 0;
+    const { buf, meta } = await image(await badge(new Request(`${ORIGIN}/api/badge?u=ada`)), 'badge-extras');
+    expect([meta.width, meta.height]).toEqual([1080, 1350]);
+    expect(buf.equals(plain)).toBe(false);
+    for (const fn of ['hall_titles', 'hall_awards', 'card_pins']) expect(asked).toContain(`POST ${SB}/rest/v1/rpc/${fn}`);
+    expect(asked.join()).not.toMatch(/profiles|projects\?|card_appearance/); // public functions only
+    rpc.hall_titles = [];
+    rpc.hall_awards = [];
+    rpc.card_pins = [];
+  }, 20000);
+
+  it('a failure says which step broke, in a header, and never the details (V2-13, #23)', async () => {
+    const quiet = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const res = await guard(async () => {
+      throw new StageError('fonts', new Error('ENOENT: /var/task/node_modules/@fontsource/x.woff'));
+    })(new Request(`${ORIGIN}/api/og`));
+    expect(res.status).toBe(500);
+    expect(res.headers.get('x-piphall-stage')).toBe('fonts');
+    expect(await res.text()).not.toMatch(/ENOENT|var\/task/);
+    const other = await guard(async () => {
+      throw new Error('boom');
+    })(new Request(`${ORIGIN}/api/badge?u=ada`));
+    expect(other.headers.get('x-piphall-stage')).toBe('unknown');
+    expect(quiet).toHaveBeenCalledTimes(2);
+    quiet.mockRestore();
+  });
 
   it('refuses a badge for someone with no approved card', async () => {
     const res = await badge(new Request(`${ORIGIN}/api/badge?u=nobody`));

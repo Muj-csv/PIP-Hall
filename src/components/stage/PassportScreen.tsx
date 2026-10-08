@@ -1,7 +1,7 @@
 // The Passport inside the PIXENDO screen (V2-2, D-097, D-098): who you've met, the skills they
 // showed you, the team projects whose makers you've all met, the Museum stamp book (every exhibit
 // you've opened, from members, event rooms and the archive) and the showcases you checked in at
-// (V2-12, D-109).
+// (V2-12, D-109). Your progress (V2-13, D-112) closes it: yours alone.
 // Progress reads as pages filling with stamps, not as statistics. Every stamp links back into the
 // hall, so the Passport is also a way around it.
 
@@ -19,6 +19,7 @@ import type { PublicCard } from '../../types/card';
 import type { Exhibit } from '../../types/museum';
 import { PixelAvatar } from '../cards/PixelAvatar';
 import { DialogueBox } from '../dialogue/DialogueBox';
+import { ProgressPanel } from './ProgressPanel';
 
 interface Props {
   hall: readonly PublicCard[];
@@ -254,6 +255,8 @@ export function PassportScreen({ hall, onBack }: Props) {
           <p className="m-0 field-hint">At a hall event, scan the check-in QR on the showcase screen for a stamp.</p>
         )}
       </section>
+
+      <ProgressPanel member={passport.mode === 'account' ? me : null} />
     </section>
   );
 }

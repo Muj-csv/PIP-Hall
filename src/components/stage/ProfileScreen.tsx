@@ -1,12 +1,15 @@
 // A member's full profile, shown inside the PIXENDO screen (brief §3): the hall's OPEN and VIEW
 // PROFILE iris into it, and /member/:username (what a badge's QR opens) lands straight on it.
 // The badge here is the real one: tap it, or "Show Quest Log", to turn it over.
+// V2-13: "Made with" shows the member's own links (always on), and a badge's QR (?via=qr) greets the
+// finder with the related people, each a "Walk there" that takes Pip to their badge in the hall.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { useAppearance } from '../../app/appearanceContext';
 import { archiveOrigin, type ArchiveExhibit } from '../../lib/archive';
 import { collaborationsOf } from '../../lib/collab';
+import { madeWith } from '../../lib/network';
 import { awardLabel } from '../../lib/events';
 import { proofOf } from '../../lib/proof';
 import { exhibitPath, memberPath, serialFor } from '../../lib/publicUrl';
@@ -21,6 +24,7 @@ import type { PublicCard, PublicProject } from '../../types/card';
 import { FlipBadge } from '../cards/BadgeStage';
 import { SaveBadgeButton } from '../cards/SaveBadgeButton';
 import { DialogueBox } from '../dialogue/DialogueBox';
+import { MadeWithMap } from './MadeWithMap';
 
 interface Props {
   card: PublicCard;
@@ -30,9 +34,11 @@ interface Props {
   reward?: string | null;
   /** Every card in the hall, to find projects that credit this member (D-090). */
   hall?: readonly PublicCard[];
+  /** Back to the hall, with Pip walking to this member's badge (V2-13). */
+  onWalkTo?: (username: string) => void;
 }
 
-export function ProfileScreen({ card, onBack, onShowQr, reward = null, hall = [] }: Props) {
+export function ProfileScreen({ card, onBack, onShowQr, reward = null, hall = [], onWalkTo }: Props) {
   const back = useRef<HTMLButtonElement>(null);
   const c = card.card;
   const achievements = useAchievements(card.profile_id);
@@ -57,6 +63,8 @@ export function ProfileScreen({ card, onBack, onShowQr, reward = null, hall = []
   // Their officer seats, current and past (D-123).
   const seats = useMemo(() => look.officers.filter((o) => o.profile_id === card.profile_id), [look.officers, card.profile_id]);
   const proof = useMemo(() => proofOf(card, hall, titles, awards, past, seats), [card, hall, titles, awards, past, seats]);
+  // Who they've made things with: credits on approved cards and the archive (V2-13).
+  const together = useMemo(() => madeWith(card.username, hall, past), [card.username, hall, past]);
   useEffect(() => back.current?.focus(), []);
   // Opened from a badge's QR (?via=qr): greet the finder once, then tidy the address (V2-1).
   const [params, setParams] = useSearchParams();
@@ -122,6 +130,26 @@ export function ProfileScreen({ card, onBack, onShowQr, reward = null, hall = []
       </header>
 
       {scanned && <DialogueBox text={`You found ${c.full_name.split(' ')[0]}! You scanned their badge. They’re stamped in your Passport.`} emote="approved" />}
+      {scanned && onWalkTo && together.length > 0 && (
+        <section className="related-people" aria-labelledby="related-title">
+          <h3 id="related-title" className="panel-title">
+            Related people
+          </h3>
+          <ul aria-label={`People ${c.full_name.split(' ')[0]} has made things with`}>
+            {together.slice(0, 4).map((l) => (
+              <li key={l.card.username}>
+                <span>
+                  <b>{l.card.card.full_name}</b>
+                  <span className="block text-caption text-text-secondary">Made {l.projects[0]} together</span>
+                </span>
+                <button type="button" className="pixel-btn" onClick={() => onWalkTo(l.card.username)}>
+                  Walk there<span className="sr-only"> to {l.card.card.full_name}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       {reward && <DialogueBox text={reward} emote="approved" />}
 
       <div className="profile-layout">
@@ -238,6 +266,8 @@ export function ProfileScreen({ card, onBack, onShowQr, reward = null, hall = []
               </ul>
             </section>
           )}
+
+          {together.length > 0 && <MadeWithMap me={card} links={together} />}
         </div>
       </div>
     </section>

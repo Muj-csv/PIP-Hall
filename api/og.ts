@@ -3,12 +3,13 @@
 
 import { previewFor } from '../src/lib/preview.js';
 import { exhibit, hallSize, memberCard, remoteImage, storageImage } from './_lib/data.js';
+import { guard } from './_lib/guard.js';
 import { exhibitOg, hallOg, memberOg, OG_BADGE, photoBox, toPng } from './_lib/render.js';
 
 const png = (body: Buffer, maxAge = 3600) =>
   new Response(new Uint8Array(body), { headers: { 'Content-Type': 'image/png', 'Cache-Control': `public, max-age=${maxAge}, s-maxage=${maxAge}, stale-while-revalidate=604800` } });
 
-export async function GET(request: Request): Promise<Response> {
+export const GET = guard(async (request: Request): Promise<Response> => {
   const q = new URL(request.url).searchParams;
   const username = q.get('member');
   if (username) {
@@ -26,4 +27,4 @@ export async function GET(request: Request): Promise<Response> {
     }
   }
   return png(await hallOg(await hallSize()), 600);
-}
+});

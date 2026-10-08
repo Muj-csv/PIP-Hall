@@ -15,7 +15,22 @@ import { clip } from './clip.js';
 import { creditLine } from './collab.js';
 import { consoleFor } from './museum.js';
 import { avatarToSvg, paletteColors, spriteToSvg, svgDataUrl } from './spriteSvg.js';
-import { CLIP_PALETTE, CONSOLE_NAMES, COVER_PALETTE, consoleArt, coverSprite, RIBBON_PALETTES, RIBBON_SPRITES, SPR, WORLD_OVERRIDES, WORLD_PALETTE, type SpriteMap } from './sprites.js';
+import {
+  CLIP_PALETTE,
+  CONSOLE_NAMES,
+  COVER_PALETTE,
+  consoleArt,
+  coverSprite,
+  GEM_SPRITES,
+  GEM_TONE_PALETTES,
+  RIBBON_PALETTES,
+  RIBBON_PIN_SPRITES,
+  RIBBON_SPRITES,
+  SPR,
+  WORLD_OVERRIDES,
+  WORLD_PALETTE,
+  type SpriteMap,
+} from './sprites.js';
 
 /** The font files the pictures use, by satori family name (from @fontsource, `.woff`). */
 export const ART_FONTS = [
@@ -58,6 +73,14 @@ export interface PosterAward {
   event: string | null;
   note: string | null;
 }
+/** What a saved badge carries beyond the card (V2-13, #21), as the hall shows it: the title worn
+ *  on its plate, ribbons won at hall events and admin-made badges, on the holder's strip. */
+export interface BadgeExtras {
+  title?: { name: string; plate: string | null; ink: string | null } | null;
+  ribbons?: readonly RibbonKind[];
+  pins?: readonly { gem: string; tone: string }[];
+}
+
 /** A row of a winners poster. */
 export interface PosterWinner {
   ribbon: RibbonKind;
@@ -106,11 +129,14 @@ export function shareArt(colors: Readonly<Record<string, string>>) {
   };
 
   /** The badge front: holder, band, photo window, name, handle, role, skills, optional QR. */
-  const badge = (card: PublishedCardRow, photo: string | null, width: number, qr: string | null = null): El => {
+  const badge = (card: PublishedCardRow, photo: string | null, width: number, qr: string | null = null, extras: BadgeExtras = {}): El => {
     const u = width / 400;
     const c = card.card;
     const no = `No.${String(card.member_no).padStart(3, '0')}`;
     const chips = c.skills.slice(0, 3);
+    const ribbons = (extras.ribbons ?? []).slice(0, 3);
+    const pins = (extras.pins ?? []).slice(0, 3);
+    const title = extras.title ?? null;
     return h(
       'div',
       { flexDirection: 'column', width, padding: 12 * u, background: col('card-frame'), border: `${4 * u}px solid ${col('card-ink')}`, boxShadow: `${8 * u}px ${8 * u}px 0 ${col('card-ink')}` },
@@ -118,6 +144,14 @@ export function shareArt(colors: Readonly<Record<string, string>>) {
         'div',
         { justifyContent: 'space-between', alignItems: 'center', padding: `${6 * u}px ${12 * u}px`, background: col('card-band'), border: `${3 * u}px solid ${col('card-ink')}` },
         h('div', { fontFamily: 'Jersey', fontSize: 34 * u, color: col('card-ink') }, 'PIP-HALL'),
+        // Ribbons won and admin-made badges ride the band, as on the holder's strip in the hall.
+        ribbons.length + pins.length > 0 &&
+          h(
+            'div',
+            { alignItems: 'center', gap: 4 * u },
+            ...ribbons.map((k) => sprite(RIBBON_PIN_SPRITES[k], RIBBON_PALETTES[k], 2 * u)),
+            ...pins.map((p) => sprite(GEM_SPRITES[p.gem] ?? GEM_SPRITES.star!, GEM_TONE_PALETTES[p.tone] ?? GEM_TONE_PALETTES.gold!, 2 * u)),
+          ),
         h('div', { fontFamily: 'Mono', fontSize: 18 * u, color: col('card-ink') }, no),
       ),
       h(
@@ -126,6 +160,22 @@ export function shareArt(colors: Readonly<Record<string, string>>) {
         h('div', { border: `${3 * u}px solid ${col('card-ink')}` }, photoOrAvatar(card, photo, photoBox(width).w, photoBox(width).h)),
         h('div', { marginTop: 10 * u, fontFamily: 'Jersey', fontSize: 42 * u, lineHeight: 1, color: col('card-ink') }, clip(c.full_name, 22)),
         h('div', { marginTop: 4 * u, fontFamily: 'Mono', fontSize: 18 * u, color: col('card-plum') }, `@${card.username}`),
+        title &&
+          h(
+            'div',
+            {
+              marginTop: 4 * u,
+              alignSelf: 'flex-start',
+              padding: `${1 * u}px ${10 * u}px`,
+              background: col(`card-${title.plate ?? 'cream'}`),
+              border: `${2 * u}px solid ${col('card-ink')}`,
+              fontFamily: 'Jersey',
+              fontSize: 20 * u,
+              letterSpacing: 1.2 * u,
+              color: col(`card-${title.ink ?? 'ink'}`),
+            },
+            title.name.toUpperCase(),
+          ),
         c.role ? h('div', { marginTop: 4 * u, fontFamily: 'Atkinson', fontSize: 19 * u, color: col('card-ink') }, clip(c.role, 40)) : null,
         chips.length > 0 &&
           h(
@@ -320,13 +370,14 @@ export function shareArt(colors: Readonly<Record<string, string>>) {
     },
 
     /** The downloadable badge (1080×1350, a portrait post): lanyard, clip, badge with its QR. */
-    badgePng(card: PublishedCardRow, photo: string | null, memberUrl: string): El {
+    badgePng(card: PublishedCardRow, photo: string | null, memberUrl: string, extras: BadgeExtras = {}): El {
       return h(
         'div',
         { position: 'relative', width: 1080, height: 1350, background: col('bg'), flexDirection: 'column', alignItems: 'center' },
-        h('div', { width: 60, height: 120, background: col('card-lanyard'), borderLeft: `6px solid ${col('card-ink')}`, borderRight: `6px solid ${col('card-ink')}` }),
+        // A shorter lanyard when a title plate makes the badge taller, so the address stays clear.
+        h('div', { width: 60, height: extras.title ? 64 : 120, background: col('card-lanyard'), borderLeft: `6px solid ${col('card-ink')}`, borderRight: `6px solid ${col('card-ink')}` }),
         sprite(SPR.clip, CLIP_PALETTE, 12),
-        h('div', { marginTop: 4 }, badge(card, photo, PNG_BADGE, qrSvg(`${memberUrl}?via=qr`))),
+        h('div', { marginTop: 4 }, badge(card, photo, PNG_BADGE, qrSvg(`${memberUrl}?via=qr`), extras)),
         h('div', { position: 'absolute', bottom: 40, fontFamily: 'Mono', fontSize: 26, color: col('card-plum') }, memberUrl.replace(/^https?:\/\//, '')),
       );
     },

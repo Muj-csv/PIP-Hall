@@ -3,7 +3,7 @@
 // for the words, and the plate colours, which only ever name card tokens.
 
 import type { CSSProperties } from 'react';
-import { TONES, type Tone } from './rewards';
+import { TONES, type Tone } from './rewards.js'; // .js: the server's badge drawing reads the names too
 
 export const TITLES = [
   { key: 'card_holder', name: 'Card Holder', rule: 'Has a card in the hall.' },
@@ -13,6 +13,7 @@ export const TITLES = [
   { key: 'curator', name: 'Curator', rule: 'Has 3 projects on show in the Museum.' },
   { key: 'pathfinder', name: 'Pathfinder', rule: 'Completed 10 Missions.' },
   { key: 'champion', name: 'Champion', rule: 'Made a project that won a place or an award at an event.' },
+  { key: 'mentor', name: 'Mentor', rule: 'Built team projects with 2 members who joined the hall after you.' },
 ] as const;
 
 export type TitleKey = (typeof TITLES)[number]['key'];

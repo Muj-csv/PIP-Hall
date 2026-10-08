@@ -3,6 +3,7 @@
 
 import { creditLine } from '../src/lib/collab.js';
 import { exhibit, memberCard, originOf } from './_lib/data.js';
+import { guard } from './_lib/guard.js';
 import { clip, previewHtml, type Meta } from './_lib/meta.js';
 
 const TAGLINE = 'Where every person has a place.';
@@ -47,10 +48,10 @@ export async function metaFor(path: string, origin: string): Promise<Meta> {
   return hall;
 }
 
-export async function GET(request: Request): Promise<Response> {
+export const GET = guard(async (request: Request): Promise<Response> => {
   const path = new URL(request.url).searchParams.get('path') ?? '/';
   const html = previewHtml(await metaFor(path, originOf(request)));
   return new Response(html, {
     headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=0, s-maxage=300, stale-while-revalidate=86400' },
   });
-}
+});

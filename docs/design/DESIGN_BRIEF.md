@@ -80,16 +80,25 @@ Two clocks. **Sprites** animate on a stepped frame clock (`motion.sprite-fps`, 8
 - Reduced motion: no swing, jump, typing, iris or boot; flip swaps instantly; camera jumps; coins still count.
 - Sound: none for the 6th (cut list).
 
-## 8. Forbidden list
+## 8. Visual invariants
 
-- Any real console's silhouette, button layout or wordmark. The PIXENDO device is a two-grip slab with a MOVE rocker and labelled action buttons.
-- Mario, any Nintendo character, item, logo, sound, music or level art. The *genre* is the requirement (side-scrolling level, blocks, coins, a jumping hero, warp tube, goal flag, HUD); every sprite is original and drawn from the text maps in `src/lib/sprites.ts`. Item blocks carry the PIP-Hall emblem, never a question mark.
-- Anything copied from ref1 or ref2: characters, the TII logo, sticker art, text.
-- `border-radius` above 0, blurred shadows, glassmorphism, gradients on text, aurora glows.
-- Uniform hover-scale on every card; fade-in-on-scroll.
-- Emoji as icons. Icons are 12×12 or 16×16 pixel SVGs drawn for this project.
-- Placeholder people (Jane Doe, example avatars) in anything a visitor can see. Empty states use the dialogue box instead.
-- Stock Tailwind palette classes and raw hex in components.
+These hold on every screen and in every picture the hall makes (posters, badge PNG, link previews). A review checks them; changing one goes through **How to change one** below (D-128, from the v2 review's #18).
+
+1. **Tokens only.** Colour, type, spacing and motion come from `src/styles/theme.css`, generated from `docs/design/tokens.json`. No raw hex in components, no stock Tailwind palette classes; drawings that leave the browser read the same tokens.
+2. **No blur.** Shadows are hard offsets in ink. No blurred shadows, glassmorphism, aurora glows or gradients on text.
+3. **No rounding.** `border-radius` is 0 everywhere.
+4. **Original art.** Every sprite is drawn from the text maps in `src/lib/sprites.ts`; icons are pixel drawings, never emoji. No real console's silhouette, button layout or wordmark (the PIXENDO is a two-grip slab with a MOVE rocker and labelled buttons). No Mario or any Nintendo character, item, logo, sound, music or level art: the *genre* is the requirement (side-scrolling level, blocks, coins, a jumping hero, warp tube, goal flag, HUD). Item blocks carry the PIP-Hall emblem, never a question mark. Nothing copied from ref1 or ref2 (characters, the TII logo, sticker art, text).
+5. **4px grid.** Edges in the world and on the badge sit on the 4px pixel unit (`--p`); menu screens use the spacing scale. The hand-placed exceptions inside the badge and the handheld are listed in §9.
+6. **44px targets.** Every control is at least 44 × 44px on touch.
+7. **Reduced motion.** Every animation has a reduced-motion version (cut, static or text), listed in §15. Motion carries meaning (product rule 9), so no uniform hover-scale on every card and no fade-in-on-scroll.
+8. **WCAG 2.2 AA.** Contrast verified in DAY and NIGHT, a visible focus ring, a keyboard path for everything, status never by colour alone, alt text on every photo.
+9. **Real people only.** No placeholder people (Jane Doe, example avatars) in anything a visitor sees; empty states speak through the dialogue box.
+
+### How to change one
+
+1. Write a decision in `docs/DECISIONS.md` first: which invariant, what changes, and why (who asked, what it fixes).
+2. Then change the token (`docs/design/tokens.json`, re-exported to `theme.css`) or the rule above, in the same change, citing the decision.
+3. A one-off exception is an `allow:` line in §9 with its reason, never a silent override in a component.
 
 ## 9. Deliberate choices
 
@@ -128,6 +137,9 @@ Two clocks. **Sprites** animate on a stepped frame clock (`motion.sprite-fps`, 8
 | `Toast` | success · error | — | success, danger | `role="status"` |
 | `Booth` (kiosk, V2-12) | Museum tour · Hall | playing · paused (touched) · loading · empty · error | world.sky/grass, card.* | full screen, no top bar; plaque panel in card colours with a big QR; Pip walks a strip of marks (one per stop); a minute untouched plays on; CHECK IN QR only while the event is on |
 | `Placard` (V2-12) | — | — | card.ink, card.face, card.plum | A6 label, four to an A4 sheet, dashed cut lines; QR at the foot; prints in the card's colours |
+| `MadeWithMap` (V2-13) | — | — | border, card.face, card.ink, card.plum | one member's links: the member in the middle, others around, thicker line for more shared projects; decorative (`aria-hidden`), the same links as a list beneath it |
+| `RelatedPeople` (V2-13) | — | — | surface-raised, border | after a badge scan: up to 4 people made with, each with **Walk there** (Pip walks to their badge in the hall) |
+| `ProgressPanel` (V2-13) | member · guest | loading · error | card.plum, text | only in your own Passport; unlocked ★ in full ink, the rest ☆ dimmed and "not yet" for screen readers |
 | `CheckinStamp` (V2-12) | fresh · already | — | card.cream, card.plum, card.ink | dashed rubber-stamp look; lands once when fresh |
 
 Library: none. Everything is custom on top of the theme.

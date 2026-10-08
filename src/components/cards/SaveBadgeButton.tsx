@@ -1,7 +1,13 @@
 // "Save badge (PNG)": draws the approved badge in the browser and downloads it (D-104). The drawing
 // code loads only on the first press. If it can't be drawn here, the server's copy is offered.
+// It carries what the hall shows on the badge (V2-13): the title worn on its plate, ribbons won at
+// hall events and admin-made badges.
 
 import { useState } from 'react';
+import { useAppearance } from '../../app/appearanceContext';
+import { ribbonOf } from '../../lib/events';
+import type { BadgeExtras } from '../../lib/shareArt';
+import { titleOf } from '../../lib/titles';
 import { badgePngUrl } from '../../lib/publicUrl';
 import { useCards } from '../../lib/useCards';
 import type { PublishedCardRow } from '../../types/card';
@@ -15,6 +21,7 @@ interface Props {
 
 export function SaveBadgeButton({ card, username, label = 'Save badge (PNG)' }: Props) {
   const cards = useCards();
+  const look = useAppearance();
   const [state, setState] = useState<'idle' | 'busy' | 'done' | 'failed'>('idle');
   const row = card ?? (cards.status === 'ready' ? cards.cards.find((c) => c.username === username) : undefined);
   const server = row ? badgePngUrl(row.username) : null;
@@ -23,8 +30,15 @@ export function SaveBadgeButton({ card, username, label = 'Save badge (PNG)' }: 
   const save = async () => {
     setState('busy');
     try {
+      const worn = look.titleOf(row.profile_id);
+      const named = titleOf(worn?.title);
+      const extras: BadgeExtras = {
+        title: named ? { name: named.name, plate: worn?.plateStyle?.plate ?? null, ink: worn?.plateStyle?.ink ?? null } : null,
+        ribbons: look.awardsOf(row.profile_id).slice(0, 3).map(ribbonOf),
+        pins: look.pinsOf(row.profile_id).map((p) => ({ gem: p.gem, tone: p.tone })),
+      };
       const { saveBadge } = await import('../../services/badgeExportService');
-      await saveBadge(row);
+      await saveBadge(row, extras);
       setState('done');
     } catch {
       setState('failed');
