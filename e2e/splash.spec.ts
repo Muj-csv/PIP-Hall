@@ -2,7 +2,9 @@
 import { expect, test } from '@playwright/test';
 
 test('opening the app shows the power-on screen first, then the hall', async ({ page }) => {
-  await page.goto('/');
+  // The splash is in the HTML, so look as soon as it arrives: waiting for the page's load event
+  // races the 1.4 s first-visit hold on a busy machine.
+  await page.goto('/', { waitUntil: 'commit' });
   const splash = page.locator('#splash');
   await expect(splash).toBeVisible();
   await expect(splash).toContainText('PIXENDO');

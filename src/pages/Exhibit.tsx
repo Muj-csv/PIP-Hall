@@ -7,6 +7,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router';
+import { useAppearance } from '../app/appearanceContext';
 import { FlipBadge } from '../components/cards/BadgeStage';
 import { QrFullscreen } from '../components/cards/QrFullscreen';
 import { DialogueBox } from '../components/dialogue/DialogueBox';
@@ -20,6 +21,7 @@ import { useCards } from '../lib/useCards';
 import { usePassport } from '../lib/usePassport';
 import type { PublicCard } from '../types/card';
 import { DEFAULT_WINGS, relatedTo, wingPath, type Wing } from '../lib/wings';
+import { officerUsernames } from '../lib/officers';
 import { awardLabel, eventRoomPath, winnersOf, type MuseumEvent } from '../lib/events';
 import { Ribbon } from '../components/museum/Ribbon';
 import { ArchiveClaim } from '../components/museum/ArchiveClaim';
@@ -79,7 +81,9 @@ export default function Exhibit() {
   const makers = exhibit && cards.status === 'ready' ? makersOf(exhibit.username, exhibit.project, cards.cards) : [];
   const withNames = (exhibit?.project.collaborators ?? []).map((c) => c.full_name);
   const kind = exhibit ? consoleFor(exhibit.project_id, exhibit.console) : null;
-  const around = useMemo(() => (exhibit ? relatedTo(exhibit, wings, ordered) : { wings: [], related: [] }), [exhibit, wings, ordered]);
+  const { officers } = useAppearance();
+  const officerNames = useMemo(() => officerUsernames(officers), [officers]);
+  const around = useMemo(() => (exhibit ? relatedTo(exhibit, wings, ordered, 4, { officers: officerNames }) : { wings: [], related: [] }), [exhibit, wings, ordered, officerNames]);
   const rooms = useMemo(() => new Set(load.status === 'ready' ? load.events.map((e) => e.key) : []), [load]);
   // The events it was entered in, each with what it won (announced results only).
   const entries = useMemo(

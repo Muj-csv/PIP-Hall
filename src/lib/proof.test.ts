@@ -85,6 +85,11 @@ describe('proofOf', () => {
       { event_key: 'spring-hack', event: 'Spring Hackathon', place: null, name: 'Best UI', track: 'Health', project_id: 'k', title: 'Kite', at: '2026-10-12T10:00:00Z' },
     ]);
     expect(proofOf(bo, [ada, bo], null, [], [{ title: 'Kite', event: 'Spring Hackathon 2024', year: 2024 }]).map((l) => l.text)).toContain('Archive: credited on “Kite” (Spring Hackathon 2024).');
+    const seats = proofOf(bo, [ada, bo], null, [], [], [
+      { position: 'President', team: 'Officers 2026–27', current: true },
+      { position: null, team: 'Officers 2025–26', current: false },
+    ]).filter((l) => /fficer/.test(l.text));
+    expect(seats.map((l) => `${l.mark} ${l.text}`)).toEqual(['✓ Officer: President, Officers 2026–27.', '· Past officer: Officers 2025–26.']);
     expect(won.filter((l) => l.mark === '★').map((l) => l.text)).toEqual([
       '1st place at Spring Hackathon with “Kite”.',
       'Best UI · Health track at Spring Hackathon with “Kite”.',

@@ -34,6 +34,13 @@ describe('wings', () => {
     expect(inWing(web, wing('featured'))).toBe(false);
   });
 
+  it('fills the Officers’ Wing with exhibits made or co-made by a current officer', () => {
+    expect(inWing(team, wing('officers'))).toBe(false);
+    expect(inWing(team, wing('officers'), { officers: new Set(['x']) })).toBe(true);
+    expect(inWing(web, wing('officers'), { officers: new Set(['x']) })).toBe(false);
+    expect(inWing(web, wing('officers'), { officers: new Set([web.username]) })).toBe(true);
+  });
+
   it('shows only wings with something on show, in the curators’ order', () => {
     expect(wingRooms(DEFAULT_WINGS, all).map((r) => [r.wing.key, r.exhibits.length])).toEqual([
       ['featured', 1],

@@ -1,11 +1,14 @@
 // Admin → Affiliations (D-067): the labels admins give members, e.g. an organization or
-// "CS Student". One can grant Museum access. Names are data, so the code stays brand-neutral.
+// "CS Student". One can grant Museum access, or be an officers' team for a term (D-123). Names are
+// data, so the code stays brand-neutral.
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { affiliationKey, affiliationService, museumErrorMessage, museumService } from '../../services/museumService';
 import type { Affiliation, MuseumSummaryRow } from '../../types/museum';
 import { pipsEnabled } from '../../lib/features';
 import { martService } from '../../services/martService';
+import { officerErrorMessage, officerService } from '../../services/officerService';
+import { OfficerTeams } from './OfficerTeams';
 import { DialogueBox } from '../dialogue/DialogueBox';
 import { TextField, Toggle } from '../editor/fields';
 
@@ -88,8 +91,21 @@ export function AffiliationsManager({ onDone }: { onDone: (message: string) => v
               <li key={a.key} className="flex flex-wrap items-center gap-space-3">
                 <b>◆ {a.name}</b>
                 <span className="text-caption text-text-secondary">
-                  {[a.grants_museum ? 'Museum access' : null, a.frame_key === 'member' ? 'member frame' : null].filter(Boolean).join(' · ') || 'Label only'}
+                  {[a.grants_museum ? 'Museum access' : null, a.frame_key === 'member' ? 'member frame' : null, a.officers ? 'officers’ team' : null].filter(Boolean).join(' · ') || 'Label only'}
                 </span>
+                <button
+                  type="button"
+                  className="pixel-btn"
+                  disabled={busy}
+                  onClick={() =>
+                    void run(
+                      () => officerService.setTeam(a.key, !a.officers, a.term_ends ?? null).catch((e: unknown) => Promise.reject(new Error(officerErrorMessage(e)))),
+                      a.officers ? `${a.name} is no longer an officers’ team.` : `${a.name} is an officers’ team. Name its officers below.`,
+                    )
+                  }
+                >
+                  {a.officers ? 'Not an officers’ team' : 'Make it an officers’ team'}
+                </button>
                 <button
                   type="button"
                   className="pixel-btn"
@@ -132,6 +148,7 @@ export function AffiliationsManager({ onDone }: { onDone: (message: string) => v
           </ul>
         )}
       </section>
+      <OfficerTeams key={attempt} teams={list.filter((a) => a.officers)} onDone={(m) => onDone(m)} />
       <MuseumSummary reloadKey={attempt} />
       <form className="menu-panel" onSubmit={add} noValidate aria-labelledby="aff-new">
         <h2 id="aff-new" className="panel-title">

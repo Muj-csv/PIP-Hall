@@ -1,7 +1,7 @@
 // Every sprite is a clean rectangle and every pixel has a colour from the theme (D-079).
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { CONSOLE_KINDS, consoleArt, coverLayers, coverSprite, GEM_SPRITES, GEM_TONE_PALETTES, RIBBON_PALETTES, RIBBON_PIN_SPRITES, RIBBON_SPRITES, CARD_PALETTE, CLIP_PALETTE, DOODLE_PALETTE, FRAME_DOODLES, RANK_GEMS, SPR, WORLD_OVERRIDES, WORLD_PALETTE, type Palette, type SpriteMap } from './sprites';
+import { CONSOLE_KINDS, consoleArt, coverLayers, coverSprite, GEM_SPRITES, GEM_TONE_PALETTES, RIBBON_PALETTES, RIBBON_PIN_SPRITES, RIBBON_SPRITES, OFFICER_PIN, OFFICER_PIN_PALETTE, CARD_PALETTE, CLIP_PALETTE, DOODLE_PALETTE, FRAME_DOODLES, RANK_GEMS, SPR, WORLD_OVERRIDES, WORLD_PALETTE, type Palette, type SpriteMap } from './sprites';
 
 const theme = readFileSync(new URL('../styles/theme.css', import.meta.url), 'utf8');
 const CARD_SPRITES = new Set(['clip', 'flower', 'grass', 'iconCode', 'iconCase', 'iconGlobe', 'block']);
@@ -43,6 +43,8 @@ describe('sprites', () => {
       check(`ribbon-pin:${k}`, r, RIBBON_PALETTES[k as keyof typeof RIBBON_PALETTES]);
       expect(r.every((row) => row.length === 7)).toBe(true);
     }
+    check('officer-pin', OFFICER_PIN, OFFICER_PIN_PALETTE);
+    expect(Object.values(GEM_SPRITES).some((g) => g.join('/') === OFFICER_PIN.join('/'))).toBe(false);
     // Each place reads by its number, not its colour alone.
     expect(new Set(Object.values(RIBBON_SPRITES).map((r) => r.join('/'))).size).toBe(4);
     expect(new Set(Object.values(RIBBON_PIN_SPRITES).map((r) => r.join('/'))).size).toBe(4);
@@ -53,7 +55,7 @@ describe('sprites', () => {
   });
 
   it('every palette colour is a theme token', () => {
-    const palettes = [WORLD_PALETTE, CARD_PALETTE, DOODLE_PALETTE, CLIP_PALETTE, ...Object.values(WORLD_OVERRIDES), ...Object.values(FRAME_DOODLES).map((f) => f.palette), ...Object.values(RANK_GEMS).map((g) => g.palette), ...Object.values(GEM_TONE_PALETTES), ...Object.values(RIBBON_PALETTES)];
+    const palettes = [WORLD_PALETTE, CARD_PALETTE, DOODLE_PALETTE, CLIP_PALETTE, ...Object.values(WORLD_OVERRIDES), ...Object.values(FRAME_DOODLES).map((f) => f.palette), ...Object.values(RANK_GEMS).map((g) => g.palette), ...Object.values(GEM_TONE_PALETTES), ...Object.values(RIBBON_PALETTES), OFFICER_PIN_PALETTE];
     for (const p of palettes) for (const v of Object.values(p ?? {})) expect(theme, `${v} is in theme.css`).toContain(`${v}:`);
   });
 

@@ -1,5 +1,6 @@
 import { createContext, useContext } from 'react';
 import type { HallAward } from '../lib/events';
+import type { Officer } from '../lib/officers';
 import type { HallTitle } from '../lib/titles';
 import type { Appearance, Pin } from '../types/mart';
 
@@ -11,10 +12,22 @@ interface AppearanceValue {
   titleOf: (profileId: string) => HallTitle | null;
   /** Places and awards this member's projects won at hall events (D-116), newest first. */
   awardsOf: (profileId: string) => HallAward[];
+  /** Every officer on record, current terms first (D-123). */
+  officers: readonly Officer[];
+  /** This member's current officer seat, if any. */
+  officerOf: (profileId: string) => Officer | null;
   /** Reload after the member equips something. */
   refresh: () => void;
 }
 
-export const AppearanceContext = createContext<AppearanceValue>({ of: () => null, pinsOf: () => [], titleOf: () => null, awardsOf: () => [], refresh: () => undefined });
+export const AppearanceContext = createContext<AppearanceValue>({
+  of: () => null,
+  pinsOf: () => [],
+  titleOf: () => null,
+  awardsOf: () => [],
+  officers: [],
+  officerOf: () => null,
+  refresh: () => undefined,
+});
 
 export const useAppearance = () => useContext(AppearanceContext);

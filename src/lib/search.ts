@@ -2,6 +2,7 @@
 // loaded once and filtered in memory: one normalized haystack per card, every word must match.
 
 import type { PublicCard } from '../types/card';
+import { officerLabel, type Officer } from './officers';
 
 /** Lowercase, accents folded (José → jose), punctuation and runs of space collapsed. */
 export function normalize(s: string): string {
@@ -18,9 +19,11 @@ export interface Filters {
   department: string | null;
   skill: string | null;
   featured: boolean;
+  /** The Officers door (V2-10b, D-123): only the current officers, in their team's order. */
+  officers?: boolean;
 }
 
-export const NO_FILTERS: Filters = { q: '', department: null, skill: null, featured: false };
+export const NO_FILTERS: Filters = { q: '', department: null, skill: null, featured: false, officers: false };
 
 interface Indexed {
   card: PublicCard;
@@ -49,13 +52,15 @@ export function indexCards(cards: PublicCard[]): Indexed[] {
   });
 }
 
-/** Cards matching every filter, best matches first (then by member number). */
-export function search(index: Indexed[], f: Filters): PublicCard[] {
+/** Cards matching every filter, best matches first (then by member number). Through the Officers
+ *  door, the current officers only, in their seats unless a search ranks them. */
+export function search(index: Indexed[], f: Filters, officers: ReadonlyMap<string, Officer> = new Map()): PublicCard[] {
   const words = normalize(f.q).split(' ').filter(Boolean);
   const dept = f.department ? normalize(f.department) : null;
   const skill = f.skill ? normalize(f.skill) : null;
   const hits: { card: PublicCard; score: number }[] = [];
   for (const i of index) {
+    if (f.officers && !officers.has(i.card.profile_id)) continue;
     if (f.featured && !i.card.is_featured) continue;
     if (dept && i.department !== dept) continue;
     if (skill && !i.skills.has(skill)) continue;
@@ -71,7 +76,8 @@ export function search(index: Indexed[], f: Filters): PublicCard[] {
     }
     if (all) hits.push({ card: i.card, score });
   }
-  return hits.sort((a, b) => b.score - a.score || a.card.no - b.card.no).map((h) => h.card);
+  const seat = (c: PublicCard) => (f.officers ? (officers.get(c.profile_id)?.seat ?? 100) : 0);
+  return hits.sort((a, b) => b.score - a.score || seat(a.card) - seat(b.card) || a.card.no - b.card.no).map((h) => h.card);
 }
 
 export interface Facet {
@@ -104,9 +110,9 @@ export function randomCard(cards: PublicCard[], rand: () => number = Math.random
   return cards[Math.min(cards.length - 1, Math.floor(rand() * cards.length))] ?? null;
 }
 
-/** Filters <-> URL query (?q=&dept=&skill=&featured=1), so a search can be shared. */
+/** Filters <-> URL query (?q=&dept=&skill=&featured=1&officers=1), so a search can be shared. */
 export function filtersFromParams(p: URLSearchParams): Filters {
-  return { q: p.get('q') ?? '', department: p.get('dept') || null, skill: p.get('skill') || null, featured: p.get('featured') === '1' };
+  return { q: p.get('q') ?? '', department: p.get('dept') || null, skill: p.get('skill') || null, featured: p.get('featured') === '1', officers: p.get('officers') === '1' };
 }
 
 export function filtersToParams(f: Filters): URLSearchParams {
@@ -115,23 +121,25 @@ export function filtersToParams(f: Filters): URLSearchParams {
   if (f.department) p.set('dept', f.department);
   if (f.skill) p.set('skill', f.skill);
   if (f.featured) p.set('featured', '1');
+  if (f.officers) p.set('officers', '1');
   return p;
 }
 
 export function isFiltered(f: Filters): boolean {
-  return Boolean(f.q.trim() || f.department || f.skill || f.featured);
+  return Boolean(f.q.trim() || f.department || f.skill || f.featured || f.officers);
 }
 
 /**
  * Why a card matched (V2-2 "Why Pip picked"): one plain line per reason, from the card's own
  * published data. Empty when nothing is filtered. No scores, no guesses.
  */
-export function whyPicked(card: PublicCard, f: Filters): string[] {
+export function whyPicked(card: PublicCard, f: Filters, officer: Officer | null = null): string[] {
   const c = card.card;
   const reasons: string[] = [];
   const add = (r: string) => {
     if (!reasons.includes(r)) reasons.push(r);
   };
+  if (f.officers && officer) add(`${officerLabel(officer)}, named by the hall’s admins`);
   const has = (text: string | null | undefined, w: string) => Boolean(text && normalize(text).includes(w));
   for (const w of normalize(f.q).split(' ').filter(Boolean)) {
     const skill = (c.skills ?? []).find((s) => has(s, w));

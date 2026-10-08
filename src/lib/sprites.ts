@@ -364,6 +364,12 @@ export const RIBBON_PALETTES: Readonly<Record<'p1' | 'p2' | 'p3' | 'award', Pale
   award: { ...tails, m: '--color-card-sky', h: '--color-card-cream' },
 };
 
+// ---------------------------------------------------------------- officer pin (D-123)
+// A current officer's pin: a double chevron, a shape no admin-made badge or ribbon uses, in plum
+// with a cream highlight. Decorative: the position is said in words beside it.
+export const OFFICER_PIN: SpriteMap = ['k.....k', 'kk...kk', 'khk.khk', 'kmhkhmk', '.kmhmk.', 'k.kmk.k', 'kk.k.kk', 'khk.khk', '.kmkmk.', '..kmk..', '...k...'];
+export const OFFICER_PIN_PALETTE: Palette = { k: '--color-card-ink', m: '--color-card-plum', h: '--color-card-cream' };
+
 // ---------------------------------------------------------------- Museum consoles (D-091)
 // Five original PIXENDO consoles that hold an exhibit's screen. They are drawn here from simple
 // shapes (rounded bodies, discs, slits) so every outline and bevel follows one rule; none copies a

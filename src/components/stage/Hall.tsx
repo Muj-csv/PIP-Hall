@@ -5,6 +5,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router';
+import { useAppearance } from '../../app/appearanceContext';
 import { memberPath } from '../../lib/publicUrl';
 import { slotLook, slotX } from '../../lib/carousel';
 import { cssVarReader } from '../../lib/sprites';
@@ -44,6 +45,7 @@ import { HallSearch } from './HallSearch';
 import { Hud } from './Hud';
 import { MissionsPanel } from './MissionsPanel';
 import { density } from '../../lib/network';
+import { currentByMember } from '../../lib/officers';
 import { useSession } from '../../app/sessionContext';
 import { SeasonPanel } from './SeasonPanel';
 import { recentAvailable, RecentStrip } from './RecentStrip';
@@ -82,15 +84,18 @@ export function Hall({ profile = null, passport = false }: HallProps) {
   const query = params.toString();
   const filters = useMemo(() => filtersFromParams(new URLSearchParams(query)), [query]);
   const searchIndex = useMemo(() => indexCards(all), [all]);
+  // The Officers door (V2-10b, D-123): the current officers, in their seats.
+  const { officers: officerList } = useAppearance();
+  const seats = useMemo(() => currentByMember(officerList), [officerList]);
   const options = useMemo(() => facets(all), [all]);
   const cards = useMemo(() => {
     if (!isFiltered(filters)) return all;
-    const hits = search(searchIndex, filters);
+    const hits = search(searchIndex, filters, seats);
     // A shared /member link with filters that leave that member out still shows them.
     const want = profile?.toLowerCase();
     if (want && !hits.some((c) => c.username === want) && all.some((c) => c.username === want)) return all;
     return hits;
-  }, [all, searchIndex, filters, profile]);
+  }, [all, searchIndex, filters, profile, seats]);
   const count = cards.length;
   const setFilters = useCallback((patch: Partial<Filters>) => setParams(filtersToParams({ ...filters, ...patch }), { replace: true }), [filters, setParams]);
   const clearFilters = useCallback(() => setParams(filtersToParams(NO_FILTERS), { replace: true }), [setParams]);
@@ -637,6 +642,7 @@ export function Hall({ profile = null, passport = false }: HallProps) {
         current={mode === 'level' ? current : undefined}
         onPick={pickResult}
         mapOpen={mapOpen}
+        officers={seats}
         options={options}
         shown={count}
         total={all.length}

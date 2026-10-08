@@ -54,7 +54,9 @@ export function ProfileScreen({ card, onBack, onShowQr, reward = null, hall = []
       on = false;
     };
   }, [card.username]);
-  const proof = useMemo(() => proofOf(card, hall, titles, awards, past), [card, hall, titles, awards, past]);
+  // Their officer seats, current and past (D-123).
+  const seats = useMemo(() => look.officers.filter((o) => o.profile_id === card.profile_id), [look.officers, card.profile_id]);
+  const proof = useMemo(() => proofOf(card, hall, titles, awards, past, seats), [card, hall, titles, awards, past, seats]);
   useEffect(() => back.current?.focus(), []);
   // Opened from a badge's QR (?via=qr): greet the finder once, then tidy the address (V2-1).
   const [params, setParams] = useSearchParams();
@@ -94,12 +96,17 @@ export function ProfileScreen({ card, onBack, onShowQr, reward = null, hall = []
         {c.tagline && <p className="m-0">{c.tagline}</p>}
         {affiliations.length > 0 && (
           <ul className="powerup-list affiliation-list" aria-label="Affiliations">
-            {affiliations.map((a) => (
-              <li key={a.key}>
-                <span aria-hidden="true">◆ </span>
-                {a.name}
-              </li>
-            ))}
+            {affiliations.map((a) => {
+              const seat = seats.find((o) => o.team_key === a.key);
+              return (
+                <li key={a.key} data-officer={seat ? (seat.current ? 'current' : 'past') : undefined}>
+                  <span aria-hidden="true">{seat ? '» ' : '◆ '}</span>
+                  {a.name}
+                  {seat?.position && ` · ${seat.position}`}
+                  {seat && !seat.current && ' (past)'}
+                </li>
+              );
+            })}
           </ul>
         )}
         {achievements.length > 0 && (

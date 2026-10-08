@@ -112,7 +112,8 @@ function WingEditor({ wing, busy, onSave, onRemove }: { wing: AdminWing; busy: b
   const [open, setOpen] = useState(wing.active);
   const [confirm, setConfirm] = useState(false);
   const changed = name !== wing.name || note !== wing.note || tags !== wing.tags.join(', ') || open !== wing.active;
-  const rule = wing.kind === 'featured' ? 'Holds exhibits by featured members.' : wing.kind === 'collab' ? 'Holds team projects.' : null;
+  const rule =
+    wing.kind === 'featured' ? 'Holds exhibits by featured members.' : wing.kind === 'collab' ? 'Holds team projects.' : wing.kind === 'officers' ? 'Holds exhibits by the current officers.' : null;
   return (
     <div className="menu-panel" aria-label={wing.name}>
       <TextField field={`wing-${wing.key}-name`} label="Name" max={30} value={name} onChange={setName} />

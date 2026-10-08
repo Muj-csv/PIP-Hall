@@ -11,6 +11,9 @@ export interface Affiliation {
   grants_museum: boolean;
   frame_key: string | null;
   sort: number;
+  /** An officers' team for one term (V2-10b, D-123), and the day that term ends. */
+  officers?: boolean;
+  term_ends?: string | null;
 }
 
 export interface Exhibit {
