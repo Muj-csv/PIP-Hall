@@ -1,7 +1,7 @@
 // Every sprite is a clean rectangle and every pixel has a colour from the theme (D-079).
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { CONSOLE_KINDS, consoleArt, coverLayers, coverSprite, GEM_SPRITES, GEM_TONE_PALETTES, CARD_PALETTE, CLIP_PALETTE, DOODLE_PALETTE, FRAME_DOODLES, RANK_GEMS, SPR, WORLD_OVERRIDES, WORLD_PALETTE, type Palette, type SpriteMap } from './sprites';
+import { CONSOLE_KINDS, consoleArt, coverLayers, coverSprite, GEM_SPRITES, GEM_TONE_PALETTES, RIBBON_PALETTES, RIBBON_PIN_SPRITES, RIBBON_SPRITES, CARD_PALETTE, CLIP_PALETTE, DOODLE_PALETTE, FRAME_DOODLES, RANK_GEMS, SPR, WORLD_OVERRIDES, WORLD_PALETTE, type Palette, type SpriteMap } from './sprites';
 
 const theme = readFileSync(new URL('../styles/theme.css', import.meta.url), 'utf8');
 const CARD_SPRITES = new Set(['clip', 'flower', 'grass', 'iconCode', 'iconCase', 'iconGlobe', 'block']);
@@ -35,6 +35,17 @@ describe('sprites', () => {
     expect(Object.keys(GEM_SPRITES).sort()).toEqual(['bolt', 'circle', 'crown', 'diamond', 'heart', 'leaf', 'shield', 'star']);
     expect(Object.keys(GEM_TONE_PALETTES).sort()).toEqual(['gold', 'green', 'plum', 'red', 'silver', 'sky']);
     for (const [name, g] of Object.entries(GEM_SPRITES)) for (const [tone, p] of Object.entries(GEM_TONE_PALETTES)) check(`gem:${name}:${tone}`, g, p);
+    for (const [k, r] of Object.entries(RIBBON_SPRITES)) {
+      check(`ribbon:${k}`, r, RIBBON_PALETTES[k as keyof typeof RIBBON_PALETTES]);
+      expect(r.every((row) => row.length === 9)).toBe(true);
+    }
+    for (const [k, r] of Object.entries(RIBBON_PIN_SPRITES)) {
+      check(`ribbon-pin:${k}`, r, RIBBON_PALETTES[k as keyof typeof RIBBON_PALETTES]);
+      expect(r.every((row) => row.length === 7)).toBe(true);
+    }
+    // Each place reads by its number, not its colour alone.
+    expect(new Set(Object.values(RIBBON_SPRITES).map((r) => r.join('/'))).size).toBe(4);
+    expect(new Set(Object.values(RIBBON_PIN_SPRITES).map((r) => r.join('/'))).size).toBe(4);
   });
 
   it('rank gems are rectangles with their own palette', () => {
@@ -42,7 +53,7 @@ describe('sprites', () => {
   });
 
   it('every palette colour is a theme token', () => {
-    const palettes = [WORLD_PALETTE, CARD_PALETTE, DOODLE_PALETTE, CLIP_PALETTE, ...Object.values(WORLD_OVERRIDES), ...Object.values(FRAME_DOODLES).map((f) => f.palette), ...Object.values(RANK_GEMS).map((g) => g.palette), ...Object.values(GEM_TONE_PALETTES)];
+    const palettes = [WORLD_PALETTE, CARD_PALETTE, DOODLE_PALETTE, CLIP_PALETTE, ...Object.values(WORLD_OVERRIDES), ...Object.values(FRAME_DOODLES).map((f) => f.palette), ...Object.values(RANK_GEMS).map((g) => g.palette), ...Object.values(GEM_TONE_PALETTES), ...Object.values(RIBBON_PALETTES)];
     for (const p of palettes) for (const v of Object.values(p ?? {})) expect(theme, `${v} is in theme.css`).toContain(`${v}:`);
   });
 

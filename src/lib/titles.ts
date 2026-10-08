@@ -12,6 +12,7 @@ export const TITLES = [
   { key: 'connector', name: 'Connector', rule: 'Credited on a team project with another member.' },
   { key: 'curator', name: 'Curator', rule: 'Has 3 projects on show in the Museum.' },
   { key: 'pathfinder', name: 'Pathfinder', rule: 'Completed 10 Missions.' },
+  { key: 'champion', name: 'Champion', rule: 'Made a project that won a place or an award at a hall event.' },
 ] as const;
 
 export type TitleKey = (typeof TITLES)[number]['key'];

@@ -15,12 +15,15 @@ import {
   DOODLE_PALETTE,
   FRAME_DOODLES,
   GEM_SPRITES,
+  RIBBON_PALETTES,
+  RIBBON_PIN_SPRITES,
   GEM_TONE_PALETTES,
   RANK_GEMS,
   SPR,
 } from "../../lib/sprites";
 import { frameStyleVars, isFrameStyle } from "../../lib/rewards";
 import type { Pin } from "../../types/mart";
+import { awardLabel, ribbonOf, type HallAward } from "../../lib/events";
 import { rankOf, type Rank } from "../../lib/rank";
 import { placeStickers } from "../../lib/stickers";
 import { memberQrUrl, serialFor } from "../../lib/publicUrl";
@@ -57,6 +60,10 @@ interface Props {
 const FrameContext = createContext<Appearance | null>(null);
 /** Admin-made badges pinned on the band (D-087). */
 const PinsContext = createContext<Pin[]>([]);
+/** Ribbons for places and awards won at hall events (D-116), newest first. */
+const RibbonsContext = createContext<HallAward[]>([]);
+/** At most this many ribbons ride the strip; the profile's Proof panel lists them all. */
+const MAX_RIBBONS = 2;
 
 export function MemberCard({
   card,
@@ -75,6 +82,7 @@ export function MemberCard({
   const worn = appearances.of(card.profile_id);
   const look = appearance === undefined ? worn : appearance;
   const pins = appearances.pinsOf(card.profile_id);
+  const ribbons = appearances.awardsOf(card.profile_id);
   const titled = title === undefined ? appearances.titleOf(card.profile_id) : title;
   // A border designed in /admin (D-087) draws as 'custom' with its tones as CSS variables.
   const designed = look?.style && isFrameStyle(look.style) ? look.style : null;
@@ -90,6 +98,7 @@ export function MemberCard({
   return (
     <FrameContext.Provider value={look}>
       <PinsContext.Provider value={pins}>
+      <RibbonsContext.Provider value={ribbons}>
       <div
         className="badge"
         data-flipped={flipped}
@@ -133,6 +142,7 @@ export function MemberCard({
           <CardBack card={card} tab={tab} onOpen={onOpen} />
         </div>
       </div>
+      </RibbonsContext.Provider>
       </PinsContext.Provider>
     </FrameContext.Provider>
   );
@@ -141,6 +151,7 @@ export function MemberCard({
 function Holder({ children }: { children: React.ReactNode }) {
   const look = useContext(FrameContext);
   const pins = useContext(PinsContext);
+  const ribbons = useContext(RibbonsContext).slice(0, MAX_RIBBONS);
   const designedDoodle = look?.style && isFrameStyle(look.style) ? look.style.doodle : null;
   const ornament = designedDoodle ? (designedDoodle === "none" ? undefined : FRAME_DOODLES[designedDoodle]) : look ? FRAME_DOODLES[look.frame] : undefined;
   // A perk frame prints its affiliation (e.g. ACM MEMBER) where the holder says PIXENDO.
@@ -148,9 +159,20 @@ function Holder({ children }: { children: React.ReactNode }) {
   return (
     <div className="holder">
       <span className="hole" />
-      {pins.length > 0 && (
-        // Admin-made badges (D-087) ride the holder's top strip like enamel pins beside the clip.
+      {pins.length + ribbons.length > 0 && (
+        // Admin-made badges (D-087) ride the holder's top strip like enamel pins beside the clip,
+        // after the ribbons won at hall events (D-116).
         <span className="holder-pins" role="list" aria-label="Badges">
+          {ribbons.map((a) => {
+            const label = `${awardLabel(a)} at ${a.event}`;
+            const kind = ribbonOf(a);
+            return (
+              <span key={`${a.event_key}-${a.place ?? a.name}-${a.track ?? ""}`} role="listitem" title={label}>
+                <SpriteCanvas sprite={RIBBON_PIN_SPRITES[kind]} palette={RIBBON_PALETTES[kind]} className="pin-ribbon" />
+                <span className="sr-only">{label}</span>
+              </span>
+            );
+          })}
           {pins.map((p) => (
             <span key={p.key} role="listitem" title={p.name}>
               <SpriteCanvas sprite={GEM_SPRITES[p.gem] ?? GEM_SPRITES.star!} palette={GEM_TONE_PALETTES[p.tone] ?? GEM_TONE_PALETTES.gold!} className="pin-gem" />

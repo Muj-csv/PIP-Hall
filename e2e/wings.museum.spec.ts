@@ -40,7 +40,7 @@ const boot = (page: Page) =>
     sessionStorage.setItem('piphall-booted', '1');
     sessionStorage.setItem('piphall-splash', '1');
   });
-const doors = (page: Page) => page.getByRole('navigation', { name: 'Wings' }).getByRole('link');
+const doors = (page: Page) => page.getByRole('navigation', { name: 'Rooms' }).getByRole('link');
 
 test('visitors walk through the wings: doors, rooms, curator notes, and paths on', async ({ page }) => {
   const db = hall();
@@ -51,7 +51,7 @@ test('visitors walk through the wings: doors, rooms, curator notes, and paths on
   // Only wings with something on show have a door (no Featured: nobody is featured).
   await expect(doors(page)).toHaveText([/All exhibits/, /Collab Wing\s*1 exhibit/, /Web Wing\s*1 exhibit/, /Games Wing\s*1 exhibit/, /Data Wing\s*1 exhibit/]);
   await expect(doors(page).first()).toHaveAttribute('aria-current', 'page');
-  await page.getByRole('navigation', { name: 'Wings' }).screenshot({ path: 'docs/build/evidence/wings/doors.png' });
+  await page.getByRole('navigation', { name: 'Rooms' }).screenshot({ path: 'docs/build/evidence/wings/doors.png' });
 
   await doors(page).filter({ hasText: 'Web Wing' }).click();
   await expect(page).toHaveURL(/\/museum\?wing=web$/);

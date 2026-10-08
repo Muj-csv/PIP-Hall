@@ -53,8 +53,13 @@ export interface MockDb {
    *  museum_wings() answers as if the wings update hasn't run yet (PGRST202). */
   wings?: Row[];
   /** V2-7 (D-103): scheduled events ({key, name, blurb, starts_on, ends_on, mission, frame,
-   *  counts}). Left undefined, current_season() answers as if the events update hasn't run. */
+   *  counts}). Left undefined, current_season() answers as if the events update hasn't run.
+   *  V2-9 (D-115) adds {kind, tracks, submissions_close, results_at, announced_at}. */
   seasons?: Row[];
+  /** V2-9 (D-115, D-116): entries {season_key, project_id, member_id, track, submitted_at} and
+   *  awards {id, season_key, project_id, place, name, track, note}. */
+  submissions?: Row[];
+  awards?: Row[];
 }
 
 /** The wings the wings migration seeds (no notes: the curators write those). */
@@ -78,7 +83,7 @@ export const PLATE_ITEMS = [
   { key: 'plate-silver', kind: 'plate', name: 'Silver Plate', description: 'Your title on bright silver.', price: 300, sort: 51, style: { plate: 'metal-hi', ink: 'ink' } },
   { key: 'plate-plum', kind: 'plate', name: 'Plum Enamel Plate', description: 'Your title in cream on plum enamel.', price: 450, sort: 52, style: { plate: 'plum', ink: 'cream' } },
 ];
-const TITLE_KEYS = ['card_holder', 'pioneer', 'explorer', 'connector', 'curator', 'pathfinder'];
+const TITLE_KEYS = ['card_holder', 'pioneer', 'explorer', 'connector', 'curator', 'pathfinder', 'champion'];
 
 const perkLabel = (name: string) => (/(^| )MEMBER$/.test(name.trim().toUpperCase()) ? name.trim().toUpperCase() : `${name.trim().toUpperCase()} MEMBER`);
 
@@ -507,15 +512,164 @@ export async function handleDb(route: Route, db: MockDb, user: DbUser): Promise<
   // ---- V2-7 events (mirrors 20261006001000_seasons.sql). Dates are compared on the hall's calendar.
   const manilaToday = () => new Date(Date.now() + 8 * 3600_000).toISOString().slice(0, 10);
   const liveSeason = () => (db.seasons ?? []).find((x) => String(x.starts_on) <= manilaToday() && manilaToday() <= String(x.ends_on));
+  // V2-9 (mirrors 20261007000000_hackathons.sql): an event's phase, its entries still on a card, its makers.
+  const opensAt = (x: Row) => Date.parse(`${String(x.starts_on)}T00:00:00+08:00`);
+  const kindOf = (x: Row) => String(x.kind ?? 'event');
+  const phaseOf = (x: Row) => {
+    const now = Date.now();
+    if (now < opensAt(x)) return 'upcoming';
+    if (kindOf(x) === 'event') return String(x.ends_on) >= manilaToday() ? 'live' : 'over';
+    if (x.announced_at) return 'results';
+    return now < Date.parse(String(x.submissions_close)) ? 'open' : 'judging';
+  };
+  const withPhase = (x: Row, counts: boolean) => ({
+    kind: 'event', tracks: [], submissions_close: null, results_at: null, announced_at: null, ...x, phase: phaseOf(x),
+    counts: counts ? { ...((x.counts as Row | undefined) ?? { joined: 0, projects: 0, exhibits: 0, teamups: 0 }), submissions: (db.submissions ?? []).filter((r) => r.season_key === x.key).length } : null,
+  });
+  const cardProject = (memberId: unknown, projectId: unknown) => {
+    const c = db.published.find((r) => r.profile_id === memberId);
+    return c ? { c, p: (((c.card as Row).projects as Row[] | undefined) ?? []).find((p) => p.id === projectId) } : null;
+  };
+  const entriesOf = (key: unknown) =>
+    (db.submissions ?? [])
+      .filter((r) => r.season_key === key)
+      .flatMap((r) => {
+        const at = cardProject(r.member_id, r.project_id);
+        if (!at?.p) return [];
+        const card = at.c.card as Row;
+        return [{ project_id: r.project_id, username: at.c.username, full_name: card.full_name, avatar_path: card.avatar_path ?? null, member_no: at.c.member_no, featured: at.c.is_featured, console: null, track: r.track ?? null, project: at.p }];
+      });
+  const makersOf = (a: Row) => {
+    const sub = (db.submissions ?? []).find((r) => r.season_key === a.season_key && r.project_id === a.project_id);
+    const at = sub ? cardProject(sub.member_id, a.project_id) : null;
+    if (!at?.p) return [];
+    const credited = ((at.p.collaborators as Row[] | undefined) ?? []).flatMap((m) => db.published.filter((r) => r.username === m.username).map((r) => r.profile_id));
+    return [...new Set([at.c.profile_id, ...credited])].map((id) => ({ id, title: at.p!.title }));
+  };
   if (url.pathname === '/rest/v1/rpc/current_season') {
     if (!db.seasons) return (await err(404, 'PGRST202', 'Could not find the function public.current_season in the schema cache')), true;
     const live = liveSeason();
     const next = db.seasons.filter((x) => String(x.starts_on) > manilaToday()).sort((a, b) => String(a.starts_on).localeCompare(String(b.starts_on)))[0];
-    return (await json(200, { live: live ?? null, next: next ? { ...next, counts: null } : null })), true;
+    const results = db.seasons.filter((x) => x.announced_at && Date.now() - Date.parse(String(x.announced_at)) < 7 * 86400_000).sort((a, b) => String(b.announced_at).localeCompare(String(a.announced_at)))[0];
+    return (await json(200, { live: live ? withPhase(live, true) : null, next: next ? withPhase(next, false) : null, results: results ? withPhase(results, false) : null })), true;
   }
   if (url.pathname === '/rest/v1/rpc/my_season') {
     const live = liveSeason();
-    return (await json(200, { eligible: inHall(userId), done: Boolean(live && (db.missionCompletions ?? []).some((r) => r.member_id === userId && r.key === `season:${live.key}`)) })), true;
+    const mine = live ? (db.submissions ?? []).find((r) => r.season_key === live.key && r.member_id === userId) : undefined;
+    return (await json(200, {
+      eligible: inHall(userId),
+      done: Boolean(live && (db.missionCompletions ?? []).some((r) => r.member_id === userId && r.key === `season:${live.key}`)),
+      submission: mine ? { project_id: mine.project_id, track: mine.track ?? null } : null,
+    })), true;
+  }
+  if (url.pathname === '/rest/v1/rpc/museum_events') {
+    if (!db.seasons) return (await err(404, 'PGRST202', 'Could not find the function public.museum_events in the schema cache')), true;
+    const out = db.seasons
+      .filter((x) => kindOf(x) !== 'event' && Date.now() >= opensAt(x))
+      .sort((a, b) => String(b.starts_on).localeCompare(String(a.starts_on)))
+      .map((x) => ({
+        ...withPhase(x, false),
+        entries: entriesOf(x.key),
+        awards: x.announced_at ? (db.awards ?? []).filter((a) => a.season_key === x.key).map(({ id, place, name, track, note, project_id }) => ({ id, place, name, track, note, project_id })) : [],
+      }));
+    return (await json(200, out)), true;
+  }
+  if (url.pathname === '/rest/v1/rpc/hall_awards') {
+    if (!db.seasons) return (await err(404, 'PGRST202', 'Could not find the function public.hall_awards in the schema cache')), true;
+    const by = new Map<unknown, Row[]>();
+    for (const a of db.awards ?? []) {
+      const ev = db.seasons.find((x) => x.key === a.season_key);
+      if (!ev?.announced_at) continue;
+      for (const m of makersOf(a)) by.set(m.id, [...(by.get(m.id) ?? []), { event_key: ev.key, event: ev.name, place: a.place ?? null, name: a.name ?? null, track: a.track ?? null, project_id: a.project_id, title: m.title, at: ev.announced_at }]);
+    }
+    return (await json(200, [...by].map(([profile_id, awards]) => ({ profile_id, awards })))), true;
+  }
+  if (url.pathname === '/rest/v1/rpc/submit_to_event' || url.pathname === '/rest/v1/rpc/withdraw_from_event') {
+    if (!inHall(userId)) return (await err(400, 'P0001', 'NOT_ELIGIBLE')), true;
+    const b = body() as { p_key: string; p_project?: string; p_track?: string | null };
+    const ev = (db.seasons ?? []).find((x) => x.key === b.p_key && kindOf(x) !== 'event');
+    if (!ev) return (await err(400, 'P0001', 'NO_SUCH_EVENT')), true;
+    if (phaseOf(ev) !== 'open') return (await err(400, 'P0001', 'SUBMISSIONS_CLOSED')), true;
+    db.submissions ??= [];
+    const mine = db.submissions.find((r) => r.season_key === b.p_key && r.member_id === userId);
+    if (url.pathname.endsWith('withdraw_from_event')) {
+      if (!mine) return (await err(400, 'P0001', 'NOT_SUBMITTED')), true;
+      db.submissions = db.submissions.filter((r) => r !== mine);
+      return (await json(200, null)), true;
+    }
+    if (!cardProject(userId, b.p_project)?.p) return (await err(400, 'P0001', 'NOT_LIVE')), true;
+    const tracks = (ev.tracks as string[] | undefined) ?? [];
+    const t = b.p_track?.trim() || null;
+    if ((tracks.length && (!t || !tracks.includes(t))) || (!tracks.length && t)) return (await err(400, 'P0001', 'BAD_TRACK')), true;
+    if (mine && mine.project_id !== b.p_project) return (await err(400, 'P0001', 'ONE_PER_EVENT')), true;
+    if (mine) mine.track = t;
+    else db.submissions.push({ season_key: b.p_key, project_id: b.p_project, member_id: userId, track: t, submitted_at: new Date().toISOString() });
+    return (await json(200, { project_id: b.p_project, track: t })), true;
+  }
+  if (url.pathname === '/rest/v1/rpc/admin_event_results') {
+    if (!admin) return (await err(403, '42501', 'NOT_ADMIN')), true;
+    const { p_key } = body() as { p_key: string };
+    const ev = (db.seasons ?? []).find((x) => x.key === p_key);
+    const entries = (db.submissions ?? [])
+      .filter((r) => r.season_key === p_key)
+      .map((r) => {
+        const at = cardProject(r.member_id, r.project_id);
+        return { project_id: r.project_id, title: at?.p?.title ?? null, username: at?.c.username ?? '', full_name: (at?.c.card as Row | undefined)?.full_name ?? '', track: r.track ?? null, submitted_at: r.submitted_at, on_card: Boolean(at?.p) };
+      });
+    return (await json(200, { announced_at: ev?.announced_at ?? null, entries, awards: (db.awards ?? []).filter((a) => a.season_key === p_key) })), true;
+  }
+  if (url.pathname === '/rest/v1/rpc/admin_save_award') {
+    if (!admin) return (await err(403, '42501', 'NOT_ADMIN')), true;
+    const b = body() as { p_key: string; p_project: string; p_place: number | null; p_name: string | null; p_track: string | null; p_note: string };
+    const ev = (db.seasons ?? []).find((x) => x.key === b.p_key);
+    if (!ev) return (await err(400, 'P0001', 'NO_SUCH_EVENT')), true;
+    if (ev.announced_at) return (await err(400, 'P0001', 'ALREADY_ANNOUNCED')), true;
+    if (phaseOf(ev) !== 'judging') return (await err(400, 'P0001', 'STILL_OPEN')), true;
+    const name = b.p_name?.trim() || null;
+    if ((b.p_place == null) === (name == null)) return (await err(400, 'P0001', 'BAD_AWARD')), true;
+    const sub = (db.submissions ?? []).find((r) => r.season_key === b.p_key && r.project_id === b.p_project);
+    if (!sub) return (await err(400, 'P0001', 'NOT_SUBMITTED')), true;
+    if (b.p_track && sub.track !== b.p_track) return (await err(400, 'P0001', 'BAD_TRACK')), true;
+    db.awards ??= [];
+    const same = (a: Row) => a.season_key === b.p_key && (a.track ?? null) === (b.p_track ?? null);
+    if (db.awards.some((a) => same(a) && ((b.p_place != null && a.place === b.p_place) || (name && String(a.name ?? '').toLowerCase() === name.toLowerCase()) || (b.p_place != null && a.place != null && a.project_id === b.p_project))))
+      return (await err(400, 'P0001', 'AWARD_TAKEN')), true;
+    const id = (db.awards.reduce((m, a) => Math.max(m, Number(a.id)), 0) || 0) + 1;
+    db.awards.push({ id, season_key: b.p_key, project_id: b.p_project, place: b.p_place, name, track: b.p_track || null, note: (b.p_note ?? '').trim() });
+    return (await json(200, id)), true;
+  }
+  if (url.pathname === '/rest/v1/rpc/admin_award_note' || url.pathname === '/rest/v1/rpc/admin_delete_award') {
+    if (!admin) return (await err(403, '42501', 'NOT_ADMIN')), true;
+    const b = body() as { p_id: number; p_note?: string };
+    const a = (db.awards ?? []).find((x) => x.id === b.p_id);
+    if (!a) return (await err(400, 'P0001', 'NO_SUCH_AWARD')), true;
+    if (url.pathname.endsWith('admin_award_note')) a.note = (b.p_note ?? '').trim();
+    else {
+      if ((db.seasons ?? []).find((x) => x.key === a.season_key)?.announced_at) return (await err(400, 'P0001', 'ALREADY_ANNOUNCED')), true;
+      db.awards = db.awards!.filter((x) => x !== a);
+    }
+    return (await json(200, null)), true;
+  }
+  if (url.pathname === '/rest/v1/rpc/admin_announce_results') {
+    if (!admin) return (await err(403, '42501', 'NOT_ADMIN')), true;
+    const { p_key } = body() as { p_key: string };
+    const ev = (db.seasons ?? []).find((x) => x.key === p_key);
+    if (!ev) return (await err(400, 'P0001', 'NO_SUCH_EVENT')), true;
+    if (ev.announced_at) return (await err(400, 'P0001', 'ALREADY_ANNOUNCED')), true;
+    if (phaseOf(ev) !== 'judging') return (await err(400, 'P0001', 'STILL_OPEN')), true;
+    const won = (db.awards ?? []).filter((a) => a.season_key === p_key);
+    if (!won.length) return (await err(400, 'P0001', 'NO_AWARDS')), true;
+    ev.announced_at = new Date().toISOString();
+    let makers = 0;
+    let id = 900_000 + (db.notifications?.length ?? 0) * 10;
+    db.recentEvents?.unshift({ id: ++id, type: 'RESULTS_ANNOUNCED', at: ev.announced_at, username: null, full_name: null, title: null, project_id: null, with_username: null, with_name: null, event_key: ev.key, event: ev.name });
+    for (const a of won)
+      for (const m of makersOf(a)) {
+        makers++;
+        db.notifications?.push({ recipient: m.id, id: ++id, type: 'AWARD_WON', at: ev.announced_at, target_type: 'project', target_id: a.project_id, title: m.title, note: null, event: ev.name, place: a.place ?? null, award: a.name ?? null, track: a.track ?? null, by_username: null, by_name: null });
+        if (db.identity) (db.earned ??= {})[String(m.id)] = [...new Set([...(db.earned?.[String(m.id)] ?? ['card_holder']), 'champion'])];
+      }
+    return (await json(200, { announced_at: ev.announced_at, makers })), true;
   }
   if (url.pathname === '/rest/v1/rpc/complete_season_mission') {
     if (!inHall(userId)) return (await err(400, 'P0001', 'NOT_ELIGIBLE')), true;
@@ -535,12 +689,24 @@ export async function handleDb(route: Route, db: MockDb, user: DbUser): Promise<
   if (url.pathname === '/rest/v1/rpc/admin_seasons') {
     if (!admin) return (await err(403, '42501', 'NOT_ADMIN')), true;
     const t = manilaToday();
-    return (await json(200, (db.seasons ?? []).map((x) => ({ ...x, counts: null, state: String(x.ends_on) < t ? 'over' : String(x.starts_on) > t ? 'upcoming' : 'live' })))), true;
+    return (await json(200, (db.seasons ?? []).map((x) => ({
+      ...withPhase(x, false), state: String(x.ends_on) < t ? 'over' : String(x.starts_on) > t ? 'upcoming' : 'live',
+      entries: (db.submissions ?? []).filter((r) => r.season_key === x.key).length, award_count: (db.awards ?? []).filter((a) => a.season_key === x.key).length,
+    })))), true;
   }
   if (url.pathname === '/rest/v1/rpc/admin_save_season') {
     if (!admin) return (await err(403, '42501', 'NOT_ADMIN')), true;
-    const b = body() as { p_key: string; p_name: string; p_blurb: string; p_starts: string; p_ends: string; p_kind: string | null; p_param: string | null; p_n: number | null; p_reward: number | null; p_frame: string | null };
+    const b = body() as { p_key: string; p_name: string; p_blurb: string; p_starts: string; p_ends: string; p_kind: string | null; p_param: string | null; p_n: number | null; p_reward: number | null; p_frame: string | null; p_event?: string; p_tracks?: string[]; p_close?: string | null; p_results?: string | null };
+    if (!('p_event' in b)) return (await err(404, 'PGRST202', 'Could not find the function public.admin_save_season in the schema cache')), true;
     if (!b.p_starts || !b.p_ends || b.p_ends < b.p_starts) return (await err(400, 'P0001', 'BAD_DATES')), true;
+    const ev = b.p_event ?? 'event';
+    const tracks = ev === 'event' ? [] : (b.p_tracks ?? []).map((t) => t.trim()).filter(Boolean);
+    if (tracks.length > 6 || tracks.some((t) => t.length < 2 || t.length > 30) || new Set(tracks.map((t) => t.toLowerCase())).size !== tracks.length) return (await err(400, 'P0001', 'BAD_TRACKS')), true;
+    const from = Date.parse(`${b.p_starts}T00:00:00+08:00`);
+    const to = Date.parse(`${b.p_ends}T00:00:00+08:00`) + 86400_000;
+    const close = b.p_close ? Date.parse(b.p_close) : NaN;
+    const results = b.p_results ? Date.parse(b.p_results) : NaN;
+    if (ev !== 'event' && !(close > from && close <= to && results >= close && results <= to)) return (await err(400, 'P0001', 'BAD_SCHEDULE')), true;
     db.seasons ??= [];
     if (db.seasons.some((x) => x.key !== b.p_key && !(String(x.ends_on) < b.p_starts || String(x.starts_on) > b.p_ends))) return (await err(400, 'P0001', 'OVERLAP')), true;
     if (b.p_kind && (b.p_reward == null || b.p_reward < 5 || b.p_reward > 200)) return (await err(400, 'P0001', 'BAD_REWARD')), true;
@@ -550,6 +716,7 @@ export async function handleDb(route: Route, db: MockDb, user: DbUser): Promise<
       mission: b.p_kind ? { kind: b.p_kind, param: b.p_param, n: b.p_n ?? 1, reward: b.p_reward } : null,
       frame: frame ? { key: frame.key, name: frame.name, price: frame.price } : null,
       counts: { joined: 0, projects: 0, exhibits: 0, teamups: 0 },
+      kind: ev, tracks, submissions_close: ev === 'event' ? null : b.p_close, results_at: ev === 'event' ? null : b.p_results,
     };
     const row = db.seasons.find((x) => x.key === b.p_key);
     if (row) Object.assign(row, next);

@@ -325,6 +325,45 @@ export const GEM_TONE_PALETTES: Readonly<Record<string, Palette>> = {
   silver: { k: '--color-card-ink', m: '--color-card-metal', h: '--color-card-metal-hi' },
 };
 
+// ---------------------------------------------------------------- event ribbons (D-116)
+// A winner's rosette: the number of the place (or a star for a named award) is drawn on its face,
+// so the ribbon says what it is by shape as well as colour. Ink outline, two tails in lanyard red.
+const RIBBON_GLYPHS: Readonly<Record<'p1' | 'p2' | 'p3' | 'award', readonly string[]>> = {
+  p1: ['.k.', 'kk.', '.k.', '.k.', 'kkk'],
+  p2: ['kk.', '..k', '.k.', 'k..', 'kkk'],
+  p3: ['kk.', '..k', '.k.', '..k', 'kk.'],
+  award: ['.k.', 'kkk', '.k.', 'k.k', '...'],
+};
+const rosette = (glyph: readonly string[]): SpriteMap => {
+  const g = glyph.map((row) => row.replace(/\./g, 'm'));
+  return ['..kkkkk..', '.khhmmmk.', `khm${g[0]}mmk`, `kmm${g[1]}mmk`, `kmm${g[2]}mmk`, `kmm${g[3]}mmk`, `kmm${g[4]}mmk`, '.kmmmmmk.', '..kkkkk..', '..krkrk..', '.krk.krk.', '.kdk.kdk.', '.kk...kk.'];
+};
+export const RIBBON_SPRITES: Readonly<Record<'p1' | 'p2' | 'p3' | 'award', SpriteMap>> = {
+  p1: rosette(RIBBON_GLYPHS.p1),
+  p2: rosette(RIBBON_GLYPHS.p2),
+  p3: rosette(RIBBON_GLYPHS.p3),
+  award: rosette(RIBBON_GLYPHS.award),
+};
+/** The same rosettes, compact enough for the badge's holder strip (beside the 7-row gems). */
+const pinRosette = (glyph: readonly string[]): SpriteMap => {
+  const g = glyph.map((row) => row.replace(/\./g, 'm'));
+  return ['.kkkkk.', `kh${g[0]}mk`, `km${g[1]}mk`, `km${g[2]}mk`, `km${g[3]}mk`, `km${g[4]}mk`, '.kkkkk.', '.kr.rk.', '.kd.dk.'];
+};
+export const RIBBON_PIN_SPRITES: Readonly<Record<'p1' | 'p2' | 'p3' | 'award', SpriteMap>> = {
+  p1: pinRosette(RIBBON_GLYPHS.p1),
+  p2: pinRosette(RIBBON_GLYPHS.p2),
+  p3: pinRosette(RIBBON_GLYPHS.p3),
+  award: pinRosette(RIBBON_GLYPHS.award),
+};
+const tails = { k: '--color-card-ink', r: '--color-card-lanyard', d: '--color-card-lanyard-dark' } as const;
+/** Gold, silver and bronze for places; sky for a named award. */
+export const RIBBON_PALETTES: Readonly<Record<'p1' | 'p2' | 'p3' | 'award', Palette>> = {
+  p1: { ...tails, m: '--color-card-coin', h: '--color-card-coin-hi' },
+  p2: { ...tails, m: '--color-card-metal', h: '--color-card-metal-hi' },
+  p3: { ...tails, m: '--color-card-block', h: '--color-card-block-hi' },
+  award: { ...tails, m: '--color-card-sky', h: '--color-card-cream' },
+};
+
 // ---------------------------------------------------------------- Museum consoles (D-091)
 // Five original PIXENDO consoles that hold an exhibit's screen. They are drawn here from simple
 // shapes (rounded bodies, discs, slits) so every outline and bevel follows one rule; none copies a
