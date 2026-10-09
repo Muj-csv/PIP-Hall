@@ -1,6 +1,8 @@
 // Published data for link previews and images (D-095). Reads only what any visitor can read
 // (published_cards, museum_exhibits) with the public anon key. Never drafts, never writes.
 
+import type { BadgeExtras } from '../../src/lib/shareArt.js';
+import { titleOf } from '../../src/lib/titles.js';
 import type { PublishedCardRow } from '../../src/types/card.js';
 import type { Exhibit } from '../../src/types/museum.js';
 
@@ -43,6 +45,25 @@ export async function exhibit(projectId: string): Promise<Exhibit | null> {
   if (!isProjectId(projectId)) return null;
   const all = await rest<Exhibit[]>('/rest/v1/rpc/museum_exhibits', { method: 'POST', body: '{}' });
   return all?.find((e) => e.project_id === projectId) ?? null;
+}
+
+/** What the hall shows on a member's badge (V2-13): the title they wear on its plate, their
+ *  ribbons and admin-made badges. All public (hall_titles, hall_awards, card_pins); each one that
+ *  can't be read is simply left off. */
+export async function badgeExtras(profileId: string): Promise<BadgeExtras> {
+  const call = <T>(fn: string) => rest<T>(`/rest/v1/rpc/${fn}`, { method: 'POST', body: '{}' });
+  const [titles, awards, pins] = await Promise.all([
+    call<{ profile_id: string; title: string | null; plate_style: { plate?: string; ink?: string } | null }[]>('hall_titles'),
+    call<{ profile_id: string; awards: { place: number | null }[] }[]>('hall_awards'),
+    call<{ profile_id: string; pins: { gem: string; tone: string }[] }[]>('card_pins'),
+  ]);
+  const worn = titles?.find((t) => t.profile_id === profileId);
+  const named = titleOf(worn?.title);
+  return {
+    title: named ? { name: named.name, plate: worn?.plate_style?.plate ?? null, ink: worn?.plate_style?.ink ?? null } : null,
+    ribbons: (awards?.find((a) => a.profile_id === profileId)?.awards ?? []).slice(0, 3).map((a) => (a.place && a.place >= 1 && a.place <= 3 ? (`p${a.place}` as 'p1' | 'p2' | 'p3') : 'award')),
+    pins: (pins?.find((p) => p.profile_id === profileId)?.pins ?? []).slice(0, 3).map((p) => ({ gem: p.gem, tone: p.tone })),
+  };
 }
 
 export async function hallSize(): Promise<number | null> {

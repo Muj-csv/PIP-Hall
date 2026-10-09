@@ -16,6 +16,11 @@ export interface MyMissions {
   rerolls: number;
 }
 
+export interface MissionProgress {
+  eligible: boolean;
+  missions: { daily: number; weekly: number; season: number; total: number };
+}
+
 export const missionService = {
   device: {
     /** Keys of Missions finished on this device. */
@@ -48,6 +53,14 @@ export const missionService = {
     const { data, error } = await requireSupabase().rpc('reroll_missions');
     if (error) throw error;
     return data as { rerolls: number; balance: number };
+  },
+
+  /** The member's own Missions completed (V2-13, D-112): nobody else's, never shown in public. */
+  async progress(): Promise<MissionProgress> {
+    const { data, error } = await requireSupabase().rpc('my_progress');
+    if (error) throw error;
+    const r = data as { eligible: boolean; missions: MissionProgress['missions'] };
+    return { eligible: Boolean(r.eligible), missions: r.missions };
   },
 
   async complete(m: Mission): Promise<{ key: string; amount: number; balance: number }> {

@@ -226,6 +226,9 @@ export function Hall({ profile = null, passport = false }: HallProps) {
     navigate({ pathname: memberPath(c.username), search: location.search });
   }, [indexRef, navigate, location.search]);
 
+  // "Walk there" from a profile (V2-13): back to the hall, then Pip walks to that member's badge.
+  // Someone a search hides gets their profile instead.
+  const pendingWalk = useRef<{ i: number; name: string } | null>(null);
   const closeProfile = useCallback(() => {
     if (live.current.mode === 'level') return;
     if (openedHere.current) {
@@ -233,6 +236,19 @@ export function Hall({ profile = null, passport = false }: HallProps) {
       navigate(-1);
     } else navigate({ pathname: '/', search: location.search });
   }, [navigate, location.search]);
+
+  const walkTo = useCallback(
+    (username: string) => {
+      const i = live.current.cards.findIndex((c) => c.username === username);
+      if (i < 0) {
+        navigate(memberPath(username));
+        return;
+      }
+      pendingWalk.current = { i, name: live.current.cards[i]!.card.full_name };
+      closeProfile();
+    },
+    [closeProfile, navigate],
+  );
 
   // A new search changes which badges hang: stay on the same player if they still match,
   // otherwise start at the first match. The camera cuts there instead of walking the level.
@@ -323,11 +339,14 @@ export function Hall({ profile = null, passport = false }: HallProps) {
       setLine({ text: next === 'profile' ? 'Profile screen. BACK or Esc returns to the hall.' : 'No card at that address.' });
     } else if (now !== 'level') {
       openedHere.current = false;
+      const walk = pendingWalk.current;
+      pendingWalk.current = null;
       runIris(() => {
         setMode('level');
         screenRef.current?.focus();
+        if (walk) go(walk.i);
       });
-      setLine({ text: 'Back in the hall.' });
+      setLine({ text: walk ? `Pip walks to ${titleCase(walk.name)}. Tap to flip, or OPEN for the profile.` : 'Back in the hall.' });
     }
   }, [profile, passport, cardsState.status, cards, go, runIris, indexRef, camRef]);
   /* eslint-enable react-hooks/set-state-in-effect */
@@ -640,6 +659,7 @@ export function Hall({ profile = null, passport = false }: HallProps) {
           card={current}
           hall={all}
           onBack={closeProfile}
+          onWalkTo={walkTo}
           onShowQr={() => setQrCard(current)}
           reward={reward?.for === current.profile_id ? reward.text : null}
         />

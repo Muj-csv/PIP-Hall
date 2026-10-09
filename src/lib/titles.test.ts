@@ -3,7 +3,7 @@ import { isPlateStyle, parseHallTitle, plateVars, TITLES, titleOf } from './titl
 
 describe('titles', () => {
   it('knows every title the database can award, each with its rule', () => {
-    expect(TITLES.map((t) => t.key)).toEqual(['card_holder', 'pioneer', 'explorer', 'connector', 'curator', 'pathfinder', 'champion']);
+    expect(TITLES.map((t) => t.key)).toEqual(['card_holder', 'pioneer', 'explorer', 'connector', 'curator', 'pathfinder', 'champion', 'mentor']);
     expect(TITLES.every((t) => t.rule.endsWith('.'))).toBe(true);
     expect(titleOf('explorer')?.name).toBe('Explorer');
     expect(titleOf('legend')).toBeNull();

@@ -197,6 +197,28 @@ export function connections(cards: readonly PublicCard[]): PersonLinks[] {
     }));
 }
 
+/** One member's own links (V2-13, #2): who they've made things with, and on which projects: a
+ *  credit on an approved card, or both named on an archive exhibit. Evidence only (rule 5); most
+ *  shared projects first. Always worked out, whatever the hall's density (the full map waits). */
+export function madeWith(
+  username: string,
+  cards: readonly PublicCard[],
+  archive: readonly { title: string; makers: readonly { username?: string | null }[] }[] = [],
+): { card: PublicCard; projects: string[] }[] {
+  const inHall = new Set(cards.map((c) => c.username));
+  const byName = new Map(cards.map((c) => [c.username, c]));
+  const out = new Map<string, Set<string>>();
+  const add = (ms: readonly string[], title: string) => {
+    if (!ms.includes(username)) return;
+    for (const m of ms) if (m !== username) out.set(m, (out.get(m) ?? new Set()).add(title));
+  };
+  for (const c of cards) for (const p of c.card.projects) add(makers(c, p, inHall), p.title);
+  for (const a of archive) add([...new Set(a.makers.map((m) => m.username ?? '').filter((u) => inHall.has(u)))], a.title);
+  return [...out]
+    .map(([u, titles]) => ({ card: byName.get(u)!, projects: [...titles] }))
+    .sort((a, b) => b.projects.length - a.projects.length || a.card.member_no - b.card.member_no);
+}
+
 export interface Lineage {
   project: PublicProject;
   owner: PublicCard;

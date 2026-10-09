@@ -12,6 +12,8 @@ interface AppearanceValue {
   titleOf: (profileId: string) => HallTitle | null;
   /** Places and awards this member's projects won at hall events (D-116), newest first. */
   awardsOf: (profileId: string) => HallAward[];
+  /** Every project that won a place or an award (V2-13: the winning-exhibit Mission). */
+  winners: ReadonlySet<string>;
   /** Every officer on record, current terms first (D-123). */
   officers: readonly Officer[];
   /** This member's current officer seat, if any. */
@@ -25,6 +27,7 @@ export const AppearanceContext = createContext<AppearanceValue>({
   pinsOf: () => [],
   titleOf: () => null,
   awardsOf: () => [],
+  winners: new Set(),
   officers: [],
   officerOf: () => null,
   refresh: () => undefined,

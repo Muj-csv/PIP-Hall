@@ -14,7 +14,7 @@ The original spec is in `docs/spec/`. Where it conflicts with the files above, t
 
 ## Hard rules
 - Stack: React + Vite + TypeScript (strict) + Tailwind 4 + React Router + Supabase. Carousel springs, swing and sprites are hand-written on one `requestAnimationFrame` loop (D-031); no Motion, no Embla (ADR-001), no state library, no UI kit, no paid services.
-- Styling only through `src/styles/theme.css` tokens (generated from `docs/design/tokens.json` — edit the JSON and re-export, never the CSS). No raw hex in components, no stock palette classes, no `border-radius`, no blurred shadows.
+- **Visual invariants** (`docs/design/DESIGN_BRIEF.md` §8): tokens only (`src/styles/theme.css`, generated from `docs/design/tokens.json` — edit the JSON and re-export, never the CSS; no raw hex in components, no stock palette classes), no blur, no rounding (`border-radius` 0), original art, 4px grid, 44px targets, reduced motion, WCAG 2.2 AA. **To change one:** a decision in `docs/DECISIONS.md` with the reason first, then the token or rule change (D-128).
 - Only `src/services/*` import the Supabase client. Components never call Supabase, `fetch` or browser storage for app state directly.
 - **Vercel functions (`api/`, D-095)** are a presentation layer only: link previews, OG images, badge PNGs. They read **published** data with the public anon key (never the service-role key, never drafts) and never write. They must not grow into a second backend; data, auth and security stay in Supabase.
 - Never put the service-role key, OAuth secrets, or any secret in code, `.env` committed files, or chat. Client env is `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_DATA_SOURCE`, `VITE_PUBLIC_ORIGIN`, and the public feature switch `VITE_FEATURE_PIPS` (`on`/`off`, D-058).

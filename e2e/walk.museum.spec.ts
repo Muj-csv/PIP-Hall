@@ -317,19 +317,33 @@ test('200 exhibits: only the ones near Pip are mounted, and a still Museum draws
   await expect(page.locator('.walk-stop[data-lit]')).toHaveCount(1); // the order is shuffled each visit
   expect(most).toBeLessThanOrEqual(6);
 
-  // Standing still costs nothing: frames come at the display's rate (the level isn't redrawn).
-  const gaps = await page.evaluate(
+  // Standing still costs nothing: once everything has come to rest, no frame draws anything. (The
+  // plaque lights when the camera stops, but Pip can still be catching up for a few dozen frames.)
+  // Counted as canvas draw calls rather than timed, so a busy machine can't fake or hide it.
+  await expect(page.locator('.play[data-still]')).toHaveCount(1);
+  const draws = await page.evaluate(
     () =>
-      new Promise<number[]>((done) => {
-        const t: number[] = [];
-        const tick = (now: number) => {
-          t.push(now);
-          if (t.length < 60) requestAnimationFrame(tick);
-          else done(t.slice(1).map((x, i) => x - t[i]!));
+      new Promise<number>((done) => {
+        const proto = CanvasRenderingContext2D.prototype as unknown as Record<string, (...args: unknown[]) => unknown>;
+        const names = ['drawImage', 'fillRect', 'clearRect', 'putImageData', 'fill', 'stroke'];
+        const original = names.map((k) => proto[k]!);
+        let n = 0;
+        names.forEach((k, i) => {
+          proto[k] = function (this: unknown, ...args: unknown[]) {
+            n++;
+            return original[i]!.apply(this, args);
+          };
+        });
+        let frames = 0;
+        const tick = () => {
+          if (++frames < 60) requestAnimationFrame(tick);
+          else {
+            names.forEach((k, i) => (proto[k] = original[i]!));
+            done(n);
+          }
         };
         requestAnimationFrame(tick);
       }),
   );
-  const median = [...gaps].sort((a, b) => a - b)[gaps.length >> 1]!;
-  expect(median).toBeLessThan(20);
+  expect(draws).toBe(0);
 });

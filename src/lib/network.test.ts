@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { PublicCard, PublicProject } from '../types/card';
-import { buildNetwork, connections, DENSITY, density, layout, lineage, neighbours } from './network';
+import { buildNetwork, connections, DENSITY, density, layout, lineage, madeWith, neighbours } from './network';
 
 const project = (title: string, withUsers: string[] = []): PublicProject => ({
   id: title,
@@ -76,3 +76,16 @@ describe('the map', () => {
     expect(l.some((x) => x.project.title === 'Solo')).toBe(false);
   });
 });
+
+describe('made with, on one profile (V2-13)', () => {
+  it('lists who a member made things with, credited on approved cards or both named in the archive, most shared first', () => {
+    const cards = [card('wa', [project('Kite', ['wb', 'gone']), project('Raft', ['wb', 'wc'])]), card('wb'), card('wc'), card('wd')];
+    const archive = [{ title: 'Old Lamp', makers: [{ username: 'wd' }, { username: 'wa' }, { username: null }] }];
+    const links = madeWith('wa', cards, archive);
+    expect(links.map((l) => `${l.card.username}:${l.projects.join('+')}`)).toEqual(['wb:Kite+Raft', 'wc:Raft', 'wd:Old Lamp']);
+    expect(madeWith('wc', cards).map((l) => l.card.username)).toEqual(['wa', 'wb']); // credited together on Raft
+    expect(madeWith('wd', cards)).toEqual([]); // the archive only when it's passed
+    expect(madeWith('nobody', cards, archive)).toEqual([]);
+  });
+});
+

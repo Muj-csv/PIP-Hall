@@ -4014,3 +4014,82 @@ a.net-node:focus {
     -webkit-print-color-adjust: exact;
   }
 }
+
+/* ---------------------------------------------------------------- your progress (V2-13, D-112)
+   Unlocked achievements in full ink with a filled star; the rest dimmed with an outline star and
+   "not yet" for screen readers, so status never rests on colour alone. */
+.progress-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.progress-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.progress-list li:not([data-got]) b {
+  color: var(--color-text-secondary);
+}
+.progress-mark {
+  flex: none;
+  color: var(--color-card-plum);
+}
+
+/* ---------------------------------------------------------------- connections (V2-13)
+   Related people after a badge scan, each with a "Walk there"; "Made with" on a profile: a small
+   constellation (decorative, aria-hidden) above the same links as a list. */
+.related-people {
+  display: grid;
+  gap: 8px;
+}
+.related-people ul {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.related-people li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--color-surface-raised);
+  box-shadow: inset 0 0 0 2px var(--color-border);
+}
+.made-with-map {
+  display: block;
+  width: 100%;
+  max-width: 360px;
+  height: auto;
+  justify-self: center;
+}
+.mw-edge {
+  stroke: var(--color-border);
+}
+.mw-node {
+  fill: var(--color-card-face);
+  stroke: var(--color-card-ink);
+  stroke-width: 2;
+}
+.mw-me {
+  fill: var(--color-card-plum);
+}
+.mw-label {
+  fill: var(--color-text-primary);
+  font-family: var(--font-display);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
+.made-with-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}

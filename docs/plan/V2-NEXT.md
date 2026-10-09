@@ -1,6 +1,6 @@
 # PIP-Hall v2, part two: the Museum, hackathons, and a hall that comes alive
 
-Status: **V2-9, V2-10, V2-10b, V2-11, V2-12 and V2-15 built** (2026-10-08; V2-15 pulled forward with the calmer hall, D-126); V2-13 next. Follows `V2-LIVING-HALL.md` (V2-0 to V2-8, all built). No deadline (D-093). Decisions: D-106 to D-120 (the owner's answers, 2026-10-07), D-123 (the officers' space, 2026-10-08); build details D-121, D-122, D-124, D-125, D-127; the calmer hall D-126. Rules: `CLAUDE.md` → Product rules.
+Status: **V2-9, V2-10, V2-10b, V2-11, V2-12, V2-13 and V2-15 built** (2026-10-08; V2-15 pulled forward with the calmer hall, D-126); V2-14 next. Follows `V2-LIVING-HALL.md` (V2-0 to V2-8, all built). No deadline (D-093). Decisions: D-106 to D-120 (the owner's answers, 2026-10-07), D-123 (the officers' space, 2026-10-08); build details D-121, D-122, D-124, D-125, D-127, D-128; the calmer hall D-126. Rules: `CLAUDE.md` → Product rules.
 
 ## Why this round
 
@@ -117,7 +117,9 @@ Built as planned (details: D-127), with three choices the plan left open: the ki
 - **SQL:** event check-ins for members (one per member per event), counted in the event's real numbers.
 - Budget: the kiosk, print pages and poster drawer are lazy; nothing added to the hall's first load.
 
-### V2-13 · Close the gaps (P1, small)
+### V2-13 · Close the gaps (P1, small) · built
+
+Built as planned (details: D-128). #23 found one thing and made the rest diagnosable: the hall's preview image is `/api/og` (the address in the plan, `/api/og/hall`, has no function behind it); a failing function now says which step broke in an `X-PipHall-Stage` header (fonts, layout, png or data) and in Vercel's log, and loads its image engines on first use so a missing one is reported rather than crashing. What's still needed from the owner: the status and that header from `/api/og` and `/api/badge?u=<a username>` on the live site. Budget: 2.0 KB gzipped on the home page's first load, measured (161.3 → 163.3 KB of 200 KB: the Missions, Passport progress, Made with and Related people); no new requests on the hall's first load (the winners come from `hall_awards()`, already loaded for the ribbons; the Passport's progress loads when it opens). Evidence: `docs/build/evidence/gaps/`.
 
 **Loop:** the things people already use answer one more question each (who else made this, who's near this person, what have I done).
 

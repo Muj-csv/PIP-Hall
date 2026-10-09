@@ -5,6 +5,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
+import { useAppearance } from '../../app/appearanceContext';
 import { useSession } from '../../app/sessionContext';
 import { pipsEnabled } from '../../lib/features';
 import { MISSION_PIPS, missionMet, missionPeriod, pickMissions, REROLL, type Mission } from '../../lib/missions';
@@ -62,12 +63,22 @@ export function MissionsPanel({ cards, onSearch, onRandom, onPips }: Props) {
   const member = Boolean(account) && passport.mode === 'account';
   const day = account?.day ?? missionPeriod('daily', now).label;
   const week = account?.week ?? missionPeriod('weekly', now).label;
-  const { daily, weekly } = useMemo(() => pickMissions(day, week, cards, exhibits ?? [], member ? me : null, member ? (account?.rerolls ?? 0) : 0), [day, week, cards, exhibits, member, me, account?.rerolls]);
+  // Winning exhibits, not counting the member's own (their own exhibit can't be stamped).
+  const { winners: won, awardsOf } = useAppearance();
+  const mineWon = me ? awardsOf(me) : null;
+  const ctx = useMemo(() => {
+    const own = new Set((mineWon ?? []).map((a) => a.project_id));
+    return { winners: new Set([...won].filter((id) => !own.has(id))) };
+  }, [won, mineWon]);
+  const { daily, weekly } = useMemo(
+    () => pickMissions(day, week, cards, exhibits ?? [], member ? me : null, member ? (account?.rerolls ?? 0) : 0, ctx),
+    [day, week, cards, exhibits, member, me, account?.rerolls, ctx],
+  );
   const all = weekly ? [...daily, weekly] : daily;
   const since = { daily: missionPeriod('daily', now).starts, weekly: missionPeriod('weekly', now).starts };
   // This panel holds the daily and weekly Missions; an event's Mission lives in the event panel.
   const period = (m: Mission) => (m.scope === 'weekly' ? 'weekly' : 'daily');
-  const met = (m: Mission) => missionMet(m, passport.data, cards, since[period(m)]);
+  const met = (m: Mission) => missionMet(m, passport.data, cards, since[period(m)], ctx);
   // Guests: a Mission is done the moment the Passport shows it, and stays stamped on this device.
   const guestDone = member ? [] : all.filter((m) => stored.includes(m.key) || met(m)).map((m) => m.key);
   const guestKey = guestDone.join();

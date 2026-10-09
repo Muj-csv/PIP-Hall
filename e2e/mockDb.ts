@@ -92,7 +92,7 @@ export const PLATE_ITEMS = [
   { key: 'plate-silver', kind: 'plate', name: 'Silver Plate', description: 'Your title on bright silver.', price: 300, sort: 51, style: { plate: 'metal-hi', ink: 'ink' } },
   { key: 'plate-plum', kind: 'plate', name: 'Plum Enamel Plate', description: 'Your title in cream on plum enamel.', price: 450, sort: 52, style: { plate: 'plum', ink: 'cream' } },
 ];
-const TITLE_KEYS = ['card_holder', 'pioneer', 'explorer', 'connector', 'curator', 'pathfinder', 'champion'];
+const TITLE_KEYS = ['card_holder', 'pioneer', 'explorer', 'connector', 'curator', 'pathfinder', 'champion', 'mentor'];
 
 const perkLabel = (name: string) => (/(^| )MEMBER$/.test(name.trim().toUpperCase()) ? name.trim().toUpperCase() : `${name.trim().toUpperCase()} MEMBER`);
 
@@ -395,6 +395,12 @@ export async function handleDb(route: Route, db: MockDb, user: DbUser): Promise<
     return (await json(200, { granted: paid, new: true, amount: paid ? 5 : 0, unlocked, balance: balanceOf(db, userId) })), true;
   }
   // Missions (V2-3, mirrors 20261006000600_missions_events.sql): same condition check as the app.
+  // V2-13 (D-112): the member's own Missions completed, nobody else's.
+  if (url.pathname === '/rest/v1/rpc/my_progress') {
+    const mine = (db.missionCompletions ?? []).filter((r) => r.member_id === userId);
+    const n = (scope: string) => mine.filter((r) => r.scope === scope).length;
+    return (await json(200, { eligible: inHall(userId), missions: { daily: n('daily'), weekly: n('weekly'), season: n('season'), total: mine.length } })), true;
+  }
   if (url.pathname === '/rest/v1/rpc/my_missions') {
     const day = missionPeriod('daily').label;
     const week = missionPeriod('weekly').label;
@@ -416,7 +422,12 @@ export async function handleDb(route: Route, db: MockDb, user: DbUser): Promise<
       checkins: [],
     };
     const cards = db.published.map((c) => ({ ...c, no: c.member_no })) as unknown as PublicCard[];
-    if (!missionMet({ scope: p_scope, kind: p_kind, param: p_param, n: p_n, key, title: '', action: { random: true } }, passport, cards, period.starts)) return (await err(400, 'P0001', 'NOT_DONE')), true;
+    // V2-13: a winning exhibit is one with an announced award, or an archive exhibit that won.
+    const winners = new Set([
+      ...(db.awards ?? []).filter((w) => (db.seasons ?? []).some((x) => x.key === w.season_key && x.announced_at)).map((w) => String(w.project_id)),
+      ...(db.archive ?? []).filter((x) => x.published && (x.award_place || x.award_name)).map((x) => String(x.id)),
+    ]);
+    if (!missionMet({ scope: p_scope, kind: p_kind, param: p_param, n: p_n, key, title: '', action: { random: true } }, passport, cards, period.starts, { winners })) return (await err(400, 'P0001', 'NOT_DONE')), true;
     db.missionCompletions.push({ member_id: userId, key, scope: p_scope, period: period.label });
     const amount = p_scope === 'weekly' ? 40 : 10;
     grant(db, userId, amount, 'mission', `mission:${key}`);

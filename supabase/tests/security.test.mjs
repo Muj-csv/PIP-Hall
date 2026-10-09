@@ -1239,6 +1239,90 @@ try {
   await expectOk(c, 'the showcase migration is safe to run twice and keeps codes and check-ins', ADMIN, `select admin_checkin_code('spring-hack') as k`, [], (r) => r.rows[0].k === code);
   await expectCheckins('…and the count', 3);
 
+  console.log('close the gaps: Mentor, three more Missions, your progress (D-111, D-112, D-128)');
+  // Earlier sections re-ran the missions, identity, hackathons and archive migrations; this one comes after them again.
+  const GAPS = readFileSync(join(here, '..', 'migrations', '20261008000400_close_gaps.sql'), 'utf8');
+  await c.query(GAPS);
+  // Four newcomers, the newest members of the hall, in this order. All of them know Rust.
+  const G = [1, 2, 3, 4].map((i) => `00000000-0000-0000-0000-0000000002${String(i).padStart(2, '0')}`);
+  await c.query(`insert into auth.users (id, email) select id, 'g' || row_number() over () || '@x.test' from unnest($1::uuid[]) as id`, [G]);
+  await c.query(`insert into profiles (id, username, full_name, status, skills) select id, 'gap' || row_number() over (), 'Gap', 'pending_review', array['Rust'] from unnest($1::uuid[]) as id`, [G]);
+  for (const g of G) await as(c, ADMIN, `select approve_profile($1)`, [g]);
+  const reapproveOf = async (uid) => {
+    await as(c, uid, `update profiles set bio = coalesce(bio, '') || '.' where id=$1`, [uid]);
+    await as(c, uid, `select submit_for_review()`);
+    await as(c, ADMIN, `select approve_profile($1)`, [uid]);
+  };
+  const gapTitles = async (uid) => (await c.query(`select earned_titles($1) as t`, [uid])).rows[0].t;
+  const RAFT = (await as(c, G[0], `insert into projects (profile_id, title) values ($1, 'Raft') returning id`, [G[0]])).rows[0].id;
+  await reapproveOf(G[0]);
+  await expectOk(c, 'Mentor is a title the hall knows', G[0], `select my_titles() as t`, [], (r) => r.rows[0].t.titles.some((t) => t.key === 'mentor' && !t.earned && /joined the hall after you/.test(t.rule)));
+  await as(c, G[0], `select tag_collaborator($1, 'gap2')`, [RAFT]);
+  await as(c, G[1], `select respond_collaboration($1, true)`, [RAFT]);
+  await reapproveOf(G[0]);
+  if (!(await gapTitles(G[0])).includes('mentor')) ok('one newer member on a team project is not yet Mentor');
+  else bad('one newer member on a team project is not yet Mentor', await gapTitles(G[0]));
+  await as(c, G[0], `select tag_collaborator($1, 'gap3')`, [RAFT]);
+  await as(c, G[2], `select respond_collaboration($1, true)`, [RAFT]);
+  await reapproveOf(G[0]);
+  if ((await gapTitles(G[0])).includes('mentor')) ok('two members who joined later, credited on a team project: Mentor');
+  else bad('two members who joined later, credited on a team project: Mentor', await gapTitles(G[0]));
+  if (!(await gapTitles(G[1])).includes('mentor')) ok('…but not for the newer ones (only one of them joined after the other)');
+  else bad('…but not for the newer ones', await gapTitles(G[1]));
+  await expectOk(c, 'a Mentor can wear it', G[0], `select equip_title('mentor')`, []);
+  await expectOk(c, '…and the hall shows it', 'anon', `select hall_titles() as t`, [], (r) => r.rows[0].t.find((x) => x.profile_id === G[0])?.title === 'mentor');
+  await expectErr(c, 'others can’t', G[1], `select equip_title('mentor')`, [], /NOT_EARNED/);
+  // Cross-check every member against the rule worked out here from the public cards.
+  const pub = (await c.query(`select profile_id, username, member_no, card from published_cards`)).rows;
+  const byName = new Map(pub.map((p) => [p.username, p]));
+  const newer = new Map(pub.map((p) => [p.profile_id, new Set()]));
+  for (const o of pub)
+    for (const pj of o.card.projects ?? []) {
+      const makers = [o, ...(pj.collaborators ?? []).map((m) => byName.get(m.username)).filter(Boolean)];
+      for (const a of makers) for (const b of makers) if (b.member_no > a.member_no) newer.get(a.profile_id).add(b.profile_id);
+    }
+  const wrong = [];
+  for (const p of pub) if ((await gapTitles(p.profile_id)).includes('mentor') !== newer.get(p.profile_id).size >= 2) wrong.push(p.username);
+  if (wrong.length === 0) ok('Mentor matches the rule for every member in the hall');
+  else bad('Mentor matches the rule for every member in the hall', wrong);
+
+  // Three more Missions, with the newest member (no discoveries, no Missions yet).
+  const N4 = G[3];
+  await expectErr(c, 'a team-project Mission is for 3 or more makers', N4, `select complete_mission('daily','crew',null,2)`, [], /BAD_MISSION/);
+  await expectErr(c, 'a winning-exhibit Mission is one exhibit', N4, `select complete_mission('daily','winner',null,2)`, [], /BAD_MISSION/);
+  await expectErr(c, 'a weekly skill Mission is 3 or more people', N4, `select complete_mission('weekly','skill','rust',1)`, [], /BAD_MISSION/);
+  await expectErr(c, '…and names a skill', N4, `select complete_mission('weekly','skill',null,3)`, [], /BAD_MISSION/);
+  await expectErr(c, 'nobody found yet: no team-project Mission', N4, `select complete_mission('daily','crew',null,3)`, [], /NOT_DONE/);
+  await as(c, N4, `select discover_card($1)`, [G[1]]);
+  await expectOk(c, 'meeting one maker of a 3-maker project completes it (+10)', N4, `select complete_mission('daily','crew',null,3) as r`, [], (r) => r.rows[0].r.amount === 10);
+  await expectErr(c, '…but not a 4-maker one', N4, `select complete_mission('daily','crew',null,4)`, [], /NOT_DONE/);
+  await expectErr(c, 'no winning exhibit visited yet', N4, `select complete_mission('daily','winner',null,1)`, [], /NOT_DONE/);
+  await expectOk(c, 'opening a winning exhibit stamps it', N4, `select stamp_exhibit($1) as s`, [P1], (r) => r.rows[0].s === true);
+  await expectOk(c, '…and completes the winning-exhibit Mission (+10)', N4, `select complete_mission('daily','winner',null,1) as r`, [], (r) => r.rows[0].r.amount === 10);
+  await expectErr(c, 'two people who know Rust are not three', N4, `select complete_mission('weekly','skill','Rust',3)`, [], /NOT_DONE/);
+  await as(c, N4, `select discover_card($1)`, [G[0]]);
+  await as(c, N4, `select discover_card($1)`, [G[2]]);
+  await expectOk(c, 'meeting three people who know Rust completes the weekly Mission (+40)', N4, `select complete_mission('weekly','skill','rust',3) as r`, [], (r) => r.rows[0].r.amount === 40);
+  await expectOk(c, 'a daily skill Mission still needs one person', N4, `select complete_mission('daily','skill','RUST',1) as r`, [], (r) => r.rows[0].r.amount === 10);
+
+  // Your progress: your own Missions, nobody else's (D-112).
+  await expectErr(c, 'visitors have no progress to read', 'anon', `select my_progress()`, [], /permission denied/);
+  await expectOk(c, 'a member reads their own Missions completed', N4, `select my_progress() as p`, [], (r) => {
+    const m = r.rows[0].p.missions;
+    return r.rows[0].p.eligible === true && m.daily === 3 && m.weekly === 1 && m.season === 0 && m.total === 4;
+  });
+  await expectOk(c, 'a member out of the hall has none', N, `select my_progress() as p`, [], (r) => r.rows[0].p.eligible === false && r.rows[0].p.missions.total === 0);
+  await expectOk(c, 'nobody reads another member’s Missions from the table', G[0], `select count(*)::int as n from mission_completions where member_id=$1`, [N4], (r) => r.rows[0].n === 0);
+
+  // Re-running older migrations brings their versions back; this one restores the new rules.
+  await c.query(readFileSync(join(here, '..', 'migrations', '20261006000600_missions_events.sql'), 'utf8'));
+  await expectErr(c, 'the missions migration alone doesn’t know the new Missions', G[1], `select complete_mission('daily','crew',null,3)`, [], /BAD_MISSION/);
+  await c.query(GAPS);
+  await c.query(GAPS);
+  await expectErr(c, 'running this one again after it brings them back (and is safe to run twice)', G[1], `select complete_mission('daily','crew',null,12)`, [], /NOT_DONE/);
+  if ((await gapTitles(G[0])).includes('mentor')) ok('…and Mentor stays');
+  else bad('…and Mentor stays', await gapTitles(G[0]));
+
   console.log('account deletion');
   await expectErr(c, 'anon cannot call delete_my_account', 'anon', `select delete_my_account()`, [], /permission denied/);
   await expectOk(c, 'member deletes own account', B, `select delete_my_account()`, []);

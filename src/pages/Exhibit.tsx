@@ -7,6 +7,7 @@
 // The phone companion (V2-12, D-120): a placard's QR opens it here (?via=placard&room=…): "You found
 // this exhibit!", its Passport stamp, its makers, and the next exhibit in the room it hangs in. Its
 // poster (PNG) is drawn in the browser, like the badge.
+// V2-13: Connected projects lists other projects (members' and the archive's) that share a maker.
 
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
@@ -17,7 +18,7 @@ import { QrFullscreen } from '../components/cards/QrFullscreen';
 import { DialogueBox } from '../components/dialogue/DialogueBox';
 import { ExhibitArt } from '../components/museum/ExhibitArt';
 import { MenuPage } from '../components/shell/MenuPage';
-import { creditLine, makersOf } from '../lib/collab';
+import { connectedProjects, creditLine, makersOf } from '../lib/collab';
 import { exhibitPath, exhibitUrl, memberPath } from '../lib/publicUrl';
 import { consoleFor } from '../lib/museum';
 import { CONSOLE_NAMES } from '../lib/sprites';
@@ -110,6 +111,8 @@ export default function Exhibit() {
     () => (roomId && exhibitId && load.status === 'ready' ? nextInRoom(showcaseRooms({ ...load.data, wings }, { officers: officerNames }), roomId, exhibitId) : null),
     [roomId, exhibitId, load, wings, officerNames],
   );
+  // Other projects that share a maker, with who connects them (V2-13).
+  const connected = useMemo(() => (exhibit && load.status === 'ready' ? connectedProjects(exhibit, load.exhibits) : []), [exhibit, load]);
   const me = session.status === 'signed-in' ? session.user.id : null;
   const mine = Boolean(me && makers.some((m) => m.profile_id === me));
 
@@ -327,6 +330,27 @@ export default function Exhibit() {
                 <Link to={memberPath(c.username)} className="pixel-btn justify-self-center">
                   Open profile<span className="sr-only"> of {c.card.full_name}</span>
                 </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {exhibit && connected.length > 0 && (
+        <section className="menu-panel" aria-labelledby="exhibit-connected">
+          <h2 id="exhibit-connected" className="panel-title">
+            Connected projects
+          </h2>
+          <ul className="grid gap-space-2 m-0 p-0 list-none" aria-label="Projects that share a maker">
+            {connected.map(({ exhibit: x, via }) => (
+              <li key={x.project_id}>
+                <Link to={exhibitPath(x.project_id)} className="underline decoration-2">
+                  {x.project.title}
+                </Link>{' '}
+                <span className="text-caption text-text-secondary">
+                  · also made by {creditLine(via.map((v) => v.name))}
+                  {x.archive ? ' · from the Archive' : ''}
+                </span>
               </li>
             ))}
           </ul>

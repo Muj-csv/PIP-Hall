@@ -97,6 +97,12 @@ Both are safe to run again (they only add columns and replace functions).
 1. Supabase **SQL editor:** run `supabase/migrations/20261006000300_project_collaborators.sql`. Safe to run again.
 2. Check: a member opens **My card → Collaborators**, tags another member of the hall on a project; that member sees the request in their own **Collaborators** panel and accepts. After the owner's next approval, the project's public card lists them.
 
+## Close the gaps (V2-13, D-111, D-112, D-128)
+
+1. Supabase **SQL editor:** run `supabase/migrations/20261008000400_close_gaps.sql` (after the showcase one) **before** merging the app update. Safe to run again. It adds the Mentor title, three Missions and `my_progress()`; the live app keeps working. If you ever re-run the missions, identity, hackathons or archive migration, run this one again after it.
+2. Check: a member's **Passport → Your progress** shows their Missions completed and achievements (only to them). A profile with team projects shows **Made with**; scanning a badge's QR shows **Related people** with **Walk there**. An exhibit that shares a maker with another shows **Connected projects**.
+3. **Server check (#23):** open `https://<your site>/api/og` (the hall's link-preview image) and `https://<your site>/api/badge?u=<a username>`. If either fails, the response has an `X-PipHall-Stage` header (in the browser's dev tools → Network, or `curl -I`) saying which step broke: `fonts`, `layout`, `png` or `data`. Send that, or the function's log line from Vercel (Project → Logs, it starts with `[pip-hall]`).
+
 ## The showcase (V2-12, D-109, D-120, D-127)
 
 1. Supabase **SQL editor:** run `supabase/migrations/20261008000300_showcase.sql` (after the museum walk one) **before** merging the app update. Safe to run again. It adds the check-in code and check-ins; the app that's live keeps working. If you ever re-run the passport or hackathons migration, run this one again after it.

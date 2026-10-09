@@ -215,6 +215,7 @@ export default function MuseumWalk({ parts, room, at, onRoom }: Props) {
     let raf = 0;
     let last = 0;
     const drawn = { cam: Number.NaN, w: -1, lit: -2, hero: Number.NaN, frame: -1, face: 0, a: null as WalkAssets | null, layout: null as WalkLayout | null };
+    let still = false;
     const frame = (now: number) => {
       raf = requestAnimationFrame(frame);
       const dt = last ? Math.min(2.5, (now - last) / 16.67) : 1;
@@ -281,6 +282,14 @@ export default function MuseumWalk({ parts, room, at, onRoom }: Props) {
         }
         if (ir.t >= IRIS_FRAMES) iris.current = null;
       } else if (ov && !ov.hidden) ov.hidden = true;
+
+      // Everything has come to rest (camera, Pip, iris): from here on a frame draws nothing.
+      // Marked on the level only when it changes, for anyone (or any test) waiting for it.
+      const nowStill = settled && !h.walking && !iris.current;
+      if (nowStill !== still) {
+        still = nowStill;
+        play.toggleAttribute('data-still', still);
+      }
     };
     raf = requestAnimationFrame(frame);
     return () => cancelAnimationFrame(raf);

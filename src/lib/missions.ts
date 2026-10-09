@@ -3,6 +3,8 @@
 // skill someone in the hall lists), so the same hall gives everyone the same Missions. Progress
 // comes from Passport stamps made in the current day or week. For members the database checks the
 // same condition again before paying (complete_mission); for guests a Mission is a stamp only.
+// V2-13 (D-128) adds three: find a project made by 3 or more people, visit a winning exhibit, and
+// (weekly) meet 3 people who know a skill. Each is offered only when the hall has what it asks for.
 
 import type { PublicCard } from '../types/card';
 import type { Exhibit } from '../types/museum';
@@ -11,7 +13,7 @@ import { teamProjects } from './passport';
 
 /** 'season' is an event's own Mission (V2-7, D-103): one per event, its reward set by the event. */
 export type MissionScope = 'daily' | 'weekly' | 'season';
-export type MissionKind = 'skill' | 'department' | 'tech' | 'team' | 'people' | 'exhibits' | 'departments';
+export type MissionKind = 'skill' | 'department' | 'tech' | 'team' | 'people' | 'exhibits' | 'departments' | 'crew' | 'winner';
 
 export interface Mission {
   scope: MissionScope;
@@ -22,7 +24,13 @@ export interface Mission {
   key: string;
   title: string;
   /** What the "Go" button does: a search to run, or a place to go. */
-  action: { search: { skill?: string; department?: string; q?: string } } | { to: '/museum' } | { random: true };
+  action: { search: { skill?: string; department?: string; q?: string } } | { to: string } | { random: true };
+}
+
+/** What a Mission needs to know beyond the cards and the Passport. */
+export interface MissionContext {
+  /** Projects that won a place or an award (hall_awards()), not counting the member's own. */
+  winners?: ReadonlySet<string>;
 }
 
 const ZONE_MS = 8 * 3600_000; // Asia/Manila is UTC+8, no daylight saving
@@ -67,7 +75,7 @@ export function makeMission(scope: MissionScope, label: string, kind: MissionKin
   const key = missionKey(scope, label, kind, param, n);
   switch (kind) {
     case 'skill':
-      return { scope, kind, param, n, key, title: `Find someone who knows ${param}`, action: { search: { skill: param! } } };
+      return { scope, kind, param, n, key, title: n > 1 ? `Meet ${n} people who know ${param}` : `Find someone who knows ${param}`, action: { search: { skill: param! } } };
     case 'department':
       return { scope, kind, param, n, key, title: `Meet someone from ${param}`, action: { search: { department: param! } } };
     case 'tech':
@@ -80,6 +88,10 @@ export function makeMission(scope: MissionScope, label: string, kind: MissionKin
       return { scope, kind, param, n, key, title: `Visit ${n} exhibits in the Museum`, action: { to: '/museum' } };
     case 'departments':
       return { scope, kind, param, n, key, title: `Meet people from ${n} different departments`, action: { random: true } };
+    case 'crew':
+      return { scope, kind, param, n, key, title: `Find a project made by ${n} or more people`, action: { random: true } };
+    case 'winner':
+      return { scope, kind, param, n, key, title: 'Visit a winning exhibit', action: { to: '/museum?room=winners' } };
   }
 }
 
@@ -95,6 +107,7 @@ export function pickMissions(
   me: string | null = null,
   /** A member's rerolls today (V2-5, D-101): each one seeds a fresh daily set. */
   rerolls = 0,
+  ctx: MissionContext = {},
 ): { daily: Mission[]; weekly: Mission | null } {
   const others = cards.filter((c) => c.profile_id !== me);
   const meName = cards.find((c) => c.profile_id === me)?.username;
@@ -103,6 +116,11 @@ export function pickMissions(
   const depts = uniq(others.map((c) => c.card.department ?? ''));
   const tech = uniq(others.flatMap((c) => c.card.projects.flatMap((p) => [p.language ?? '', ...p.tech_stack])));
   const teams = teamProjects(cards).some((t) => t.makers.some((m) => m.profile_id !== me));
+  const crews = teamProjects(cards).some((t) => t.makers.length >= 3 && t.makers.some((m) => m.profile_id !== me));
+  // Skills that three or more other people list, for the weekly skill Mission.
+  const count = new Map<string, { name: string; n: number }>();
+  for (const c of others) for (const s of new Set((c.card.skills ?? []).map((x) => x.trim()).filter(Boolean))) count.set(s.toLowerCase(), { name: count.get(s.toLowerCase())?.name ?? s, n: (count.get(s.toLowerCase())?.n ?? 0) + 1 });
+  const shared = [...count.values()].filter((x) => x.n >= 3).map((x) => x.name).sort();
 
   const r = seeded(rerolls > 0 ? `daily:${day}:r${rerolls}` : `daily:${day}`);
   const pool: Mission[] = [];
@@ -112,6 +130,8 @@ export function pickMissions(
   if (teams) pool.push(makeMission('daily', day, 'team', null, 1));
   if (others.length >= 3) pool.push(makeMission('daily', day, 'people', null, 3));
   if (showing >= 2) pool.push(makeMission('daily', day, 'exhibits', null, 2));
+  if (crews) pool.push(makeMission('daily', day, 'crew', null, 3));
+  if (ctx.winners?.size) pool.push(makeMission('daily', day, 'winner', null, 1));
   for (let i = pool.length - 1; i > 0; i--) {
     const j = Math.floor(r() * (i + 1));
     [pool[i], pool[j]] = [pool[j]!, pool[i]!];
@@ -122,13 +142,15 @@ export function pickMissions(
   if (others.length >= 8) weekly.push(makeMission('weekly', week, 'people', null, 8));
   if (showing >= 5) weekly.push(makeMission('weekly', week, 'exhibits', null, 5));
   if (depts.length >= 3) weekly.push(makeMission('weekly', week, 'departments', null, 3));
+  // Its own seed, so the weekly pick is the same as before for halls without such a skill.
+  if (shared.length) weekly.push(makeMission('weekly', week, 'skill', pick(shared, seeded(`weekly:${week}:skill`))!, 3));
   return { daily: pool.slice(0, 3), weekly: pick(weekly, w) ?? null };
 }
 
 const same = (a: string | null | undefined, b: string | null) => (a ?? '').trim().toLowerCase() === (b ?? '').trim().toLowerCase();
 
 /** Is this Mission done, from stamps made since its day or week began (never imported ones)? */
-export function missionMet(m: Mission, passport: PassportData, cards: readonly PublicCard[], since: Date): boolean {
+export function missionMet(m: Mission, passport: PassportData, cards: readonly PublicCard[], since: Date, ctx: MissionContext = {}): boolean {
   const fresh = (s: Stamp) => !s.imported && Date.parse(s.at) >= since.getTime();
   const byId = new Map(cards.map((c) => [c.profile_id, c]));
   const met = passport.people.filter(fresh).map((s) => byId.get(s.id)).filter((c): c is PublicCard => Boolean(c));
@@ -138,7 +160,7 @@ export function missionMet(m: Mission, passport: PassportData, cards: readonly P
     case 'exhibits':
       return passport.exhibits.filter(fresh).length >= m.n;
     case 'skill':
-      return met.some((c) => (c.card.skills ?? []).some((s) => same(s, m.param)));
+      return met.filter((c) => (c.card.skills ?? []).some((s) => same(s, m.param))).length >= Math.max(1, m.n);
     case 'department':
       return met.some((c) => same(c.card.department, m.param));
     case 'tech':
@@ -149,6 +171,14 @@ export function missionMet(m: Mission, passport: PassportData, cards: readonly P
     }
     case 'departments':
       return new Set(met.map((c) => (c.card.department ?? '').trim().toLowerCase()).filter(Boolean)).size >= m.n;
+    case 'crew': {
+      // Meet one of its makers, or open its exhibit.
+      const metIds = new Set(met.map((c) => c.profile_id));
+      const visited = new Set(passport.exhibits.filter(fresh).map((s) => s.id));
+      return teamProjects(cards).some((t) => t.makers.length >= m.n && (t.makers.some((x) => metIds.has(x.profile_id)) || visited.has(t.project.id ?? '')));
+    }
+    case 'winner':
+      return passport.exhibits.filter(fresh).some((s) => ctx.winners?.has(s.id));
   }
 }
 
