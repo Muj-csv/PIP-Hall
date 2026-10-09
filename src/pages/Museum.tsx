@@ -1,17 +1,18 @@
-// /museum (D-069): a walk through members' projects, shuffled on every visit. Members with
-// Museum access choose which of their approved projects hang here; exhibits show them as approved.
-// Featured makers' exhibits are pinned in their own row on top; Shuffle never moves them (D-083).
+// /museum (D-069): a walk through the hall's projects, shuffled on every visit; exhibits show them
+// as approved. Since D-130 the Museum is curated: projects an admin features (pinned in their own
+// row on top; Shuffle never moves them, D-083), the winners of the hall's events, and the archive.
 // Wings (V2-6, D-102): doorways at the top lead into rooms built from the exhibits themselves
 // (/museum?wing=web), each with its curator's note and the way on to the other wings.
 // Events (V2-9, D-115, D-116): the Winners' Hall comes first, with every announced place and award
 // on a pedestal with its ribbon and the judges' note; each hackathon or building event has its own
-// room (/museum?event=key) with its entries by track, open from its first day.
+// room (/museum?event=key) with its winners by track, once announced (D-130).
 // The archive (V2-10, D-118): past projects hang with the rest, in their wings and their event's
 // room, their winners in the Winners' Hall, and all of them in The Archive (/museum?room=archive),
 // by year.
-// The walkable Museum (V2-11, D-119): by default Pip walks the rooms on the PIXENDO's screen
-// (MuseumWalk, a lazy chunk); this page's rooms and grids are the List view (?view=list), one link
-// away, and what very narrow screens (and 400% zoom) open first. Both views share the address.
+// The walkable Museum (V2-11, D-119): Pip walks the rooms on the PIXENDO's screen (MuseumWalk, a
+// lazy chunk, ?view=walk); this page's rooms and grids are the List view (?view=list), what very
+// narrow screens (and 400% zoom) open first. Since D-129 the Museum opens as two circles (rooms and
+// their exhibits, MuseumCircles, another lazy chunk). All three views share the address.
 
 import { lazy, Suspense, useCallback, useEffect, useId, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
@@ -38,11 +39,13 @@ import { Ribbon } from '../components/museum/Ribbon';
 import type { Exhibit } from '../types/museum';
 
 const MuseumWalk = lazy(() => import('../components/museum/MuseumWalk'));
+const MuseumCircles = lazy(() => import('../components/museum/MuseumCircles'));
 
 /** A list-view address keeps the list view. */
 const inList = (path: string) => `${path}${path.includes('?') ? '&' : '?'}view=list`;
 
 type Load = { status: 'loading' } | { status: 'error' } | { status: 'ready'; exhibits: Exhibit[] };
+const EMPTY = 'The Museum is waiting for its first exhibit. It shows projects the hall’s admins feature, the winners of its events, and its archive.';
 type Events = 'loading' | 'error' | MuseumEvent[];
 type Archive = 'loading' | 'error' | ArchiveExhibit[];
 
@@ -55,10 +58,10 @@ export default function Museum() {
   const [events, setEvents] = useState<Events>('loading');
   const [archive, setArchive] = useState<Archive>('loading');
   const [params, setParams] = useSearchParams();
-  // Walk by default; the list first on very narrow screens (D-119). ?view= picks one.
+  // The circles by default (D-129); the list first on very narrow screens (D-119). ?view= picks one.
   const narrow = useMediaQuery('(max-width: 359px)');
   const asked = params.get('view');
-  const view = asked === 'list' || asked === 'walk' ? asked : narrow ? 'list' : 'walk';
+  const view = asked === 'list' || asked === 'walk' || asked === 'circles' ? asked : narrow ? 'list' : 'circles';
 
   useEffect(() => {
     let on = true;
@@ -86,7 +89,8 @@ export default function Museum() {
   const past = useMemo(() => (Array.isArray(archive) ? archive : []), [archive]);
   // Members' exhibits and the archive's hang together, in every room and wing.
   const exhibits = useMemo(() => (load.status === 'ready' ? [...load.exhibits, ...past.map(archiveAsExhibit)] : null), [load, past]);
-  const eventList = useMemo(() => withArchive(Array.isArray(events) ? events : [], past), [events, past]);
+  // Event rooms hold their winners and the archive's exhibits from them; a room with neither stays shut.
+  const eventList = useMemo(() => withArchive(Array.isArray(events) ? events : [], past).filter((e) => e.entries.length > 0), [events, past]);
   // A new order on every visit and every Shuffle (round is the trigger); featured stay pinned.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const { featured, rest } = useMemo(() => arrangeMuseum(exhibits ?? []), [exhibits, round]);
@@ -106,7 +110,7 @@ export default function Museum() {
     () => [...eventList.map(eventCase), ...archiveCases(past, new Set(eventList.map((e) => e.key)))].filter((t) => t.winners.length > 0).sort((a, b) => b.sort.localeCompare(a.sort)),
     [eventList, past],
   );
-  // The walk's rooms: each wing in a new order this visit, featured makers first.
+  // The walk's rooms: each wing in a new order this visit, featured projects first.
   const walkParts = useMemo<MuseumParts>(
     () => ({
       trophies,
@@ -125,7 +129,7 @@ export default function Museum() {
     (id: string, at?: string) => {
       const [k, v] = roomParams(id);
       const next = new URLSearchParams({ [k]: v });
-      if (asked === 'walk') next.set('view', 'walk');
+      if (asked === 'walk' || asked === 'circles') next.set('view', asked);
       if (at) {
         next.set('at', at);
         // Rewritten in place just before the exhibit opens, so Back lands on this exhibit.
@@ -134,12 +138,11 @@ export default function Museum() {
     },
     [asked, setParams],
   );
-  const viewHref = (v: 'walk' | 'list') => {
+  const viewHref = (v: 'circles' | 'walk' | 'list') => {
     const next = new URLSearchParams(params);
     next.delete('view');
     next.delete('at');
-    if (v === 'list') next.set('view', 'list');
-    else if (narrow) next.set('view', 'walk');
+    if (v !== 'circles' || narrow) next.set('view', v);
     const q = next.toString();
     return q ? `/museum?${q}` : '/museum';
   };
@@ -162,6 +165,9 @@ export default function Museum() {
         <Link to={viewHref('list')} className="chip" aria-current={view === 'list' ? 'page' : undefined}>
           <span aria-hidden="true">☰ </span>List view<span className="sr-only"> (reads best with a screen reader)</span>
         </Link>
+        <Link to={viewHref('circles')} className="chip" aria-current={view === 'circles' ? 'page' : undefined}>
+          <span aria-hidden="true">◎ </span>Rooms and exhibits
+        </Link>
         <Link to={viewHref('walk')} className="chip" aria-current={view === 'walk' ? 'page' : undefined}>
           <span aria-hidden="true">▶ </span>Walk the Museum
         </Link>
@@ -174,9 +180,12 @@ export default function Museum() {
           </button>
         </DialogueBox>
       )}
-      {view === 'walk' && exhibits && !settled && <DialogueBox text="Opening the doors…" emote="pending" />}
-      {view === 'walk' && exhibits && settled && !anything && (
-        <DialogueBox text="The Museum is waiting for its first exhibit. Members with Museum access can add projects from their card editor, and projects entered in the hall’s events hang here too." />
+      {view !== 'list' && exhibits && !settled && <DialogueBox text="Opening the doors…" emote="pending" />}
+      {view !== 'list' && exhibits && settled && !anything && <DialogueBox text={EMPTY} />}
+      {view === 'circles' && exhibits && settled && anything && (
+        <Suspense fallback={<DialogueBox text="Opening the doors…" emote="pending" />}>
+          <MuseumCircles parts={walkParts} room={roomFromParams(params)} at={params.get('at')} onRoom={onRoom} />
+        </Suspense>
       )}
       {view === 'walk' && exhibits && settled && anything && (
         <Suspense fallback={<DialogueBox text="Opening the doors…" emote="pending" />}>
@@ -187,7 +196,7 @@ export default function Museum() {
       {view === 'list' && (
         <>
           {exhibits && !anything && lobby && events !== 'loading' && archive !== 'loading' && (
-            <DialogueBox text="The Museum is waiting for its first exhibit. Members with Museum access can add projects from their card editor, and projects entered in the hall’s events hang here too." />
+            <DialogueBox text={EMPTY} />
           )}
           {exhibits && (rooms.length > 0 || eventList.length > 0 || past.length > 0) && <Doors rooms={rooms} events={eventList} archive={past.length} current={current} />}
 
@@ -209,7 +218,7 @@ export default function Museum() {
             </DialogueBox>
           )}
           {exhibits && eventKey && Array.isArray(events) && !eventRoom && (
-            <DialogueBox text="That event room isn’t open. A room opens on its event’s first day." emote="attention">
+            <DialogueBox text="That event’s room isn’t open. It opens once the event’s winners are announced." emote="attention">
               <Link to={inList('/museum')} className="hw-btn no-underline" data-variant="small">
                 ALL EXHIBITS
               </Link>
@@ -233,8 +242,8 @@ export default function Museum() {
                 trophies.length > 0
                   ? 'Welcome to the Museum! The winners of the hall’s events stand in the Winners’ Hall; every other exhibit is in a new order each visit.'
                   : featured.length > 0
-                    ? 'Welcome to the Museum! Featured makers hang up top; the rest are in a new order every visit.'
-                    : 'Welcome to the Museum: projects from members of the hall, in a new order every visit.'
+                    ? 'Welcome to the Museum! Featured projects hang up top; the rest are in a new order every visit.'
+                    : 'Welcome to the Museum: projects from the hall and its archive, in a new order every visit.'
               }
             />
           )}
@@ -426,11 +435,11 @@ function WinnersHall({ trophies }: { trophies: TrophyCase[] }) {
   );
 }
 
-/** One event's room: where it stands, its winners (once announced), then its entries by track. */
+/** One event's room: where it stands, its winners, then the archive's other exhibits from it, by track. */
 function EventRoomView({ event }: { event: MuseumEvent }) {
   const winners = winnersOf(event);
-  const awardsOf = (id: string) => winners.filter((w) => w.entry.project_id === id).map((w) => w.award);
-  const groups = entriesByTrack(event);
+  const won = new Set(winners.map((w) => w.entry.project_id));
+  const groups = entriesByTrack({ ...event, entries: event.entries.filter((e) => !won.has(e.project_id)) });
   const status = phaseLine(event);
   return (
     <section className="wing-room event-room" aria-labelledby="event-room-title">
@@ -466,27 +475,23 @@ function EventRoomView({ event }: { event: MuseumEvent }) {
           </ul>
         </section>
       )}
-      {groups.length === 0 ? (
-        <DialogueBox text={event.phase === 'open' ? 'No entries yet. Members enter their projects from the event panel in the hall.' : 'No entries are on show from this event.'} />
-      ) : (
-        groups.map((g) => (
-          <section key={g.track ?? 'all'} className="grid gap-space-3" aria-labelledby={`track-${g.track ?? 'all'}`}>
-            <h3 id={`track-${g.track ?? 'all'}`} className="m-0 font-display font-normal">
-              {g.track ? `${g.track} track` : 'Entries'}{' '}
-              <span className="text-caption text-text-secondary">
-                · {g.entries.length} {g.entries.length === 1 ? 'entry' : 'entries'}
-              </span>
-            </h3>
-            <ul className="museum-grid" aria-label={g.track ? `Entries in the ${g.track} track` : `Entries in ${event.name}`}>
-              {g.entries.map((e) => (
-                <li key={e.project_id}>
-                  <ExhibitFrame exhibit={e} awards={awardsOf(e.project_id)} />
-                </li>
-              ))}
-            </ul>
-          </section>
-        ))
-      )}
+      {groups.map((g) => (
+        <section key={g.track ?? 'all'} className="grid gap-space-3" aria-labelledby={`track-${g.track ?? 'all'}`}>
+          <h3 id={`track-${g.track ?? 'all'}`} className="m-0 font-display font-normal">
+            {g.track ? `${g.track} track` : 'Also from this event'}{' '}
+            <span className="text-caption text-text-secondary">
+              · {g.entries.length} {g.entries.length === 1 ? 'exhibit' : 'exhibits'} from the Archive
+            </span>
+          </h3>
+          <ul className="museum-grid" aria-label={g.track ? `From the ${g.track} track` : `Also from ${event.name}`}>
+            {g.entries.map((e) => (
+              <li key={e.project_id}>
+                <ExhibitFrame exhibit={e} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
     </section>
   );
 }

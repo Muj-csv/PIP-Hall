@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Season } from './seasons';
-import { awardLabel, countdown, entriesByTrack, fromManilaInput, kindOf, parseTracks, phaseLine, ribbonOf, toManilaInput, winnersOf, type EventEntry, type MuseumEvent } from './events';
+import { awardLabel, countdown, curatedEvents, entriesByTrack, fromManilaInput, kindOf, parseTracks, phaseLine, ribbonOf, toManilaInput, winnersOf, type EventEntry, type MuseumEvent } from './events';
 
 const entry = (id: string, track: string | null): EventEntry => ({
   project_id: id,
@@ -80,6 +80,16 @@ describe('events', () => {
       'People’s Pick:b',
       'Best UI · Health track:c',
     ]);
+  });
+
+  it('hangs an event’s winners only, once announced (D-130)', () => {
+    const open: MuseumEvent = { ...hack, entries: [entry('a', 'Health'), entry('b', 'Education')], awards: [] };
+    expect(curatedEvents([open])[0]!.entries).toEqual([]);
+    const done: MuseumEvent = { ...hack, phase: 'results', entries: [entry('a', 'Health'), entry('b', 'Education'), entry('c', 'Health')], awards: [{ place: 1, name: null, track: null, project_id: 'b' }, { place: null, name: 'Best UI', track: 'Health', project_id: 'c' }] };
+    const [shown] = curatedEvents([done]);
+    expect(shown!.entries.map((x) => x.project_id)).toEqual(['b', 'c']);
+    expect(shown!.awards).toHaveLength(2);
+    expect(winnersOf(shown!).map(({ entry }) => entry.project_id)).toEqual(['b', 'c']);
   });
 
   it('groups entries by track in the event’s order', () => {

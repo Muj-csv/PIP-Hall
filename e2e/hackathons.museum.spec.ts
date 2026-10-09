@@ -1,6 +1,6 @@
 // V2-9 (D-115 to D-117): hackathons and building events. An admin schedules a hackathon with
-// tracks and a deadline; members enter a project from the hall while submissions are open and it
-// hangs in the event's Museum room; after the deadline admins record places and named awards with
+// tracks and a deadline; members enter a project from the hall while submissions are open (since
+// D-130 only its winners hang in the event's Museum room); after the deadline admins record places and named awards with
 // judges' notes and announce them once. Then the Winners' Hall, the badges' ribbons, the bell, the
 // Proof panel and the Champion title all follow. Supabase data source, mocked, PIPs on.
 import { expect, test, type Page } from '@playwright/test';
@@ -112,27 +112,12 @@ test('a member enters a project in a track while submissions are open; it hangs 
   await panel.scrollIntoViewIfNeeded();
   await panel.screenshot({ path: 'docs/build/evidence/hackathons/hall-entry.png' });
 
-  // The event room is open from the first day, with the entries by track.
-  await panel.getByRole('link', { name: 'See the entries in the Museum' }).click();
-  await expect(page).toHaveURL(/\/museum\?event=spring-hack$/);
-  // The walk opens in the event's room; the List view keeps the room.
-  await expect(page.locator('.walk-title')).toContainText('Spring Hackathon');
-  await page.getByRole('navigation', { name: 'How to see the Museum' }).getByRole('link', { name: /List view/ }).click();
-  await expect(page).toHaveURL(/\/museum\?event=spring-hack&view=list$/);
-  const doors = page.getByRole('navigation', { name: 'Rooms' });
-  await expect(doors.getByRole('link', { name: /Spring Hackathon/ })).toHaveAttribute('aria-current', 'page');
-  await expect(doors.getByRole('link', { name: /Spring Hackathon/ })).toContainText('1 entry');
-  const room = page.locator('.event-room');
-  await expect(room.getByRole('status')).toContainText('Submissions close in 2 days');
-  const health = room.getByRole('list', { name: 'Entries in the Health track' });
-  await expect(health.getByRole('heading', { name: 'Kite' })).toBeVisible();
-  await expect(room.getByRole('list', { name: 'Entries in the Education track' })).toHaveCount(0);
-  await page.screenshot({ path: 'docs/build/evidence/hackathons/event-room.png', fullPage: true });
-
-  // The entry opens like any exhibit, and says which event it is in.
-  await health.getByRole('link', { name: 'Kite' }).click();
-  await expect(page).toHaveURL(new RegExp(`/museum/${KITE}$`));
-  await expect(page.locator('.exhibit-plaque')).toContainText('Entered in Spring Hackathon · Health track');
+  // The Museum shows an event's winners only (D-130): no room, and no link to one, until the results are in.
+  await expect(panel).toContainText('The winners hang in the Museum once the results are announced.');
+  await expect(panel.getByRole('link', { name: /in the Museum/ })).toHaveCount(0);
+  await page.goto('/museum?event=spring-hack&view=list');
+  await expect(page.locator('.dialogue .sr-only').filter({ hasText: 'opens once the event’s winners are announced' })).toHaveCount(1);
+  await expect(page.getByRole('heading', { name: 'Kite' })).toHaveCount(0);
 
   // Withdrawing frees the slot until submissions close.
   await page.goto('/#event');

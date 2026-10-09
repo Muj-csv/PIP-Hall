@@ -1,10 +1,11 @@
 // MUSEUM (D-069) and affiliations (D-067, D-068). Two sources behind one interface, like cardService:
 // the fixture shows every sample project so the gallery can be built and tested without a backend.
+// Since D-130 the database's exhibits are the projects an admin features; members offer theirs.
 
 import type { ConsoleKind } from '../lib/sprites';
 import { DEFAULT_WINGS, parseWings, type RoomStyle, type Wing } from '../lib/wings';
 import type { PublishedCardRow } from '../types/card';
-import type { Affiliation, Exhibit, MuseumSummaryRow, MyMuseum } from '../types/museum';
+import type { AdminMuseumProject, Affiliation, Exhibit, MuseumSummaryRow, MyMuseum } from '../types/museum';
 import { requireSupabase } from './supabase';
 
 const useSupabase = import.meta.env.VITE_DATA_SOURCE === 'supabase';
@@ -55,6 +56,20 @@ export const museumService = {
     const { data, error } = await requireSupabase().rpc('admin_museum_summary');
     if (error) throw error;
     return (data ?? []) as MuseumSummaryRow[];
+  },
+
+  /** Admins: every project on an approved card, with its offer, feature and win (D-130). */
+  async adminProjects(): Promise<AdminMuseumProject[]> {
+    const { data, error } = await requireSupabase().rpc('admin_museum_projects');
+    if (error) throw error;
+    return (data ?? []) as AdminMuseumProject[];
+  },
+
+  /** Admins: features a project in the Museum, or takes it down. */
+  async feature(projectId: string, on: boolean): Promise<boolean> {
+    const { data, error } = await requireSupabase().rpc('admin_feature_project', { p_project: projectId, p_on: on });
+    if (error) throw error;
+    return Boolean(data);
   },
 
   /** Picks the console one of my exhibits hangs in; null goes back to automatic. Never resets review. */
@@ -164,7 +179,8 @@ export function affiliationKey(name: string): string {
 export function museumErrorMessage(e: unknown): string {
   const msg = (e as { message?: string })?.message ?? '';
   if (/NO_MUSEUM_ACCESS/.test(msg)) return 'Your account doesn’t have Museum access. An admin can add it.';
-  if (/NOT_LIVE/.test(msg)) return 'Only projects on your approved card can go in the Museum.';
+  if (/NOT_LIVE/.test(msg)) return 'Only projects on an approved card can go in the Museum.';
+  if (/admin_feature_project|admin_museum_projects|PGRST202/.test(msg)) return 'Featuring projects needs the curated Museum update. See the deploy guide.';
   if (/NOT_YOURS/.test(msg)) return 'That project isn’t on your card.';
   if (/NOT_IN_MUSEUM/.test(msg)) return 'Put the project in the Museum first, then pick its console.';
   if (/BAD_CONSOLE/.test(msg)) return 'That console isn’t one of the five. Pick another.';

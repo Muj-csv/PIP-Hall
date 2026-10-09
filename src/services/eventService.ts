@@ -3,7 +3,7 @@
 // checks every rule (windows, ownership, tracks, one award per place) and keeps the results private
 // until they are announced. Without a database there are no events: none are invented (rule 7).
 
-import type { Award, HallAward, MuseumEvent } from '../lib/events';
+import { curatedEvents, type Award, type HallAward, type MuseumEvent } from '../lib/events';
 import { requireSupabase } from './supabase';
 
 const useSupabase = import.meta.env.VITE_DATA_SOURCE === 'supabase';
@@ -28,7 +28,8 @@ export interface AdminResults {
 }
 
 export const eventService = {
-  /** Every hackathon and building event that has begun, newest first, with entries and results. */
+  /** Every hackathon and building event that has begun, newest first, with its results and, as the
+   *  Museum shows them (D-130), only the entries that won. */
   async museumEvents(): Promise<MuseumEvent[]> {
     if (!useSupabase) return [];
     const { data, error } = await requireSupabase().rpc('museum_events');
@@ -36,7 +37,7 @@ export const eventService = {
       if (notYet(error, 'museum_events')) return [];
       throw error;
     }
-    return (data ?? []) as MuseumEvent[];
+    return curatedEvents((data ?? []) as MuseumEvent[]);
   },
 
   /** Ribbons by member id (announced awards only). */

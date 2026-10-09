@@ -28,6 +28,8 @@ export interface MockDb {
   affiliations?: Row[];
   memberAffiliations?: Row[];
   museumEntries?: Row[];
+  /** The curated Museum (D-130): projects an admin featured {project_id, member_id}. */
+  museumFeatures?: Row[];
   /** Paths uploaded to the project-covers bucket (screen pictures, D-092). */
   coverUploads?: string[];
   /** PIP MART (mirrors supabase/migrations/*_pip_mart.sql). */
@@ -329,6 +331,7 @@ export async function handleDb(route: Route, db: MockDb, user: DbUser): Promise<
       // The Museum follows the approved card (D-071).
       const kept = new Set(((row.card as Row).projects as Row[]).map((x) => String(x.id)));
       db.museumEntries = (db.museumEntries ?? []).filter((e) => e.member_id !== p.id || kept.has(String(e.project_id)));
+      db.museumFeatures = (db.museumFeatures ?? []).filter((e) => e.member_id !== p.id || kept.has(String(e.project_id)));
       rewardApproval(db, String(p.id));
     } else if (fn === 'reject_profile') {
       if (!args.p_note?.trim()) return (await err(400, 'P0001', 'NOTE_REQUIRED')), true;
@@ -364,6 +367,13 @@ export async function handleDb(route: Route, db: MockDb, user: DbUser): Promise<
   }
 
   const inHall = (id: string) => db.published.some((r) => r.profile_id === id);
+  /** Announced winners (D-116): on show in the Museum without a feature (D-130). */
+  const wonIds = () => new Set((db.awards ?? []).filter((w) => (db.seasons ?? []).some((x) => x.key === w.season_key && x.announced_at)).map((w) => String(w.project_id)));
+  /** On show in the curated Museum (D-130): featured or a winner (not mine), or a published archive exhibit. */
+  const onShowFor = (id: string, me: string | null) =>
+    (db.museumFeatures ?? []).some((f) => f.project_id === id && f.member_id !== me) ||
+    (wonIds().has(id) && !(db.submissions ?? []).some((x) => x.project_id === id && x.member_id === me)) ||
+    (db.archive ?? []).some((x) => x.id === id && x.published);
   // V2-10: an archive exhibit's event as people say it, and crediting a linked member once.
   const arcLabel = (a: Row): string | null => {
     const n = (a.season_key ? ((db.seasons ?? []).find((x) => x.key === a.season_key)?.name as string | undefined) : undefined) ?? (a.event_name as string | null) ?? null;
@@ -449,7 +459,7 @@ export async function handleDb(route: Route, db: MockDb, user: DbUser): Promise<
   }
   if (url.pathname === '/rest/v1/rpc/stamp_exhibit') {
     const id = String(body().p_project);
-    const onShow = (db.museumEntries ?? []).some((e) => e.project_id === id && e.member_id !== userId);
+    const onShow = onShowFor(id, userId);
     db.passportVisits ??= [];
     if (!inHall(userId) || !onShow || db.passportVisits.some((r) => r.member_id === userId && r.project_id === id)) return (await json(200, false)), true;
     db.passportVisits.push({ member_id: userId, project_id: id, visited_at: new Date().toISOString(), source: 'verified' });
@@ -468,7 +478,7 @@ export async function handleDb(route: Route, db: MockDb, user: DbUser): Promise<
       people++;
     }
     for (const s of p_exhibits) {
-      if (!(db.museumEntries ?? []).some((e) => e.project_id === s.id && e.member_id !== userId) || db.passportVisits.some((r) => r.member_id === userId && r.project_id === s.id)) continue;
+      if (!onShowFor(s.id, userId) || db.passportVisits.some((r) => r.member_id === userId && r.project_id === s.id)) continue;
       db.passportVisits.push({ member_id: userId, project_id: s.id, visited_at: s.at, source: 'imported' });
       exhibits++;
     }
@@ -564,7 +574,40 @@ export async function handleDb(route: Route, db: MockDb, user: DbUser): Promise<
   if (url.pathname === '/rest/v1/rpc/my_museum') {
     const approved = (((db.published.find((r) => r.profile_id === userId)?.card as Row | undefined)?.projects as Row[] | undefined) ?? []).filter((p) => p.id).map((p) => ({ id: p.id, title: p.title }));
     return (await json(200, { access: hasMuseum(userId), live: liveIds(userId), projects: approved, entries: (db.museumEntries ?? []).filter((e) => e.member_id === userId).map((e) => e.project_id),
-      consoles: Object.fromEntries((db.museumEntries ?? []).filter((e) => e.member_id === userId && e.console).map((e) => [e.project_id, e.console])) })), true;
+      consoles: Object.fromEntries((db.museumEntries ?? []).filter((e) => e.member_id === userId && e.console).map((e) => [e.project_id, e.console])),
+      featured: (db.museumFeatures ?? []).filter((f) => f.member_id === userId && liveIds(userId).includes(String(f.project_id))).map((f) => f.project_id) })), true;
+  }
+  // The curated Museum (D-130): admins feature any project on an approved card.
+  if (url.pathname === '/rest/v1/rpc/admin_museum_projects') {
+    if (!admin) return (await err(403, '42501', 'NOT_ADMIN')), true;
+    const rows = [...db.published]
+      .sort((a, b) => Number(a.member_no) - Number(b.member_no))
+      .flatMap((c) =>
+        ((((c.card as Row).projects as Row[] | undefined) ?? []).filter((p) => p.id)).map((p) => ({
+          project_id: p.id,
+          title: p.title,
+          username: c.username,
+          full_name: (c.card as Row).full_name,
+          member_no: c.member_no,
+          offered: (db.museumEntries ?? []).some((e) => e.project_id === p.id),
+          featured: (db.museumFeatures ?? []).some((f) => f.project_id === p.id),
+          won: wonIds().has(String(p.id)),
+        })),
+      );
+    return (await json(200, rows)), true;
+  }
+  if (url.pathname === '/rest/v1/rpc/admin_feature_project') {
+    if (!admin) return (await err(403, '42501', 'NOT_ADMIN')), true;
+    const { p_project, p_on } = body() as { p_project: string; p_on: boolean };
+    db.museumFeatures ??= [];
+    if (!p_on) {
+      db.museumFeatures = db.museumFeatures.filter((f) => f.project_id !== p_project);
+      return (await json(200, false)), true;
+    }
+    const maker = db.published.find((c) => (((c.card as Row).projects as Row[] | undefined) ?? []).some((p) => p.id === p_project));
+    if (!maker) return (await err(400, 'P0001', 'NOT_LIVE')), true;
+    if (!db.museumFeatures.some((f) => f.project_id === p_project)) db.museumFeatures.push({ project_id: p_project, member_id: maker.profile_id });
+    return (await json(200, true)), true;
   }
   if (url.pathname === '/rest/v1/rpc/set_museum_console') {
     const { p_project, p_console } = body() as { p_project: string; p_console: string | null };
@@ -633,7 +676,7 @@ export async function handleDb(route: Route, db: MockDb, user: DbUser): Promise<
         const at = cardProject(r.member_id, r.project_id);
         if (!at?.p) return [];
         const card = at.c.card as Row;
-        return [{ project_id: r.project_id, username: at.c.username, full_name: card.full_name, avatar_path: card.avatar_path ?? null, member_no: at.c.member_no, featured: at.c.is_featured, console: null, track: r.track ?? null, project: at.p }];
+        return [{ project_id: r.project_id, username: at.c.username, full_name: card.full_name, avatar_path: card.avatar_path ?? null, member_no: at.c.member_no, featured: (db.museumFeatures ?? []).some((f) => f.project_id === r.project_id), console: null, track: r.track ?? null, project: at.p }];
       });
   const makersOf = (a: Row) => {
     const sub = (db.submissions ?? []).find((r) => r.season_key === a.season_key && r.project_id === a.project_id);
@@ -1014,12 +1057,14 @@ export async function handleDb(route: Route, db: MockDb, user: DbUser): Promise<
   }
 
   if (url.pathname === '/rest/v1/rpc/museum_exhibits') {
-    const out = (db.museumEntries ?? []).flatMap((e) => {
+    // The curated Museum (D-130): featured projects, with the console their maker picked when offering it.
+    const out = (db.museumFeatures ?? []).flatMap((e) => {
       const c = db.published.find((r) => r.profile_id === e.member_id);
       const card = c?.card as Row | undefined;
       const project = ((card?.projects as Row[] | undefined) ?? []).find((p) => p.id === e.project_id);
-      if (!c || !project || !hasMuseum(String(e.member_id))) return [];
-      return [{ project_id: e.project_id, username: c.username, full_name: card!.full_name, avatar_path: card!.avatar_path ?? null, member_no: c.member_no, featured: Boolean(c.is_featured), console: e.console ?? null, project }];
+      if (!c || !project) return [];
+      const offer = (db.museumEntries ?? []).find((x) => x.project_id === e.project_id);
+      return [{ project_id: e.project_id, username: c.username, full_name: card!.full_name, avatar_path: card!.avatar_path ?? null, member_no: c.member_no, featured: true, console: offer?.console ?? e.console ?? null, project }];
     });
     return (await json(200, out)), true;
   }

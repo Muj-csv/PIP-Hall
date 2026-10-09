@@ -90,6 +90,19 @@ export function winnersOf(e: Pick<MuseumEvent, 'awards' | 'entries' | 'tracks'>)
     });
 }
 
+/**
+ * The Museum shows an event's winners only (D-130): an entry hangs in its room once it has won a
+ * place or an award there (awards are public only once announced). Its other entries stay on their
+ * makers' cards. The archive adds its own exhibits afterwards (withArchive); a room left with
+ * nothing on show is not drawn (rule 7).
+ */
+export function curatedEvents(events: readonly MuseumEvent[]): MuseumEvent[] {
+  return events.map((e) => {
+    const won = new Set(e.awards.map((a) => a.project_id));
+    return { ...e, entries: e.entries.filter((x) => won.has(x.project_id)) };
+  });
+}
+
 /** The entries in each track, in the event's track order; an event without tracks has one group. */
 export function entriesByTrack(e: Pick<MuseumEvent, 'entries' | 'tracks'>): { track: string | null; entries: EventEntry[] }[] {
   const tracks = e.tracks ?? [];

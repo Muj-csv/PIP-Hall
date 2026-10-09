@@ -36,7 +36,7 @@ function hall(): MockDb {
     { key: 'officers-2025', name: 'Officers 2025–26', grants_museum: false, frame_key: null, sort: 2, officers: true, term_ends: day(-30) },
   ];
   db.memberAffiliations = [{ member_id: THREE, key: 'officers-2025', position: 'President', seat: 1 }];
-  db.museumEntries = [{ project_id: KITE, member_id: ONE }];
+  db.museumFeatures = [{ project_id: KITE, member_id: ONE }];
   return db;
 }
 

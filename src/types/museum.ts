@@ -22,7 +22,7 @@ export interface Exhibit {
   full_name: string;
   avatar_path: string | null;
   member_no: number;
-  /** The maker is featured by an admin: their exhibits are pinned on top (D-083). */
+  /** An admin featured this project (D-130; before, its maker): pinned on top (D-083). */
   featured?: boolean;
   /** The console the maker picked; null or missing means picked from the project id (D-091). */
   console?: ConsoleKind | null;
@@ -41,6 +41,22 @@ export interface MyMuseum {
   entries: string[];
   /** Consoles the member picked, by project id; the rest are automatic (D-091). */
   consoles?: Record<string, ConsoleKind>;
+  /** Which of them an admin featured, so they hang in the Museum (D-130); missing before that update. */
+  featured?: string[];
+}
+
+/** Admin → Museum (D-130): one project on an approved card, and where it stands. */
+export interface AdminMuseumProject {
+  project_id: string;
+  title: string;
+  username: string;
+  full_name: string;
+  member_no: number;
+  /** Its maker offered it (the editor's Museum panel). */
+  offered: boolean;
+  featured: boolean;
+  /** It won at an announced event, so it is on show anyway. */
+  won: boolean;
 }
 
 /** Admin → Affiliations: one member with Museum access. */

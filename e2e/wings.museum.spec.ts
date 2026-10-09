@@ -27,7 +27,7 @@ function hall(withWings = true): MockDb {
   db.published.push({ ...base, profile_id: ADA, username: 'ada', member_no: 1, is_featured: false, card: { ...base.card, username: 'ada', full_name: 'Ada Lovelace', projects } } as Row);
   db.affiliations = [{ key: 'cs-student', name: 'CS Student', grants_museum: true, frame_key: null, sort: 1 }];
   db.memberAffiliations = [{ member_id: ADA, key: 'cs-student' }];
-  db.museumEntries = P.map((project_id) => ({ project_id, member_id: ADA, console: null }));
+  db.museumFeatures = P.map((project_id) => ({ project_id, member_id: ADA, console: null }));
   if (withWings) {
     db.wings = SEED_WINGS.map((w) => ({ ...w, tags: [...(w.tags as string[])] }));
     db.wings.find((w) => w.key === 'web')!.note = 'Things you can open in a browser.';
@@ -48,8 +48,8 @@ test('visitors walk through the wings: doors, rooms, curator notes, and paths on
   await mockSupabase(page, { db, publishedCards: db.published });
   await page.goto('/museum?view=list');
 
-  // Only wings with something on show have a door (no Featured: nobody is featured).
-  await expect(doors(page)).toHaveText([/All exhibits/, /Collab Wing\s*1 exhibit/, /Web Wing\s*1 exhibit/, /Games Wing\s*1 exhibit/, /Data Wing\s*1 exhibit/]);
+  // Only wings with something on show have a door. Since D-130 every member's exhibit is a featured project.
+  await expect(doors(page)).toHaveText([/All exhibits/, /Featured Wing\s*3 exhibits/, /Collab Wing\s*1 exhibit/, /Web Wing\s*1 exhibit/, /Games Wing\s*1 exhibit/, /Data Wing\s*1 exhibit/]);
   await expect(doors(page).first()).toHaveAttribute('aria-current', 'page');
   await page.getByRole('navigation', { name: 'Rooms' }).screenshot({ path: 'docs/build/evidence/wings/doors.png' });
 
@@ -72,12 +72,13 @@ test('visitors walk through the wings: doors, rooms, curator notes, and paths on
   // From an exhibit, its wings and the way on.
   await page.goto(`/museum/${P[2]}`);
   const around = page.getByRole('region', { name: 'In the Museum’s wings' });
-  await expect(around.getByRole('link')).toHaveText([/Collab Wing/, /Games Wing/]);
+  // Since D-130 every member's exhibit is featured, so the Featured Wing leads on to the others too.
+  await expect(around.getByRole('link')).toHaveText([/Featured Wing/, /Collab Wing/, /Games Wing/, 'Pixel Diary', 'Tide Tables']);
   await around.getByRole('link', { name: /Games Wing/ }).click();
   await expect(page).toHaveURL(/\/museum\?wing=games$/);
 
-  // A wing that is closed or empty sends the visitor back to the rest.
-  await page.goto('/museum?wing=featured&view=list');
+  // A wing that is closed, empty or gone sends the visitor back to the rest.
+  await page.goto('/museum?wing=officers&view=list');
   await expect(page.locator('.dialogue').filter({ hasText: 'That wing has nothing on show right now' })).toBeVisible();
 });
 
@@ -114,7 +115,7 @@ test('before the wings update, the default wings still lead somewhere, with no n
   await boot(page);
   await mockSupabase(page, { db, publishedCards: db.published });
   await page.goto('/museum?view=list');
-  await expect(doors(page)).toHaveCount(5);
+  await expect(doors(page)).toHaveCount(6);
   await doors(page).filter({ hasText: 'Web Wing' }).click();
   await expect(page.getByRole('region', { name: 'Web Wing' })).toContainText('Pixel Diary');
   await expect(page.locator('.curator-note')).toHaveCount(0);
