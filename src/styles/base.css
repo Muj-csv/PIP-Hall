@@ -936,19 +936,25 @@
 .flipper {
   perspective: 1200px;
 }
+/* The turn is one number, 0 for the front and 1 for the back (D-131). The rotation and the face
+   swap both read it, so the swap can never run ahead of the badge, however busy the page is. */
+@property --turn {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 0;
+}
 .badge {
-  /* The turn and the moment it's edge-on belong together: this curve overshoots, so the badge
-     reaches 90° about 66ms into the 520ms turn (solve the bezier for y = 0.5 if you change it). */
   --flip-ms: 520ms;
-  --flip-edge-ms: 66ms;
+  --turn: 0;
   position: relative;
   width: calc(var(--p) * 56);
   height: calc(var(--p) * 88);
   transform-style: preserve-3d;
-  transition: transform var(--flip-ms) cubic-bezier(0.3, 1.35, 0.45, 1);
+  transform: rotateY(calc(var(--turn) * 180deg));
+  transition: --turn var(--flip-ms) cubic-bezier(0.3, 1.35, 0.45, 1);
 }
 .badge[data-flipped='true'] {
-  transform: rotateY(180deg);
+  --turn: 1;
 }
 .badge-face {
   position: absolute;
@@ -963,15 +969,23 @@
 /* backface-visibility alone isn't enough: Safari (every iPhone browser) still paints a face's own
    layers (photo, canvases, QR) mirrored through the back. So the turned-away face is also hidden.
    The incoming face shows the moment the turn starts (it is still facing away, so backface-visibility
-   keeps it out of sight while the browser paints it); the outgoing face hides only once the badge is
-   edge-on. One face is always on screen, and nothing has to be painted mid-turn. */
+   keeps it out of sight while the browser paints it). The outgoing face goes the frame the badge is
+   edge-on (--turn passes 0.5; the curve overshoots, so that is early in the turn), and is hidden
+   once the turn is over (D-056, D-131). One face is always on screen, and nothing has to be
+   painted mid-turn. */
 .badge-face {
   transition: visibility 0s linear 0s;
+}
+.badge[data-flipped='true'] > .badge-face[data-side='front'] {
+  opacity: clamp(0, (0.5 - var(--turn)) * 1000, 1);
+}
+.badge[data-flipped='false'] > .badge-face[data-side='back'] {
+  opacity: clamp(0, (var(--turn) - 0.5) * 1000, 1);
 }
 .badge[data-flipped='true'] > .badge-face[data-side='front'],
 .badge[data-flipped='false'] > .badge-face[data-side='back'] {
   visibility: hidden;
-  transition-delay: var(--flip-edge-ms);
+  transition-delay: var(--flip-ms);
 }
 /* The face turned away is `inert` (no focus) and never catches clicks. */
 .badge-face[inert] {
