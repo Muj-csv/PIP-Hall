@@ -39,7 +39,7 @@ function museum(): MockDb {
   grantMuseum(db);
   const card = db.published[0]!.card as Row;
   card.projects = (card.projects as Row[]).map((p) => (p.id === P1 ? { ...p, github_url: 'https://github.com/ada/tide-tables' } : { ...p, github_url: null }));
-  db.museumEntries = [{ project_id: P1, member_id: ME.id }, { project_id: P2, member_id: ME.id }];
+  db.museumFeatures = [{ project_id: P1, member_id: ME.id }, { project_id: P2, member_id: ME.id }];
   return db;
 }
 const stage = (page: Page, title: string) => exhibits(page).filter({ hasText: title }).locator('.exhibit-stage');

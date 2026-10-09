@@ -37,7 +37,8 @@ test('a maker picks a console for an exhibit; visitors see it; automatic is the 
   const panel = page.getByRole('region', { name: 'Museum' });
   // No picker until the project is in the Museum.
   await expect(panel.getByLabel('Console for Tide Tables')).toHaveCount(0);
-  await panel.getByLabel(/Show Tide Tables in the Museum/).check();
+  await panel.getByLabel(/Offer Tide Tables to the Museum/).check();
+  db.museumFeatures = [{ project_id: P1, member_id: ME.id }]; // an admin features it (D-130)
   const pick = panel.getByLabel('Console for Tide Tables');
   await expect(pick).toHaveValue('');
   await expect(pick.locator('option').first()).toHaveText(/^Automatic \((Pocket|Wide|Home TV|Arcade|Flip)\)$/);
@@ -67,7 +68,7 @@ test('a maker picks a console for an exhibit; visitors see it; automatic is the 
 test('the automatic console is the same on every visit', async ({ page }) => {
   const db = hall();
   grantMuseum(db);
-  db.museumEntries = [{ project_id: P1, member_id: ME.id }, { project_id: P2, member_id: ME.id }];
+  db.museumFeatures = [{ project_id: P1, member_id: ME.id }, { project_id: P2, member_id: ME.id }];
   await mockSupabase(page, { db });
   await page.goto('/museum?view=list');
   const frames = page.locator('.exhibit-frame');

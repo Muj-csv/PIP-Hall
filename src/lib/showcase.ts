@@ -38,7 +38,7 @@ export const BOOTH = { tourMs: 12_000, hallMs: 8_000, idleMs: 60_000, checkinMs:
 
 const byTitle = (a: Exhibit, b: Exhibit) => a.project.title.localeCompare(b.project.title) || a.project_id.localeCompare(b.project_id);
 
-/** The Museum's rooms in walking order, each in a fixed order: featured makers first, then by title. */
+/** The Museum's rooms in walking order, each in a fixed order: featured projects first, then by title. */
 export function showcaseRooms(d: MuseumData, ctx: WingContext = {}): PlannedRoom[] {
   const everything = [...d.exhibits, ...d.archive.map(archiveAsExhibit)];
   const events = withArchive(d.events, d.archive);

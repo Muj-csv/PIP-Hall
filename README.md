@@ -55,7 +55,7 @@ that makes discovering the people behind the work feel like browsing a game rost
 
 Most member directories are a grid of identical profile tiles. PIP-Hall turns each member into a **player card**: a pixel-art ID badge hanging from a lanyard inside **PIXENDO**, an original handheld-console world.
 
-Visitors walk through the hall like a side-scrolling level. **Pip**, PIXENDO's host, walks to whoever you're looking at. Tap a card and Pip jumps up and flips it over, revealing that member's **Quest Log**: their bio, projects and skills. Every card has a QR code that opens the member's public profile, so it works on a phone screen, a printed lanyard or a poster.
+The hall opens as **two circles**: the members on one arc and, on the other, the projects of whoever you pick, with their badge and the chosen project in between (**VIEW** opens it). Pick someone else and the projects follow. One press away (**START → Walk the level**), visitors walk through the hall like a side-scrolling level. **Pip**, PIXENDO's host, walks to whoever you're looking at. Tap a card and Pip jumps up and flips it over, revealing that member's **Quest Log**: their bio, projects and skills. Every card has a QR code that opens the member's public profile, so it works on a phone screen, a printed lanyard or a poster.
 
 Members build their own cards. They sign in with Google, connect GitHub, pick which repositories appear, and submit the card for review. An organization admin approves it into the public hall.
 
@@ -65,7 +65,7 @@ Members build their own cards. They sign in with Google, connect GitHub, pick wh
 | **For members** | One card that holds your identity, links and real projects, imported from GitHub; credit the people you built with |
 | **For admins** | A moderation queue (approve, reject with a note, unpublish, feature), affiliations, and badges and borders to give out |
 
-Next to the hall is the **Museum**: members' projects on show, each one on the screen of an original PIXENDO console (a pocket handheld, a wide handheld, a TV set, an arcade cabinet or a flip handheld). The screen shows the app itself: the member's screenshot, or GitHub's preview of the repo. Opening a project shows the badges of everyone who made it.
+Next to the hall is the **Museum**: the projects the hall's admins feature, the winners of its events and its archive (D-130), shown as rooms on one circle and their exhibits on the other, each one on the screen of an original PIXENDO console (a pocket handheld, a wide handheld, a TV set, an arcade cabinet or a flip handheld). The screen shows the app itself: the member's screenshot, or GitHub's preview of the repo. Opening a project shows the badges of everyone who made it.
 
 ---
 
@@ -75,7 +75,7 @@ Everything below is live in v1.0. Decision numbers (D-…) point to [`docs/DECIS
 
 | Area | Feature |
 |---|---|
-| **Hall** | Side-scrolling level inside the PIXENDO handheld: drag, swipe, fling, arrow keys, ◀ ▶ controls; Pip walks to the current badge and jumps to flip it (D-031, D-082) |
+| **Hall** | Two circles inside the PIXENDO handheld: members on one arc, the chosen member's projects on the other, their badge and the chosen project between, each project one VIEW away (D-129). Or the side-scrolling level: drag, swipe, fling, arrow keys, ◀ ▶ controls; Pip walks to the current badge and jumps to flip it (D-031, D-082) |
 | | Badges that swing on lanyards, with animated borders and a foil shine; DAY / NIGHT world with parallax trees, birds, moon and stars, all original art (D-084, D-086) |
 | | QR code on every badge with a full-screen "scan me" view; **Share the hall** shows a QR for the site itself (D-088) |
 | | Search by name, @handle, role, skill or project; filter by department, skill or featured; **Random player** (D-072) |
@@ -86,7 +86,7 @@ Everything below is live in v1.0. Decision numbers (D-…) point to [`docs/DECIS
 | | A **screen picture** per project, shown on its Museum console (D-092) |
 | | Tag **collaborators** on a project; they accept or decline, and the card credits them after approval (D-089) |
 | | Submit for review; edits to a live card are re-reviewed while the approved version stays public (ADR-002) |
-| **Museum** | A gallery of members' projects with a pinned **Featured** row and a shuffled rest; every exhibit has its own shareable page (D-069, D-073, D-083) |
+| **Museum** | Featured projects, event winners and the archive, as rooms and exhibits on two circles, a walk or a list; every exhibit has its own shareable page (D-069, D-073, D-083, D-129, D-130) |
 | | Five original **console frames**; the maker picks one or one is picked automatically; the screen tilts toward the pointer, layers shift in 3D, and it boots up when it scrolls into view (D-091) |
 | | **App previews**: the member's screenshot, else GitHub's preview of the repo, else a drawn pixel cover (D-092) |
 | | **Made by**: an exhibit shows the badge of everyone who made it (D-090) |
@@ -109,9 +109,9 @@ Everything below is live in v1.0. Decision numbers (D-…) point to [`docs/DECIS
 2. Fill in your card, pick repos or add projects, and add a **screen picture** to each project you want to show off.
 3. Under **Collaborators**, tag the people you built a project with. They accept from their own card editor.
 4. **Save and submit for review.** Once an admin approves it, your card, your collaborators and your screen pictures go public together.
-5. With Museum access, choose which projects hang in the Museum and which console each one uses (**My card → Museum**). These changes show at once.
+5. With Museum access, offer projects to the Museum and pick the console each one uses (**My card → Museum**); an admin features the ones that hang there.
 
-**Admins.** Open **Admin**: approve or reject cards in the queue, feature members (their exhibits pin to the top of the Museum), give affiliations (Museum access, member frames), and make and give badges and rewards.
+**Admins.** Open **Admin**: approve or reject cards in the queue, feature members, feature projects in the Museum (**Admin → Museum**), give affiliations (Museum access, member frames), and make and give badges and rewards.
 
 ---
 

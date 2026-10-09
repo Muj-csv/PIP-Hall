@@ -1,6 +1,7 @@
 // Search, filters and Random player in the hall (FR-13, D-072): they narrow the badges hanging in the
 // level, so flipping and OPEN still work on the results. Fixture data (src/data/sample-cards.json).
 import { expect, test, type Page } from '@playwright/test';
+import { inLevel } from './level';
 
 const playerCount = (p: Page) => p.locator('.hud span').last();
 const current = (p: Page) => p.locator('.slot:not([aria-hidden]) .badge');
@@ -14,6 +15,7 @@ const q = (p: Page) => p.getByRole('searchbox', { name: 'Search players' });
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => sessionStorage.setItem('piphall-booted', '1'));
+  await inLevel(page);
 });
 
 test('search narrows the hall by name, handle, skill and project title, and lives in the address', async ({ page }) => {

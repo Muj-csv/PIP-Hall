@@ -155,7 +155,7 @@ export function AffiliationsManager({ onDone }: { onDone: (message: string) => v
           New affiliation
         </h2>
         <TextField field="affiliation-name" label="Name" value={name} onChange={setName} max={40} error={error} hint="Shown on members’ profiles, e.g. “CS Student”." />
-        <Toggle field="affiliation-museum" label="Gives Museum access" checked={museum} onChange={setMuseum} hint="Members with it can put their projects in the Museum." />
+        <Toggle field="affiliation-museum" label="Gives Museum access" checked={museum} onChange={setMuseum} hint="Members with it can offer their projects to the Museum; admins feature what hangs (Museum tab)." />
         <button type="submit" className="pixel-btn justify-self-start" data-variant="primary" disabled={busy}>
           Add affiliation
         </button>
@@ -199,11 +199,11 @@ function MuseumSummary({ reloadKey }: { reloadKey: number }) {
       ) : !rows ? (
         <p className="m-0 field-hint">Loading…</p>
       ) : rows.length === 0 ? (
-        <p className="m-0 field-hint">Nobody in the hall has Museum access yet. Give an affiliation with Museum access from the Published tab.</p>
+        <p className="m-0 field-hint">Nobody in the hall has Museum access yet. Give an affiliation with Museum access from the Published tab. Feature projects from the Museum tab.</p>
       ) : (
         <>
           <p className="m-0" role="status">
-            {rows.length} {rows.length === 1 ? 'member has' : 'members have'} Museum access · {exhibits} {exhibits === 1 ? 'exhibit' : 'exhibits'} on show
+            {rows.length} {rows.length === 1 ? 'member has' : 'members have'} Museum access · {exhibits} {exhibits === 1 ? 'project' : 'projects'} offered
           </p>
           <table className="summary-table">
             <caption className="sr-only">Members with Museum access</caption>
@@ -211,7 +211,7 @@ function MuseumSummary({ reloadKey }: { reloadKey: number }) {
               <tr>
                 <th scope="col">Member</th>
                 <th scope="col">Approved projects</th>
-                <th scope="col">In the Museum</th>
+                <th scope="col">Offered to the Museum</th>
               </tr>
             </thead>
             <tbody>

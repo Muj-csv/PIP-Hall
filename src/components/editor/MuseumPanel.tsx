@@ -1,6 +1,7 @@
-// Card editor → Museum (D-069, D-071): members with Museum access choose which approved projects
-// hang in the Museum. The list is the approved card, not the draft: draft edits don't change the
-// Museum until the card is approved again. Each switch saves at once and never resets review.
+// Card editor → Museum (D-069, D-071, D-130): members with Museum access offer approved projects to
+// the Museum; an admin features the ones that hang there (with event winners and the archive). The
+// list is the approved card, not the draft: draft edits don't change the Museum until the card is
+// approved again. Each switch saves at once and never resets review.
 
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
@@ -37,7 +38,7 @@ export function MuseumPanel() {
     setNotice(null);
     try {
       await museumService.set(p.id, on);
-      setNotice({ text: on ? `${p.title} is in the Museum.` : `${p.title} left the Museum.` });
+      setNotice({ text: on ? `${p.title} is offered to the Museum. An admin decides what hangs.` : `${p.title} is no longer offered.` });
     } catch (e) {
       flip(!on);
       setNotice({ text: museumErrorMessage(e), bad: true });
@@ -70,12 +71,13 @@ export function MuseumPanel() {
     <Panel label="Museum">
       <h2 className="panel-title">Museum</h2>
       <p className="m-0">
-        Pick which of your projects hang in the{' '}
+        The{' '}
         <Link to="/museum" className="underline decoration-2">
           Museum
-        </Link>
-        . Changes show right away and don’t need review. The Museum shows your projects as they were
-        approved; edits and new projects join after your card is approved again.
+        </Link>{' '}
+        shows projects the hall’s admins feature, the winners of its events and its archive. Offer
+        the projects you’d like there: the admins see your offers first. Offers don’t need review, and
+        the Museum shows your projects as they were approved.
       </p>
       {live.length === 0 ? (
         <p className="m-0 field-hint">Your approved card has no projects yet. Add one and submit your card: once it’s approved, it shows up here.</p>
@@ -86,7 +88,13 @@ export function MuseumPanel() {
               <label className="toggle">
                 <input type="checkbox" checked={state.entries.includes(p.id)} disabled={busy === p.id} onChange={(e) => void toggle(p, e.target.checked)} />
                 <span>
-                  Show <b>{p.title}</b> in the Museum
+                  Offer <b>{p.title}</b> to the Museum
+                  {state.featured?.includes(p.id) && (
+                    <span className="text-caption">
+                      {' '}
+                      · <span aria-hidden="true">★ </span>featured: on show
+                    </span>
+                  )}
                 </span>
               </label>
               {state.entries.includes(p.id) && (

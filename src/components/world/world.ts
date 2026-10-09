@@ -94,6 +94,8 @@ export interface WorldFrame {
   count: number;
   flipped: (i: number) => boolean;
   bump: (i: number) => number;
+  /** The level's two ends, the warp tube and the goal flag; the two circles (D-129) have neither. */
+  ends?: boolean;
 }
 
 /** A stable pseudo-random number in [0, 1) for a world position, so the scenery never repeats
@@ -242,8 +244,8 @@ export function drawBackground(ctx: CanvasRenderingContext2D, f: WorldFrame, a: 
   for (let k = 0; k < 6; k++) ctx.drawImage(s.bush, Math.round(wrap(k * 53 + 7 - cam * 0.8, w, 20)) - 10, GROUND_Y - 7);
 
   // Warp tube before the first slot (leads to Explore), goal flag after the last (brief §3).
-  ctx.drawImage(s.tube, wx(-SLOT_SPACING * 0.85) - 8, GROUND_Y - 16);
-  if (f.count > 0) {
+  if (f.ends !== false) ctx.drawImage(s.tube, wx(-SLOT_SPACING * 0.85) - 8, GROUND_Y - 16);
+  if (f.count > 0 && f.ends !== false) {
     const fx = wx((f.count - 1) * SLOT_SPACING + SLOT_SPACING * 0.8);
     ctx.fillStyle = a.colors.ink;
     ctx.fillRect(fx, GROUND_Y - 44, 1, 44);

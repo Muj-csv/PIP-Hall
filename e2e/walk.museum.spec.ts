@@ -48,7 +48,7 @@ function hall(): MockDb {
   db.wings = SEED_WINGS.map((w) => ({ ...w }));
   db.affiliations = [{ key: 'cs', name: 'CS Student', grants_museum: true, frame_key: null, sort: 1 }];
   db.memberAffiliations = [ONE, TWO, THREE].map((member_id) => ({ member_id, key: 'cs' }));
-  db.museumEntries = [
+  db.museumFeatures = [
     { project_id: KITE, member_id: ONE },
     { project_id: LAMP, member_id: ONE },
     { project_id: ORBIT, member_id: TWO },
@@ -105,7 +105,7 @@ const screen = (page: Page) => page.getByRole('region', { name: /^The Museum\./ 
 test('visitors walk the Museum: rooms in order, lit plaques, the map, makers, OPEN and Back', async ({ page }) => {
   await boot(page);
   await mockSupabase(page, { db: hall() });
-  await page.goto('/museum');
+  await page.goto('/museum?view=walk');
 
   // The walk opens in the Winners' Hall: the winner stands on a pedestal, its plaque lit, with the note.
   await expect(page.getByRole('navigation', { name: 'How to see the Museum' }).getByRole('link', { name: 'Walk the Museum' })).toHaveAttribute('aria-current', 'page');
@@ -117,7 +117,7 @@ test('visitors walk the Museum: rooms in order, lit plaques, the map, makers, OP
   await expect(lit).toHaveAttribute('data-pedestal', 'true');
   await expect(hud(page)).toHaveText('Winners’ HallSpring Hackathon · 1 of 3'); // one fixed title: room, group, place in the room
   const room = page.getByRole('region', { name: 'Winners’ Hall' });
-  await expect(room).toContainText('Trophy room · 3 exhibits · Room 1 of 8');
+  await expect(room).toContainText('Trophy room · 3 exhibits · Room 1 of 9');
   await page.locator('.device-outer').screenshot({ path: `${EVIDENCE}/winners-hall.png` });
 
   // MOVE ▶ walks on; the next winner's plaque lights up once Pip stops.
@@ -132,7 +132,7 @@ test('visitors walk the Museum: rooms in order, lit plaques, the map, makers, OP
   await expect(map.getByRole('listitem')).toHaveText([
     /Winners’ Hall\s*Trophy room · 3 exhibits · You are here/,
     /Spring Hackathon\s*Arcade · 2 exhibits/,
-    /Collab Wing\s*Lab · 1 exhibit/,
+    /Featured Wing\s*Garden · 4 exhibits/, /Collab Wing\s*Lab · 1 exhibit/,
     /Web Wing\s*Garden · 2 exhibits/,
     /Games Wing\s*Arcade · 1 exhibit/,
     /Data Wing\s*Lab · 1 exhibit/,
@@ -141,7 +141,7 @@ test('visitors walk the Museum: rooms in order, lit plaques, the map, makers, OP
   ]);
   await page.locator('.walk-screen').screenshot({ path: `${EVIDENCE}/map.png` });
   await map.getByRole('button', { name: /The Archive/ }).click();
-  await expect(page).toHaveURL(/\/museum\?room=archive$/);
+  await expect(page).toHaveURL(/\/museum\?room=archive&view=walk$/);
   await expect(hud(page)).toHaveText(/^The Archive.*1 of 1$/);
   await expect(line(page)).toHaveText('The Archive, 1 of 1: Old Robot, by Rosa Diaz. 2nd place · Robot Fair 2023. OPEN visits it.');
   await expect(hud(page)).toContainText('2023 · 1 of 1');
@@ -151,7 +151,7 @@ test('visitors walk the Museum: rooms in order, lit plaques, the map, makers, OP
   // Walking back with the keyboard goes through the doorway into All exhibits; the address follows.
   await screen(page).focus();
   await page.keyboard.press('ArrowLeft');
-  await expect(page).toHaveURL(/\/museum\?room=all$/);
+  await expect(page).toHaveURL(/\/museum\?room=all&view=walk$/);
   await expect(hud(page)).toHaveText(/^All exhibits.*5 of 5$/);
 
   // Makers in this room walk you to their work.
@@ -167,31 +167,32 @@ test('visitors walk the Museum: rooms in order, lit plaques, the map, makers, OP
   await expect(page).toHaveURL(new RegExp(`/museum/${TIDE}$`));
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Tide · Museum');
   await page.goBack();
-  await expect(page).toHaveURL(new RegExp(`/museum\\?room=all&at=${TIDE}$`));
+  await expect(page).toHaveURL(new RegExp(`/museum\\?room=all&view=walk&at=${TIDE}$`));
   await expect(line(page)).toContainText('Tide, by Player player-3.');
 
   // The room panel leads on; the event room shows its tracks as signs.
-  await page.goto('/museum?event=spring-hack');
+  await page.goto('/museum?event=spring-hack&view=walk');
   await expect(hud(page)).toHaveText(/^Spring Hackathon.*1 of 2$/);
   await expect(hud(page)).toContainText('Health track · 1 of 2');
   await expect(page.getByRole('region', { name: 'Spring Hackathon' })).toContainText('Hackathon ·');
-  await page.getByRole('region', { name: 'Spring Hackathon' }).getByRole('button', { name: /Next room: Collab Wing/ }).click();
-  await expect(page).toHaveURL(/\/museum\?wing=collab$/);
-  await expect(line(page)).toContainText('Collab Wing, 1 of 1: Kite, by Player player-1 with Player player-2.');
+  // Since D-130 every member's exhibit is featured, so the Featured Wing comes next.
+  await page.getByRole('region', { name: 'Spring Hackathon' }).getByRole('button', { name: /Next room: Featured Wing/ }).click();
+  await expect(page).toHaveURL(/\/museum\?wing=featured&view=walk$/);
+  await expect(line(page)).toContainText('Featured Wing, 1 of 4: Kite, by Player player-1 with Player player-2.');
 
   // One link away: the list view, in the same room.
   await page.getByRole('navigation', { name: 'How to see the Museum' }).getByRole('link', { name: /List view/ }).click();
-  await expect(page).toHaveURL(/\/museum\?wing=collab&view=list$/);
-  await expect(page.getByRole('region', { name: 'Collab Wing' }).getByRole('list', { name: 'Exhibits in the Collab Wing' })).toContainText('Kite');
+  await expect(page).toHaveURL(/\/museum\?wing=featured&view=list$/);
+  await expect(page.getByRole('region', { name: 'Featured Wing' }).getByRole('list', { name: 'Exhibits in the Featured Wing' })).toContainText('Kite');
   await page.getByRole('navigation', { name: 'How to see the Museum' }).getByRole('link', { name: 'Walk the Museum' }).click();
-  await expect(page).toHaveURL(/\/museum\?wing=collab$/);
-  await expect(hud(page)).toHaveText(/^Collab Wing.*1 of 1$/);
+  await expect(page).toHaveURL(/\/museum\?wing=featured&view=walk$/);
+  await expect(hud(page)).toHaveText(/^Featured Wing.*1 of 4$/);
 });
 
 test('keyboard, drag and reduced motion: every way of walking gets there', async ({ page }) => {
   await boot(page);
   await mockSupabase(page, { db: hall() });
-  await page.goto('/museum');
+  await page.goto('/museum?view=walk');
   await expect(hud(page)).toHaveText(/^Winners’ Hall.*1 of 3$/);
 
   // A drag to the left walks one exhibit on.
@@ -246,9 +247,9 @@ test('an admin picks a wing’s room style; visitors walk into it', async ({ pag
   const visitor = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
   await boot(visitor);
   await mockSupabase(visitor, { db });
-  await visitor.goto('/museum?wing=web');
+  await visitor.goto('/museum?wing=web&view=walk');
   const room = visitor.getByRole('region', { name: 'Web Wing' });
-  await expect(room).toContainText('Trophy room · 2 exhibits · Room 4 of 8');
+  await expect(room).toContainText('Trophy room · 2 exhibits · Room 5 of 9');
   await expect(room.locator('.curator-note')).toContainText('Things you can open in a browser.');
   await visitor.close();
 });
@@ -257,13 +258,13 @@ test('NIGHT dims the rooms; phones walk too; very narrow screens open the list f
   await boot(page);
   await page.addInitScript(() => localStorage.setItem('piphall-theme', 'dark'));
   await mockSupabase(page, { db: hall() });
-  await page.goto('/museum?wing=games');
+  await page.goto('/museum?wing=games&view=walk');
   await expect(hud(page)).toHaveText(/^Games Wing.*1 of 1$/);
   await expect(page.locator('.walk-stop[data-lit]')).toContainText('Orbit');
   await page.locator('.device-outer').screenshot({ path: `${EVIDENCE}/games-night.png` });
 
   await page.setViewportSize({ width: 412, height: 915 });
-  await page.goto('/museum?wing=web');
+  await page.goto('/museum?wing=web&view=walk');
   await expect(hud(page)).toHaveText(/^Web Wing.*1 of 2$/);
   await page.screenshot({ path: `${EVIDENCE}/phone.png`, fullPage: true });
 
@@ -280,7 +281,7 @@ test('NIGHT dims the rooms; phones walk too; very narrow screens open the list f
 test('a room with nothing on show: Pip says so and starts at the first room', async ({ page }) => {
   await boot(page);
   await mockSupabase(page, { db: hall() });
-  await page.goto('/museum?wing=featured');
+  await page.goto('/museum?wing=officers&view=walk'); // no officers: nothing on show
   await expect(line(page)).toHaveText('That room has nothing on show right now, so Pip starts at the first one. MAP shows every room.');
   await expect(hud(page)).toHaveText(/^Winners’ Hall.*1 of 3$/);
 });
@@ -302,7 +303,7 @@ test('200 exhibits: only the ones near Pip are mounted, and a still Museum draws
   await boot(page);
   await mockSupabase(page, { db });
   await page.route('**/rest/v1/rpc/museum_exhibits', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(many) }));
-  await page.goto('/museum?room=all');
+  await page.goto('/museum?room=all&view=walk');
   await expect(hud(page)).toHaveText(/^All exhibits.*1 of 201$/);
   await expect(page.locator('.walk-stop')).toHaveCount(5); // the one in front of Pip and two each side
 

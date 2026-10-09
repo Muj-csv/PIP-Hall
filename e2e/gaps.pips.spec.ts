@@ -49,7 +49,7 @@ function hall(onShow: string[] = [COMET]): MockDb {
   db.recentEvents = [];
   db.affiliations = [{ key: 'cs', name: 'CS', grants_museum: true, frame_key: null, sort: 1 }];
   db.memberAffiliations = [{ member_id: ONE, key: 'cs' }];
-  db.museumEntries = onShow.map((project_id) => ({ project_id, member_id: ONE }));
+  db.museumFeatures = onShow.map((project_id) => ({ project_id, member_id: ONE }));
   db.seasons = [
     {
       key: 'spring-hack', name: 'Spring Hackathon', blurb: '', starts_on: day(-10), ends_on: day(-8), mission: null, frame: null,

@@ -60,7 +60,7 @@ function aboutRoom(r: WalkRoom): { line: string; note: string | null; noteBy: st
     return { line: `${KIND_NAME[kindOf(e)]} · ${dateRange(e.starts_on, e.ends_on)}${tracks}`, note: e.blurb || null, noteBy: 'About the event' };
   }
   if (r.kind === 'wing' && r.wing) return { line: wingRule(r.wing), note: r.wing.note || null, noteBy: 'Curator’s note' };
-  if (r.kind === 'all') return { line: 'Every exhibit in the Museum: featured makers first, the rest in a new order each visit.', note: null, noteBy: '' };
+  if (r.kind === 'all') return { line: 'Every exhibit in the Museum: featured projects first, the rest in a new order each visit.', note: null, noteBy: '' };
   return { line: 'Past projects and hackathon outputs, compiled by the hall’s curators. Members can claim the ones they made.', note: null, noteBy: '' };
 }
 

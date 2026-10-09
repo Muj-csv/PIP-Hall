@@ -1,6 +1,7 @@
 // Phase 1 acceptance (docs/build/PHASE-1.md): browse, flip, QR full screen, drag vs tap,
 // keyboard only, reduced motion. Runs on the fixture data.
 import { expect, test, type Page } from '@playwright/test';
+import { inLevel } from './level';
 
 const current = (p: Page) => p.locator('.slot:not([aria-hidden]) .badge');
 const playerCount = (p: Page) => p.locator('.hud span').last();
@@ -9,6 +10,7 @@ const coins = (p: Page) => p.locator('.hud-coins');
 test.beforeEach(async ({ page }) => {
   // Skip the once-per-session boot animation so tests start in a settled level.
   await page.addInitScript(() => sessionStorage.setItem('piphall-booted', '1'));
+  await inLevel(page);
   await page.goto('/');
   await expect(page.locator('.slot').first()).toBeVisible();
 });

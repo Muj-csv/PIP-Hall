@@ -25,9 +25,12 @@ interface Props {
   /** A signed-in member, with PIPs switched on: the PIP MART. */
   mart: boolean;
   onShare: () => void;
+  /** The hall's view (D-129), and switching to the other one. */
+  view: 'circles' | 'level';
+  onView: () => void;
 }
 
-export function StartMenu({ onBack, onRandom, onPassport, stamps, officers, officersOn, onOfficers, mapOpen, mart, onShare }: Props) {
+export function StartMenu({ onBack, onRandom, onPassport, stamps, officers, officersOn, onOfficers, mapOpen, mart, onShare, view, onView }: Props) {
   const back = useRef<HTMLButtonElement>(null);
   const { theme, toggle } = useTheme();
   const night = theme === 'dark';
@@ -39,6 +42,15 @@ export function StartMenu({ onBack, onRandom, onPassport, stamps, officers, offi
       </button>
       <h2 id="start-title">START</h2>
       <ul className="start-items" aria-label="START menu">
+        <li>
+          <button type="button" className="start-item" onClick={onView}>
+            <span className="start-glyph" aria-hidden="true">
+              {view === 'circles' ? '▶' : '◎'}
+            </span>
+            <span className="start-name">{view === 'circles' ? 'Walk the level' : 'Two circles'}</span>
+            <span className="start-what">{view === 'circles' ? 'Badges on lanyards; Pip walks from one to the next.' : 'Players on one side, their quests on the other.'}</span>
+          </button>
+        </li>
         <li>
           <button type="button" className="start-item" onClick={onRandom}>
             <span className="start-glyph" aria-hidden="true">

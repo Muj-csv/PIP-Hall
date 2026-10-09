@@ -245,7 +245,7 @@ function EntryBlock({ season, me, mine, account, onChanged }: { season: Season; 
           onSubmit={(e) => {
             e.preventDefault();
             const title = projects.find((p) => p.id === pick)?.title ?? 'Your project';
-            void run(() => eventService.submit(season.key, pick, tracks.length ? pickTrack : null), `“${title}” is entered! It hangs in the event’s room in the Museum.`);
+            void run(() => eventService.submit(season.key, pick, tracks.length ? pickTrack : null), `“${title}” is entered! If it wins, it hangs in the event’s room in the Museum.`);
           }}
         >
           <SelectField field="entry-project" label="Your project" value={pick} options={projects.map((p) => ({ value: p.id, label: p.title }))} onChange={setProject} />
@@ -287,11 +287,15 @@ function EntryBlock({ season, me, mine, account, onChanged }: { season: Season; 
         </div>
       )}
       {season.phase === 'judging' && !entry && <p className="m-0 field-hint">Submissions are closed. The results come {countdown(season.results_at)}.</p>}
-      <p className="m-0">
-        <Link to={eventRoomPath(season.key)} className="underline decoration-2">
-          {season.phase === 'results' ? 'See the winners in the Museum' : 'See the entries in the Museum'}
-        </Link>
-      </p>
+      {season.phase === 'results' ? (
+        <p className="m-0">
+          <Link to={eventRoomPath(season.key)} className="underline decoration-2">
+            See the winners in the Museum
+          </Link>
+        </p>
+      ) : (
+        <p className="m-0 field-hint">The winners hang in the Museum once the results are announced.</p>
+      )}
       {notice && (
         <p className={notice.bad ? 'notice notice-bad m-0' : 'notice m-0'} role="status">
           {notice.bad && <span aria-hidden="true">! </span>}

@@ -212,6 +212,12 @@ try {
   await expectOk(c, "an unpublished member's achievements are no longer public", 'anon', `select * from member_achievements where member_id=$1`, [Ms[0]], (r) => r.rowCount === 0);
 
   console.log('Museum and affiliations');
+  // Before the curated Museum (D-130) members' own entries were the exhibits on show: this section and
+  // the next few test that history, so its functions and news come back here. The curated Museum is
+  // tested in its own section near the end.
+  await c.query(readFileSync(join(here, '..', 'migrations', '20261006000400_museum_consoles.sql'), 'utf8'));
+  await c.query(`drop trigger if exists museum_entries_events on public.museum_entries;
+    create trigger museum_entries_events after insert on public.museum_entries for each row execute function public.events_museum_entry()`);
   await expectErr(c, 'member cannot create affiliations', A, `select admin_save_affiliation('cs-student','CS Student', true)`, [], /NOT_ADMIN/);
   await expectErr(c, 'member cannot write affiliations directly', A, `insert into affiliations (key, name) values ('x','X')`, [], /permission denied/);
   await expectOk(c, 'admin creates a Museum affiliation', ADMIN, `select admin_save_affiliation('cs-student','CS Student', true)`, []);
@@ -445,7 +451,8 @@ try {
   await expectSu(c, '…and its tags go with it', `select count(*)::int as n from project_collaborators where project_id=$1`, [P2], (r) => r.rows[0].n === 0);
 
   console.log('passport (D-098)');
-  const exhibitA = linked[1]; // A's exhibit on show (see the Museum section)
+  const exhibitA = linked[1]; // A's exhibit (see the Museum section), on show once an admin features it (D-130)
+  await as(c, ADMIN, `select admin_feature_project($1, true)`, [exhibitA]);
   const pipsOf = async (id) => (await c.query(`select coalesce(sum(amount),0)::int as n from pip_ledger where member_id=$1`, [id])).rows[0].n;
   const achOf = async (id) => (await c.query(`select count(*)::int as n from member_achievements where member_id=$1`, [id])).rows[0].n;
   await expectErr(c, 'anon cannot read a passport', 'anon', `select my_passport()`, [], /permission denied/);
@@ -1323,6 +1330,124 @@ try {
   if ((await gapTitles(G[0])).includes('mentor')) ok('…and Mentor stays');
   else bad('…and Mentor stays', await gapTitles(G[0]));
 
+  console.log('the curated Museum: featured projects, winners and the archive (D-130)');
+  // Earlier sections re-ran the older Museum, passport, hackathons, archive and close-gaps migrations; this one comes after them again.
+  const CURATED = readFileSync(join(here, '..', 'migrations', '20261009000000_curated_museum.sql'), 'utf8');
+  await c.query(CURATED);
+  const liveIds = async (id) => (await c.query(`select live_project_ids($1) as ids`, [id])).rows[0].ids;
+  const onShow = async () => (await as(c, 'anon', `select museum_exhibits() as e`)).rows[0].e;
+  const added = async (id) => (await c.query(`select count(*)::int as n from hall_events where event_type='EXHIBIT_ADDED' and target_id=$1`, [id])).rows[0].n;
+  const featuredIds = (await c.query(`select coalesce(array_agg(project_id::text), '{}') as ids from museum_features`)).rows[0].ids;
+  const offerA = (await liveIds(A)).find((id) => id !== P1 && !featuredIds.includes(id));
+  const other = (await c.query(`select c.profile_id as m, x->>'id' as id from published_cards c, jsonb_array_elements(c.card->'projects') x
+                                 where c.profile_id <> $1 and not public.has_museum_access(c.profile_id) and x->>'id' is not null
+                                   and not exists (select 1 from museum_features f where f.project_id::text = x->>'id') order by c.member_no limit 1`, [A])).rows[0];
+  const arc = (await c.query(`select a.id from archive_exhibits a where a.published and not exists (select 1 from archive_makers m where m.exhibit_id = a.id and m.member_id = $1) limit 1`, [G[1]])).rows[0]?.id;
+  if (offerA && other && arc) ok('the hall has an unfeatured project of A’s, one by a member without Museum access, and a published archive exhibit');
+  else bad('the hall has an unfeatured project of A’s, one by a member without Museum access, and a published archive exhibit', { offerA, other, arc });
+  await as(c, ADMIN, `select admin_save_affiliation('cs-student','CS Student', true)`);
+  await as(c, ADMIN, `select set_member_affiliation($1,'cs-student', true)`, [A]);
+
+  await expectErr(c, 'visitors cannot read the featured list directly', 'anon', `select * from museum_features`, [], /permission denied/);
+  await expectErr(c, '…nor members', A, `select * from museum_features`, [], /permission denied/);
+  await expectErr(c, 'members cannot write it', A, `insert into museum_features (project_id, member_id) values ($1, $2)`, [offerA, A], /permission denied/);
+  await expectErr(c, 'a member cannot feature a project', A, `select admin_feature_project($1, true)`, [offerA], /NOT_ADMIN/);
+  await expectErr(c, '…nor can visitors', 'anon', `select admin_feature_project($1, true)`, [offerA], /permission denied/);
+  await expectErr(c, 'a member cannot read the admin’s project list', A, `select admin_museum_projects()`, [], /NOT_ADMIN/);
+  await expectErr(c, '…nor can visitors', 'anon', `select admin_museum_projects()`, [], /permission denied/);
+
+  // A member's offer is a suggestion: the admin sees it, the Museum doesn't show it.
+  await expectOk(c, 'a member with Museum access still offers a project', A, `select set_museum($1, true) as on`, [offerA], (r) => r.rows[0].on === true);
+  await as(c, A, `select set_museum_console($1, 'tv')`, [offerA]);
+  await expectOk(c, '…which is not on show by itself', 'anon', `select museum_exhibits() as e`, [], (r) => !r.rows[0].e.some((x) => x.project_id === offerA));
+  await expectOk(c, '…opening it stamps nothing', G[2], `select stamp_exhibit($1) as s`, [offerA], (r) => r.rows[0].s === false);
+  await expectOk(c, '…and its offer is not news', 'anon', `select recent_hall_events(20) as r`, [], (r) => !r.rows[0].r.some((x) => x.type === 'EXHIBIT_ADDED' && x.project_id === offerA));
+  await expectOk(c, 'the admin sees every approved project, with the offer marked', ADMIN, `select admin_museum_projects() as p`, [], (r) => {
+    const p = r.rows[0].p.find((x) => x.project_id === offerA);
+    const w = r.rows[0].p.find((x) => x.project_id === P1);
+    return p?.offered === true && p.featured === false && p.won === false && p.username && w?.won === true && r.rows[0].p.some((x) => x.project_id === other.id && !x.offered);
+  });
+
+  const before = await added(offerA);
+  await expectOk(c, 'an admin features the offered project', ADMIN, `select admin_feature_project($1, true) as on`, [offerA], (r) => r.rows[0].on === true);
+  await expectOk(c, '…visitors see it as approved, featured, in the console its maker picked', 'anon', `select museum_exhibits() as e`, [], (r) => {
+    const e = r.rows[0].e.find((x) => x.project_id === offerA);
+    return e?.featured === true && e.console === 'tv' && e.project.id === offerA && e.member_no > 0;
+  });
+  await expectOk(c, '…its maker sees it featured', A, `select my_museum() as m`, [], (r) => r.rows[0].m.featured.includes(offerA));
+  await expectSu(c, '…and it is news once: a new exhibit by its maker', `select count(*)::int as n from hall_events where event_type='EXHIBIT_ADDED' and target_id=$1 and actor_id=$2`, [offerA, A], (r) => r.rows[0].n === before + 1);
+  await expectOk(c, '…in Recent in the hall', 'anon', `select recent_hall_events(20) as r`, [], (r) => r.rows[0].r.some((x) => x.type === 'EXHIBIT_ADDED' && x.project_id === offerA));
+  await expectOk(c, 'featuring it again changes nothing', ADMIN, `select admin_feature_project($1, true) as on`, [offerA], (r) => r.rows[0].on === true);
+  await expectSu(c, '…and is not news twice', `select count(*)::int as n from hall_events where event_type='EXHIBIT_ADDED' and target_id=$1`, [offerA], (r) => r.rows[0].n === before + 1);
+  await expectErr(c, 'a project on no approved card cannot be featured', ADMIN, `select admin_feature_project(gen_random_uuid(), true)`, [], /NOT_LIVE/);
+
+  // What is on show: featured projects, winners, the archive. Stamps and imports follow it.
+  const seenBy = (await c.query(`select coalesce(array_agg(project_id::text), '{}') as ids from passport_visits where member_id=$1`, [G[2]])).rows[0].ids;
+  const fresh = [offerA, P1, arc].filter((id) => !seenBy.includes(id)).length;
+  const importOther = await as(c, G[2], `select import_passport('[]', $1::jsonb) as r`, [JSON.stringify([{ id: offerA }, { id: P1 }, { id: other.id }, { id: arc }])]);
+  if (fresh > 0 && importOther.rows[0].r.exhibits === fresh) ok('a device’s exhibit stamps import for featured, winning and archive exhibits only');
+  else bad('a device’s exhibit stamps import for featured, winning and archive exhibits only', { got: importOther.rows[0].r, fresh });
+  await expectOk(c, '…never your own', A, `select import_passport('[]', $1::jsonb) as r`, [JSON.stringify([{ id: offerA }])], (r) => r.rows[0].r.exhibits === 0);
+  await expectOk(c, 'opening a featured exhibit stamps the Passport', G[1], `select stamp_exhibit($1) as s`, [offerA], (r) => r.rows[0].s === true);
+  await expectOk(c, '…but not its maker’s', A, `select stamp_exhibit($1) as s`, [offerA], (r) => r.rows[0].s === false);
+  await expectOk(c, 'a winner is on show without a feature', G[1], `select stamp_exhibit($1) as s`, [P1], (r) => r.rows[0].s === true);
+  await expectOk(c, '…and so is the archive', G[1], `select stamp_exhibit($1) as s`, [arc], (r) => r.rows[0].s === true);
+  await expectOk(c, 'a project nobody featured, that won nothing, is not on show', G[1], `select stamp_exhibit($1) as s`, [other.id], (r) => r.rows[0].s === false);
+  await expectOk(c, 'an admin can feature any approved project, Museum access or not', ADMIN, `select admin_feature_project($1, true) as on`, [other.id], (r) => r.rows[0].on === true);
+  await expectOk(c, '…and then it is on show', 'anon', `select museum_exhibits() as e`, [], (r) => r.rows[0].e.some((x) => x.project_id === other.id && x.featured === true && x.console === null));
+  await expectOk(c, 'an event entry says whether it is featured, not whether its maker is', 'anon', `select museum_events() as e`, [], (r) =>
+    r.rows[0].e.flatMap((x) => x.entries).every((x) => x.featured === featuredIds.includes(x.project_id) || x.project_id === offerA || x.project_id === other.id));
+
+  // Curator: three projects of mine on show (featured, won, archive).
+  const curatorOf = async (id) => (await c.query(`select earned_titles($1) as t`, [id])).rows[0].t.includes('curator');
+  const shownOf = async (id) => (await c.query(`select count(*)::int as n from (
+      select f.project_id from museum_features f where f.member_id = $1 and f.project_id = any (live_project_ids($1))
+      union select a.project_id from award_makers() w join event_awards a on a.id = w.award_id where w.member_id = $1
+      union select x.exhibit_id from archive_credits() x where x.member_id = $1) s`, [id])).rows[0].n;
+  if ((await curatorOf(A)) === ((await shownOf(A)) >= 3)) ok('Curator counts my projects on show: featured, winners and the archive');
+  else bad('Curator counts my projects on show: featured, winners and the archive', { curator: await curatorOf(A), shown: await shownOf(A) });
+  for (const id of await liveIds(A)) if ((await shownOf(A)) < 3) await as(c, ADMIN, `select admin_feature_project($1, true)`, [id]);
+  if ((await shownOf(A)) >= 3 && (await curatorOf(A))) ok('…three of them make a Curator');
+  else bad('…three of them make a Curator', { curator: await curatorOf(A), shown: await shownOf(A) });
+
+  // Taking a feature down.
+  await expectOk(c, 'an admin takes a feature down', ADMIN, `select admin_feature_project($1, false) as on`, [other.id], (r) => r.rows[0].on === false);
+  await expectOk(c, '…it leaves the Museum', 'anon', `select museum_exhibits() as e`, [], (r) => !r.rows[0].e.some((x) => x.project_id === other.id));
+  await expectOk(c, '…and Recent in the hall', 'anon', `select recent_hall_events(20) as r`, [], (r) => !r.rows[0].r.some((x) => x.type === 'EXHIBIT_ADDED' && x.project_id === other.id));
+  const otherNews = await added(other.id);
+  await as(c, ADMIN, `select admin_feature_project($1, true)`, [other.id]);
+  if ((await added(other.id)) === otherNews) ok('featuring it again is not news again');
+  else bad('featuring it again is not news again', await added(other.id));
+  await expectOk(c, '…but it is back in Recent in the hall', 'anon', `select recent_hall_events(20) as r`, [], (r) => r.rows[0].r.some((x) => x.type === 'EXHIBIT_ADDED' && x.project_id === other.id));
+
+  // A featured project follows its maker's approved card (D-071).
+  await as(c, A, `delete from projects where id=$1`, [offerA]);
+  await expectOk(c, 'a featured project deleted from the draft stays on show until the next approval', 'anon', `select museum_exhibits() as e`, [], (r) => r.rows[0].e.some((x) => x.project_id === offerA));
+  await as(c, A, `select submit_for_review()`);
+  await as(c, ADMIN, `select approve_profile($1)`, [A]);
+  await expectSu(c, '…and leaves the Museum when the card is approved without it', `select count(*)::int as n from museum_features where project_id=$1`, [offerA], (r) => r.rows[0].n === 0);
+
+  // Older migrations bring their versions back; running this one again restores the curated Museum.
+  await c.query(readFileSync(join(here, '..', 'migrations', '20261006000400_museum_consoles.sql'), 'utf8'));
+  await expectOk(c, 're-running the console migration shows members’ own entries again…', 'anon', `select museum_exhibits() as e`, [], (r) => r.rows[0].e.every((x) => typeof x.featured === 'boolean'));
+  await c.query(CURATED);
+  await c.query(CURATED);
+  await expectOk(c, '…and this one, run twice, shows featured projects only', 'anon', `select museum_exhibits() as e`, [], (r) => r.rows[0].e.length > 0 && r.rows[0].e.every((x) => x.featured === true));
+  await expectSu(c, '…keeping the features', `select count(*)::int as n from museum_features where project_id=$1`, [other.id], (r) => r.rows[0].n === 1);
+
+  // The first run: featured makers' exhibits become featured projects, without news.
+  await as(c, ADMIN, `select set_featured($1, true)`, [A]);
+  await c.query(`drop table museum_features cascade`);
+  const entriesA = (await c.query(`select coalesce(array_agg(project_id::text), '{}') as ids from museum_entries where member_id=$1 and project_id = any (live_project_ids($1))`, [A])).rows[0].ids;
+  const newsBefore = (await c.query(`select count(*)::int as n from hall_events where event_type='EXHIBIT_ADDED'`)).rows[0].n;
+  await c.query(CURATED);
+  await expectSu(c, 'on its first run, a featured maker’s exhibits become featured projects', `select coalesce(array_agg(project_id::text), '{}') as ids from museum_features`, [], (r) =>
+    entriesA.length > 0 && r.rows[0].ids.length === entriesA.length && entriesA.every((id) => r.rows[0].ids.includes(id)));
+  await expectSu(c, '…without news', `select count(*)::int as n from hall_events where event_type='EXHIBIT_ADDED'`, [], (r) => r.rows[0].n === newsBefore);
+  await as(c, ADMIN, `select set_featured($1, false)`, [A]);
+  await c.query(CURATED);
+  await expectSu(c, '…and only on its first run', `select count(*)::int as n from museum_features`, [], (r) => r.rows[0].n === entriesA.length);
+
   console.log('account deletion');
   await expectErr(c, 'anon cannot call delete_my_account', 'anon', `select delete_my_account()`, [], /permission denied/);
   await expectOk(c, 'member deletes own account', B, `select delete_my_account()`, []);
@@ -1330,6 +1455,9 @@ try {
   await expectOk(c, 'their public card is gone too', 'anon', `select * from published_cards where profile_id=$1`, [B], (r) => r.rowCount === 0);
   await expectOk(c, 'other members are untouched', 'anon', `select * from published_cards where profile_id=$1`, [A], (r) => r.rowCount === 1);
   await expectSu(c, '…and their showcase check-ins went with them', `select count(*)::int as n from event_checkins where member_id=$1`, [B], (r) => r.rows[0].n === 0);
+  await as(c, ADMIN, `select admin_feature_project((x->>'id')::uuid, true) from published_cards c, jsonb_array_elements(c.card->'projects') x where c.profile_id=$1 limit 1`, [A]);
+  await expectOk(c, 'a member deletes their account', A, `select delete_my_account()`, []);
+  await expectSu(c, '…and their featured projects went with them', `select count(*)::int as n from museum_features where member_id=$1`, [A], (r) => r.rows[0].n === 0);
 } finally {
   await c.end();
   await db.stop();

@@ -20,6 +20,22 @@ export function memberUrl(username: string): string {
   return publicOrigin() + memberPath(username);
 }
 
+/**
+ * One quest from a member's Quest Log, open inside the device (D-129): by the project's id, or by
+ * its place in the Quest Log (1, 2, …) for a card approved before projects had ids.
+ */
+export function questPath(username: string, project: { id?: string | null }, n: number): string {
+  return `${memberPath(username)}/quest/${encodeURIComponent(project.id ?? String(n))}`;
+}
+
+/** The quest an address names: its index in the Quest Log, or -1. */
+export function questIndex(projects: readonly { id?: string | null }[], quest: string): number {
+  const byId = projects.findIndex((p) => p.id && p.id === quest);
+  if (byId >= 0) return byId;
+  const n = /^\d{1,2}$/.test(quest) ? Number(quest) : NaN;
+  return n >= 1 && n <= projects.length && !projects[n - 1]!.id ? n - 1 : -1;
+}
+
 /** What a badge's QR encodes: the member page, marked as a scan so it can greet the finder (V2-1). */
 export function memberQrUrl(username: string): string {
   return `${memberUrl(username)}?via=qr`;

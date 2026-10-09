@@ -40,7 +40,7 @@ export const router = createBrowserRouter([
     children: [
       // The hall stays mounted between / and /member/:username, so opening a profile is a screen
       // change inside the device (iris), not a new page.
-      { path: '/', element: <Home />, children: [{ path: 'member/:username', element: null }, { path: 'passport', element: null }] },
+      { path: '/', element: <Home />, children: [{ path: 'member/:username', element: null }, { path: 'member/:username/quest/:quest', element: null }, { path: 'passport', element: null }] },
       { path: '/login', element: <Login /> },
       { path: '/auth/callback', element: <AuthCallback /> },
       { path: '/explore', element: <ExploreRedirect /> },

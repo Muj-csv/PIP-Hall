@@ -55,6 +55,19 @@ try {
   await as(c, A, `delete from projects where title='Gone'`);
   const rows = Object.fromEntries((await c.query(`select title, id from projects where profile_id=$1`, [A])).rows.map((r) => [r.title, r.id]));
 
+  console.log('the curated Museum on a database without the earlier migrations');
+  // Run out of order (D-130): it stops before changing anything and names the files to run first.
+  const CURATED = files.find((f) => f.includes('curated_museum'));
+  try {
+    await c.query(readFileSync(join(migDir, CURATED), 'utf8'));
+    check('the curated Museum refuses to run before the Museum migrations', false, 'it ran');
+  } catch (e) {
+    check('the curated Museum refuses to run before the Museum migrations, naming them in order',
+      /missing earlier migrations: run 20261005000100_museum\.sql, 20261005000300_museum_follows_card\.sql,.*20261008000400_close_gaps\.sql, in this order/.test(e.message), e.message);
+  }
+  const made = (await c.query(`select to_regclass('public.museum_features') as t`)).rows[0].t;
+  check('…and changes nothing', made === null, made);
+
   console.log('upgrade: Museum migrations on existing cards');
   for (const f of files.filter((f) => f >= BEFORE)) await c.query(readFileSync(join(migDir, f), 'utf8'));
   // Running them again (a retry after a partial run in the SQL editor) changes nothing.
@@ -70,8 +83,11 @@ try {
   const mine = (await as(c, A, `select my_museum() as m`)).rows[0].m;
   check('my_museum offers all three approved projects', mine.access && mine.projects.length === 3, mine);
   for (const x of p) await as(c, A, `select set_museum($1, true)`, [x.id]);
+  // The curated Museum (D-130): an offer is a suggestion; the admin features what hangs.
+  check('offers alone hang nothing', (await c.query(`select museum_exhibits() as e`)).rows[0].e.length === 0);
+  for (const x of p) await as(c, ADMIN, `select admin_feature_project($1, true)`, [x.id]);
   const shown = (await c.query(`select museum_exhibits() as e`)).rows[0].e;
-  check('all three hang in the Museum, as approved', shown.map((e) => e.project.title).sort().join() === 'Gone,Kept,Old name', shown);
+  check('all three hang in the Museum once featured, as approved', shown.map((e) => e.project.title).sort().join() === 'Gone,Kept,Old name', shown);
 
   await as(c, A, `select submit_for_review()`);
   await as(c, ADMIN, `select approve_profile($1)`, [A]);

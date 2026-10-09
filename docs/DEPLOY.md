@@ -97,6 +97,12 @@ Both are safe to run again (they only add columns and replace functions).
 1. Supabase **SQL editor:** run `supabase/migrations/20261006000300_project_collaborators.sql`. Safe to run again.
 2. Check: a member opens **My card → Collaborators**, tags another member of the hall on a project; that member sees the request in their own **Collaborators** panel and accepts. After the owner's next approval, the project's public card lists them.
 
+## The two circles and the curated Museum (D-129, D-130)
+
+1. Supabase **SQL editor:** run `supabase/migrations/20261009000000_curated_museum.sql` (after the close-the-gaps one) **before** merging the app update. Run it as one query with nothing selected. Safe to run again. On its first run, the exhibits of members you had **Featured** become featured projects, so the Museum's Featured row stays as it was; every other member exhibit leaves the Museum until you feature it. Event winners and the archive stay on show. If you ever re-run an older Museum, passport, hackathons, identity, close-the-gaps or notifications migration, run this one again after it. If it stops with "This database is missing earlier migrations", nothing was changed: run the files it names, in that order (each is safe to run again), then this one.
+2. In the app: **Admin → Museum.** Tick **Feature** on each project that should hang in the Museum (members' offers are listed first, marked "offered by its maker"; winners are marked and hang anyway). It shows at once and needs no review.
+3. Check: `/` opens the **two circles**: players on the left, the chosen player's quests on the right, their badge and the chosen quest between. Pick another player and the quests follow; **VIEW** opens the quest inside the device and BACK returns. **START → Walk the level** switches to the side-scrolling hall (remembered on that device). `/museum` opens **Rooms and exhibits** the same way; **Walk the Museum** and **List view** are the links above it. An event's room appears once its results are announced, with its winners.
+
 ## Close the gaps (V2-13, D-111, D-112, D-128)
 
 1. Supabase **SQL editor:** run `supabase/migrations/20261008000400_close_gaps.sql` (after the showcase one) **before** merging the app update. Safe to run again. It adds the Mentor title, three Missions and `my_progress()`; the live app keeps working. If you ever re-run the missions, identity, hackathons or archive migration, run this one again after it.

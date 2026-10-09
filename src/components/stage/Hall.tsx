@@ -4,13 +4,16 @@
 // D-072) narrow which badges hang in the level; they live in the address like /explore did. START
 // (D-107, D-126) opens the device's menu: Random player, the Passport, the Officers door, the map,
 // the Museum, the Mart, sharing and DAY/NIGHT. Below the device, one tab at a time (HallTabs).
+// The two circles (D-129) are the hall's first view: members on one arc, the chosen member's quests
+// on the other, their badge and the chosen quest between (HallCircles). The same loop draws the
+// world behind them with the camera still; START switches to walking the level and back.
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router';
 import { useAppearance } from '../../app/appearanceContext';
-import { hallUrl, memberPath } from '../../lib/publicUrl';
+import { hallUrl, memberPath, questIndex, questPath } from '../../lib/publicUrl';
 import { pipsEnabled } from '../../lib/features';
-import { slotLook, slotX } from '../../lib/carousel';
+import { SLOT_SPACING, slotLook, slotX } from '../../lib/carousel';
 import { cssVarReader } from '../../lib/sprites';
 import { stepHeld } from '../../lib/grab';
 import { stepSwing, type SwingState } from '../../lib/swing';
@@ -24,6 +27,8 @@ import { useTheme } from '../../app/themeContext';
 import type { PublicCard } from '../../types/card';
 import { QrFullscreen, QrSheet } from '../cards/QrFullscreen';
 import { CardCarousel, SkeletonBadges } from '../carousel/CardCarousel';
+import { HallCircles, type CirclesHandle } from '../circles/HallCircles';
+import type { CirclesMode } from '../../lib/circles';
 import { UNIT_PX, useCarousel } from '../carousel/useCarousel';
 import { DialogueBox } from '../dialogue/DialogueBox';
 import type { EmoteKind } from '../dialogue/Emote';
@@ -53,10 +58,22 @@ import { HallTabs } from './HallTabs';
 import { PassportScreen } from './PassportScreen';
 import { START_MENU_ID, StartMenu } from './StartMenu';
 import { MissingScreen, ProfileScreen } from './ProfileScreen';
+import { QuestScreen } from './QuestScreen';
 
 const BADGE_HALF_W = 28; // units
 const BOOT_KEY = 'piphall-booted';
 const HINT = 'Drag to browse, tap a card to flip it. START has your Passport, a random player and more.';
+const CIRCLES_HINT = 'Pick a player, then one of their quests. VIEW opens it; START has more.';
+/** Which view the hall opens in on this device (D-129): the two circles unless the level was chosen. */
+const VIEW_KEY = 'piphall-hall-view';
+type HallView = 'circles' | 'level';
+function savedView(): HallView {
+  try {
+    return localStorage.getItem(VIEW_KEY) === 'level' ? 'level' : 'circles';
+  } catch {
+    return 'circles';
+  }
+}
 const HALL_TITLE = 'PIP-Hall · Where every person has a place';
 
 type Line = { text: string; emote?: EmoteKind };
@@ -70,9 +87,11 @@ interface HallProps {
   profile?: string | null;
   /** /passport: the Passport is open inside the device (V2-2). */
   passport?: boolean;
+  /** /member/:username/quest/:quest: one quest of theirs is open inside the device (D-129). */
+  quest?: string | null;
 }
 
-export function Hall({ profile = null, passport = false }: HallProps) {
+export function Hall({ profile = null, passport = false, quest = null }: HallProps) {
   const cardsState = useCards();
   const all = useMemo(() => (cardsState.status === 'ready' ? cardsState.cards : []), [cardsState]);
   // The map (V2-8) opens once the hall is dense enough; admins can preview it before (D-105).
@@ -104,20 +123,28 @@ export function Hall({ profile = null, passport = false }: HallProps) {
   const reduce = useReducedMotion();
   const { theme } = useTheme();
 
-  const [line, setLine] = useState<Line>({ text: HINT });
+  const [hallView, setHallView] = useState<HallView>(savedView);
+  const circles = hallView === 'circles';
+  const [circlesMode, setCirclesMode] = useState<CirclesMode>('side');
+  const circlesApi = useRef<CirclesHandle>(null);
+  /** What Pip faces in the circles: the badge (to flip it) or the chosen quest. */
+  const pipAt = useRef<'badge' | 'quest'>('badge');
+  const [line, setLine] = useState<Line>({ text: savedView() === 'circles' ? CIRCLES_HINT : HINT });
   const [flipped, setFlipped] = useState<ReadonlySet<string>>(() => new Set());
   const [coins, setCoins] = useState(0);
   const pips = usePips();
   const stamps = usePassport();
   /** Pip's line on the profile screen after a discovery reward (E1). */
   const [reward, setReward] = useState<{ for: string; text: string } | null>(null);
-  const [mode, setMode] = useState<'level' | 'profile' | 'missing' | 'passport'>('level');
+  const [mode, setMode] = useState<'level' | 'profile' | 'quest' | 'missing' | 'passport'>('level');
   const navigate = useNavigate();
   /** Opened from inside the hall (so BACK can step back in history) rather than from a link. */
   const openedHere = useRef(false);
   /** The hall has been on screen: later profile changes play the iris; a cold /member link doesn't. */
   const shownOnce = useRef(false);
   const startedOnProfile = useRef(Boolean(profile) || passport);
+  /** The quest open on the quest screen (its place in the Quest Log), and the one to choose in the circles. */
+  const [questOpen, setQuestOpen] = useState<{ username: string; quest: number } | null>(null);
   const [qrCard, setQrCard] = useState<PublicCard | null>(null);
   /** The START menu is open over the screen (D-126), and the hall's QR sheet is showing. */
   const [menuOpen, setMenuOpen] = useState(false);
@@ -131,10 +158,15 @@ export function Hall({ profile = null, passport = false }: HallProps) {
       const c = cards[i];
       if (!c) return;
       currentUser.current = c.username;
-      if (i === n - 1 && n > 1) setLine({ text: 'Last player in this world. The flag means you met everyone.' });
+      pipAt.current = 'badge';
+      if (circles) {
+        const quests = c.card.projects.length;
+        const where = circlesMode === 'side' ? 'on the right' : 'below';
+        setLine({ text: `Player ${i + 1}: ${titleCase(c.card.full_name)}. ${quests ? `${quests === 1 ? 'One quest' : `${quests} quests`} ${where}.` : 'No quests yet.'}` });
+      } else if (i === n - 1 && n > 1) setLine({ text: 'Last player in this world. The flag means you met everyone.' });
       else setLine({ text: `Player ${i + 1}: ${titleCase(c.card.full_name)}. Tap to flip.` });
     },
-    [cards],
+    [cards, circles, circlesMode],
   );
   // Grab and fling (D-082): only the current badge, and never from its links or QR button.
   const canGrab = useCallback((target: EventTarget | null) => {
@@ -142,7 +174,9 @@ export function Hall({ profile = null, passport = false }: HallProps) {
     return Boolean(el?.closest('.slot:not([aria-hidden])') && !el.closest('a, .qr-button'));
   }, []);
   const onGrab = useCallback(() => setLine({ text: 'Wheee! Swing it, then let go.' }), []);
-  const car = useCarousel({ count, reduce, onIndexChange, canGrab, onGrab });
+  // In the circles the members' arc drags along it: up and down beside the quests, sideways above them.
+  const arcDrag = circles ? { axis: circlesMode === 'side' ? ('y' as const) : ('x' as const), slotPx: circlesMode === 'side' ? 76 : 62 } : {};
+  const car = useCarousel({ count, reduce, onIndexChange, canGrab, onGrab, ...arcDrag });
   const { go, step, cam: camRef, indexRef, moved, grab } = car;
 
   // ---- refs the animation loop reads
@@ -159,10 +193,14 @@ export function Hall({ profile = null, passport = false }: HallProps) {
   const fx = useRef<{ boot: { t: number; order: number[] } | null; iris: { t: number; mid: () => void; done: boolean } | null }>({ boot: null, iris: null });
   const assets = useRef<WorldAssets | null>(null);
   const flipQueued = useRef(false);
-  const live = useRef({ cards, flipped, reduce, mode, count });
+  /** What the circles last drew (D-129): the world is drawn again only when it changes. */
+  const lastScene = useRef<{ key: string | null; assets: WorldAssets | null }>({ key: null, assets: null });
+  const live = useRef({ cards, flipped, reduce, mode, count, circles });
   useEffect(() => {
-    live.current = { cards, flipped, reduce, mode, count };
+    live.current = { cards, flipped, reduce, mode, count, circles };
   });
+  /** Where a coin pops: over the badge's block (in the circles, the one block there is). */
+  const coinX = useCallback((i: number) => (live.current.circles ? 0 : slotX(i)), []);
 
   // Rebuild sprite colours when DAY/NIGHT changes (the world follows the theme; badges don't).
   useLayoutEffect(() => {
@@ -184,17 +222,18 @@ export function Hall({ profile = null, passport = false }: HallProps) {
     setCoins((n) => n + 1);
     if (!live.current.reduce) {
       bumps.current.set(i, 6);
-      coinFx.current.push({ x: slotX(i), y: CEIL_Y - 2, vy: -2.6, t: 0 });
+      coinFx.current.push({ x: coinX(i), y: CEIL_Y - 2, vy: -2.6, t: 0 });
       const s = swings.current.get(i) ?? { angle: 0, vel: 0 };
       swings.current.set(i, { ...s, vel: s.vel + (Math.random() < 0.5 ? -1.5 : 1.5) });
     }
-  }, []);
+  }, [coinX]);
 
   /** Jump-to-flip (D-023): Pip jumps and headbutts the badge; the flip happens on contact. */
   const requestFlip = useCallback(() => {
     const l = live.current;
     if (l.count === 0 || l.mode !== 'level') return;
     const h = hero.current;
+    pipAt.current = 'badge';
     if (l.reduce) {
       toggleFlip(indexRef.current);
       return;
@@ -225,6 +264,31 @@ export function Hall({ profile = null, passport = false }: HallProps) {
     openedHere.current = true;
     navigate({ pathname: memberPath(c.username), search: location.search });
   }, [indexRef, navigate, location.search]);
+
+  // VIEW in the circles (D-129): the chosen quest opens inside the device, like a profile.
+  const openQuest = useCallback(
+    (c: PublicCard, n: number) => {
+      const p = c.card.projects[n];
+      if (!p || live.current.mode !== 'level') return;
+      openedHere.current = true;
+      navigate({ pathname: questPath(c.username, p, n + 1), search: location.search });
+    },
+    [navigate, location.search],
+  );
+
+  /** A quest picked in the circles: Pip hops over to it and reads its title. */
+  const onQuest = useCallback((c: PublicCard, n: number) => {
+    const p = c.card.projects[n];
+    if (!p) return;
+    pipAt.current = 'quest';
+    setLine({ text: `Quest ${n + 1} of ${c.card.projects.length}: ${p.title}. VIEW opens it.` });
+    const h = hero.current;
+    if (!live.current.reduce && !h.air) {
+      h.vy = -2.2;
+      h.air = true;
+      h.hit = true; // a happy hop, not a headbutt: the badge stays as it is
+    }
+  }, []);
 
   // "Walk there" from a profile (V2-13): back to the hall, then Pip walks to that member's badge.
   // Someone a search hides gets their profile instead.
@@ -327,7 +391,9 @@ export function Hall({ profile = null, passport = false }: HallProps) {
     }
     if (want) {
       const i = cards.findIndex((c) => c.username === want);
-      const next = i < 0 ? 'missing' : 'profile';
+      const q = i >= 0 && quest !== null ? questIndex(cards[i]!.card.projects, quest) : -1;
+      const next = i < 0 ? 'missing' : q >= 0 ? 'quest' : 'profile';
+      setQuestOpen(q >= 0 ? { username: want, quest: q } : null);
       if (i >= 0 && i !== indexRef.current) {
         go(i);
         if (cold || now !== 'level') camRef.current.x = slotX(i); // already behind the screen: no walk
@@ -336,7 +402,7 @@ export function Hall({ profile = null, passport = false }: HallProps) {
         if (cold) setMode(next);
         else runIris(() => setMode(next));
       }
-      setLine({ text: next === 'profile' ? 'Profile screen. BACK or Esc returns to the hall.' : 'No card at that address.' });
+      setLine({ text: next === 'profile' ? 'Profile screen. BACK or Esc returns to the hall.' : next === 'quest' ? 'A quest. BACK or Esc returns to the hall.' : 'No card at that address.' });
     } else if (now !== 'level') {
       openedHere.current = false;
       const walk = pendingWalk.current;
@@ -348,7 +414,7 @@ export function Hall({ profile = null, passport = false }: HallProps) {
       });
       setLine({ text: walk ? `Pip walks to ${titleCase(walk.name)}. Tap to flip, or OPEN for the profile.` : 'Back in the hall.' });
     }
-  }, [profile, passport, cardsState.status, cards, go, runIris, indexRef, camRef]);
+  }, [profile, passport, quest, cardsState.status, cards, go, runIris, indexRef, camRef]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   const onActivate = (i: number) => {
@@ -433,8 +499,12 @@ export function Hall({ profile = null, passport = false }: HallProps) {
       }
 
       const camAcc = step(dt);
-      const cam = camRef.current.x;
       const idx = indexRef.current;
+      // In the circles the camera stands still with the one block over the badge (side by side).
+      const api = l.circles ? circlesApi.current : null;
+      const badgeAt = api?.spot('badge') ?? null;
+      const cam = api && badgeAt !== null ? w / 2 - badgeAt / UNIT_PX : camRef.current.x;
+      api?.tick(dt, camRef.current.x / SLOT_SPACING);
 
       // swing + place mounted badges
       for (const [n, el] of slots.current) {
@@ -448,11 +518,13 @@ export function Hall({ profile = null, passport = false }: HallProps) {
         else bumps.current.set(n, b - dt);
       }
 
-      // Pip walks to the current badge and jumps to flip it
+      // Pip walks to the current badge and jumps to flip it (in the circles, to the badge or the quest)
       const h = hero.current;
-      const dx = slotX(idx) - h.x;
+      const spot = api?.spot(pipAt.current) ?? null;
+      const goal = api && spot !== null ? spot / UNIT_PX + cam - w / 2 : slotX(idx);
+      const dx = goal - h.x;
       h.walking = Math.abs(dx) > 0.6 && !l.reduce;
-      if (l.reduce) h.x = slotX(idx);
+      if (l.reduce) h.x = goal;
       else h.x += Math.max(-2.2, Math.min(2.2, dx * 0.18)) * dt;
       if (h.walking) h.face = dx > 0 ? 1 : -1;
       if (h.air) {
@@ -484,21 +556,25 @@ export function Hall({ profile = null, passport = false }: HallProps) {
         if (c.t > 34) coinFx.current.splice(i, 1);
       }
 
-      const world = {
-        w,
-        cam,
-        t,
-        night: document.documentElement.getAttribute('data-theme') === 'dark',
-        still: l.reduce,
-        count: l.count,
-        flipped: (i: number) => {
-          const c = l.cards[i];
-          return !!c && l.flipped.has(c.username);
-        },
-        bump: (i: number) => bumps.current.get(i) ?? 0,
+      const night = document.documentElement.getAttribute('data-theme') === 'dark';
+      const flippedAt = (i: number) => {
+        const c = l.cards[i];
+        return !!c && l.flipped.has(c.username);
       };
-      drawBackground(bg, world, a);
-      drawForeground(fg, world, a, h, coinFx.current);
+      const world = api
+        ? // The circles: one block, over the current badge, when it hangs from the ceiling; calm scenery.
+          { w, cam, t, night, still: true, ends: false, count: api.mode() === 'side' && l.count > 0 ? 1 : 0, flipped: () => flippedAt(idx), bump: () => bumps.current.get(idx) ?? 0 }
+        : { w, cam, t, night, still: l.reduce, count: l.count, flipped: flippedAt, bump: (i: number) => bumps.current.get(i) ?? 0 };
+      // The circles redraw the world only when something in it changed: a still hall draws nothing.
+      const scene = api
+        ? [w, Math.round(cam * 4), idx, flippedAt(idx), night, Math.round(h.x * 2), Math.round(h.y * 2), h.air, h.walking && ((h.t / 6) | 0) % 2, h.face, world.bump(0) > 0 && Math.round(world.bump(0))].join()
+        : null;
+      if (!api || coinFx.current.length > 0 || scene !== lastScene.current.key || a !== lastScene.current.assets) {
+        drawBackground(bg, world, a);
+        api?.rings(bg, a.colors.star);
+        drawForeground(fg, world, a, h, coinFx.current);
+        lastScene.current = { key: scene, assets: a };
+      }
 
       // boot dissolve and iris share the overlay canvas
       const ov = overlayRef.current;
@@ -557,6 +633,16 @@ export function Hall({ profile = null, passport = false }: HallProps) {
       return;
     }
     if (count === 0) return;
+    if (circles && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+      e.preventDefault();
+      circlesApi.current?.stepQuest(e.key === 'ArrowDown' ? 1 : -1);
+      return;
+    }
+    if (circles && (e.key === 'v' || e.key === 'V')) {
+      e.preventDefault();
+      circlesApi.current?.viewQuest();
+      return;
+    }
     if (e.key === 'ArrowRight') {
       e.preventDefault();
       go(indexRef.current + 1);
@@ -595,7 +681,7 @@ export function Hall({ profile = null, passport = false }: HallProps) {
 
   const current = cards[car.index];
   // Opening someone's profile is a discovery (E1, FR-E1-02). Pays once; Pip says so on the screen.
-  const profileId = mode === 'profile' ? current?.profile_id : undefined;
+  const profileId = mode === 'profile' || mode === 'quest' ? current?.profile_id : undefined;
   const { discover, achievements: catalog } = pips;
   const { stampPerson } = stamps;
   useEffect(() => {
@@ -606,16 +692,41 @@ export function Hall({ profile = null, passport = false }: HallProps) {
       const text = r && discoverLine(r, catalog);
       if (!on || !text) return;
       setReward({ for: profileId, text });
-      if (r.amount > 0 && !live.current.reduce) coinFx.current.push({ x: slotX(indexRef.current), y: CEIL_Y - 2, vy: -2.6, t: 0 });
+      if (r.amount > 0 && !live.current.reduce) coinFx.current.push({ x: coinX(indexRef.current), y: CEIL_Y - 2, vy: -2.6, t: 0 });
     });
     return () => {
       on = false;
     };
-  }, [profileId, discover, catalog, indexRef, stampPerson]);
+  }, [profileId, discover, catalog, indexRef, stampPerson, coinX]);
   const profileName = mode === 'profile' ? current?.card.full_name : null;
+  const shownQuest = mode === 'quest' && current && questOpen?.username === current.username ? questOpen.quest : null;
+  const questTitle = shownQuest !== null ? current?.card.projects[shownQuest]?.title : null;
   useEffect(() => {
-    document.title = profileName ? `${profileName} · PIP-Hall` : mode === 'missing' ? 'No card here · PIP-Hall' : mode === 'passport' ? 'Passport · PIP-Hall' : HALL_TITLE;
-  }, [profileName, mode]);
+    document.title = questTitle
+      ? `${questTitle} · ${current?.card.full_name} · PIP-Hall`
+      : profileName
+        ? `${profileName} · PIP-Hall`
+        : mode === 'missing'
+          ? 'No card here · PIP-Hall'
+          : mode === 'passport'
+            ? 'Passport · PIP-Hall'
+            : HALL_TITLE;
+  }, [profileName, questTitle, current?.card.full_name, mode]);
+
+  /** START → Walk the level / Two circles: remembered on this device. */
+  const switchView = useCallback(() => {
+    const next: HallView = live.current.circles ? 'level' : 'circles';
+    try {
+      localStorage.setItem(VIEW_KEY, next);
+    } catch {
+      // storage blocked: the choice lasts this visit
+    }
+    runIris(() => {
+      setHallView(next);
+      screenRef.current?.focus({ preventScroll: true });
+    });
+    setLine({ text: next === 'circles' ? CIRCLES_HINT : 'The level: Pip walks from badge to badge. START switches back to the circles.' });
+  }, [runIris]);
   const screen = (
     <div
       ref={screenRef}
@@ -623,9 +734,13 @@ export function Hall({ profile = null, passport = false }: HallProps) {
       tabIndex={0}
       role="region"
       aria-roledescription="carousel"
-      aria-label="PIP-Hall players. Left and right arrow keys move, Enter flips, O opens the profile, S opens START."
+      aria-label={
+        circles
+          ? 'PIP-Hall players and their quests. Left and right arrow keys move between players, up and down between their quests, V views a quest, Enter flips the badge, O opens the profile, S opens START.'
+          : 'PIP-Hall players. Left and right arrow keys move, Enter flips, O opens the profile, S opens START.'
+      }
       onKeyDown={onKeyDown}
-      onPointerDown={mode === 'level' ? car.onPointerDown : undefined}
+      onPointerDown={mode === 'level' && !circles ? car.onPointerDown : undefined}
       // A long press would open the phone's context menu; while a badge is held, it swings instead.
       onContextMenu={(e) => {
         if (grab.current.active) e.preventDefault();
@@ -635,6 +750,25 @@ export function Hall({ profile = null, passport = false }: HallProps) {
         <canvas ref={bgRef} data-layer="bg" aria-hidden="true" />
         {cardsState.status === 'loading' ? (
           <SkeletonBadges />
+        ) : circles ? (
+          <HallCircles
+            ref={circlesApi}
+            cards={cards}
+            index={car.index}
+            near={car.near}
+            onMember={(i) => go(i)}
+            memberDrag={car.onPointerDown}
+            memberMoved={moved}
+            flipped={Boolean(cards[car.index] && flipped.has(cards[car.index]!.username))}
+            onFlip={requestFlip}
+            onOpen={openProfile}
+            onShowQr={setQrCard}
+            onView={openQuest}
+            onQuest={onQuest}
+            onLayout={setCirclesMode}
+            pick={questOpen}
+            reduce={reduce}
+          />
         ) : (
           <CardCarousel
             cards={cards}
@@ -664,6 +798,9 @@ export function Hall({ profile = null, passport = false }: HallProps) {
           reward={reward?.for === current.profile_id ? reward.text : null}
         />
       )}
+      {mode === 'quest' && current && shownQuest !== null && current.card.projects[shownQuest] && (
+        <QuestScreen key={`${current.username}-${shownQuest}`} card={current} quest={shownQuest} onBack={closeProfile} reward={reward?.for === current.profile_id ? reward.text : null} />
+      )}
       {mode === 'missing' && <MissingScreen username={profile ?? ''} onBack={closeProfile} />}
       {mode === 'passport' && <PassportScreen hall={all} onBack={closeProfile} />}
       {menuOpen && (
@@ -690,6 +827,11 @@ export function Hall({ profile = null, passport = false }: HallProps) {
           onShare={() => {
             setMenuOpen(false);
             setSharing(true);
+          }}
+          view={hallView}
+          onView={() => {
+            setMenuOpen(false);
+            switchView();
           }}
         />
       )}

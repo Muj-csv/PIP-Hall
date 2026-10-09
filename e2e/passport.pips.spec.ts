@@ -23,7 +23,7 @@ function hall(): MockDb {
   rewardApproval(db, ME.id);
   db.affiliations = [{ key: 'cs', name: 'CS', grants_museum: true, frame_key: null, sort: 1 }];
   db.memberAffiliations = [{ member_id: OTHER, key: 'cs' }];
-  db.museumEntries = [{ project_id: P, member_id: OTHER }];
+  db.museumFeatures = [{ project_id: P, member_id: OTHER }];
   return db;
 }
 

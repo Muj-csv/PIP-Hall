@@ -444,6 +444,8 @@
 .screen {
   position: relative;
   overflow: hidden;
+  /* Never scrolled, not even to show a focused or clicked tile half off an arc's edge (D-129). */
+  overflow: clip;
   background: var(--color-world-sky);
   touch-action: pan-y;
   user-select: none;
@@ -580,6 +582,325 @@
   color: var(--color-on-accent-fixed);
 }
 
+/* ---------------------------------------------------------------- the two circles (D-129) */
+/* Members on one arc, the chosen member's quests on the other; positions come from the loop. */
+.circles {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+}
+.arc {
+  position: absolute;
+  inset: 0;
+  pointer-events: none; /* the tiles take taps and drags; the gaps between them stay the world's */
+}
+.arc:focus-visible {
+  outline: none;
+}
+.arc-option {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: auto;
+  cursor: pointer;
+  transform-origin: 50% 50%;
+  will-change: transform;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+/* Up and down beside the quests: a drag turns the arc, never the page. */
+.circles[data-mode='side'] .arc-option {
+  touch-action: none;
+}
+.arc-tile {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 4px;
+  overflow: hidden;
+  background: var(--color-card-face);
+  box-shadow: inset 0 0 0 4px var(--color-card-ink), 4px 4px 0 var(--color-card-ink);
+}
+.arc-tile img,
+.arc-tile canvas,
+.member-tile .avatar {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  image-rendering: pixelated;
+}
+.arc-option[data-chosen] .arc-tile {
+  box-shadow: inset 0 0 0 4px var(--color-card-ink), 0 0 0 4px var(--color-accent-fixed), 4px 4px 0 4px var(--color-card-ink);
+}
+.arc:focus-visible .arc-option[data-chosen] .arc-tile {
+  outline: 3px dashed var(--color-card-cream);
+  outline-offset: 8px;
+}
+/* The chosen tile points at the middle of the screen (a stepped arrow, not only a colour). */
+.arc-option[data-chosen]::after {
+  content: '';
+  position: absolute;
+  width: 8px;
+  height: 16px;
+  background: var(--color-card-ink);
+  clip-path: polygon(0 0, 4px 0, 4px 4px, 8px 4px, 8px 12px, 4px 12px, 4px 16px, 0 16px);
+}
+.circles[data-mode='side'] .arc-members .arc-option[data-chosen]::after {
+  left: calc(100% + 10px);
+  top: calc(50% - 8px);
+}
+.circles[data-mode='side'] .arc-quests .arc-option[data-chosen]::after {
+  right: calc(100% + 10px);
+  top: calc(50% - 8px);
+  transform: scaleX(-1);
+}
+.circles[data-mode='stack'] .arc-members .arc-option[data-chosen]::after {
+  top: calc(100% + 6px);
+  left: calc(50% - 4px);
+  transform: rotate(90deg);
+}
+.circles[data-mode='stack'] .arc-quests .arc-option[data-chosen]::after {
+  bottom: calc(100% + 6px);
+  left: calc(50% - 4px);
+  transform: rotate(-90deg);
+}
+.quest-tile {
+  padding: 4px;
+}
+.quest-no {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  padding: 0 2px;
+  font-family: var(--font-display);
+  font-size: 11px;
+  line-height: 14px;
+  background: var(--color-card-ink);
+  color: var(--color-card-cream);
+}
+.quest-thumb,
+.quest-art {
+  display: block;
+  overflow: hidden;
+  background: var(--color-world-sky);
+}
+.quest-thumb {
+  width: 100%;
+  height: 100%;
+}
+.quest-thumb img,
+.quest-thumb canvas,
+.quest-art img,
+.quest-art canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  image-rendering: pixelated;
+}
+.circles-badge {
+  position: absolute;
+}
+.circles-hang {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: calc(var(--p) * 56);
+  margin-left: calc(var(--p) * -28);
+  transform-origin: 50% 0;
+  will-change: transform;
+}
+.quest-panel {
+  position: absolute;
+  transform: translateY(-50%);
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+  background: var(--color-card-face);
+  color: var(--color-card-ink);
+  clip-path: var(--step8);
+  box-shadow: inset 0 0 0 4px var(--color-card-ink);
+}
+.quest-count {
+  font-family: var(--font-display);
+  font-size: 13px;
+  letter-spacing: 0.08em;
+}
+.quest-panel .quest-art {
+  aspect-ratio: 16 / 9;
+  box-shadow: inset 0 0 0 2px var(--color-card-ink);
+}
+.quest-title {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 400;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+.quest-desc {
+  font-size: 15px;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.quest-facts {
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+.quest-view {
+  justify-self: start;
+}
+.circles[data-mode='stack'] .quest-panel {
+  gap: 4px;
+  padding: 12px;
+}
+.circles[data-mode='stack'] .quest-desc,
+.circles[data-mode='stack'] .quest-facts {
+  display: none;
+}
+.circles[data-mode='stack'] .quest-title {
+  font-size: 16px;
+}
+/* The quest screen (D-129): the picture beside what it is, when the screen is wide enough. */
+.quest-screen-body {
+  display: grid;
+  gap: 16px;
+}
+.quest-art-big {
+  aspect-ratio: 16 / 9;
+  box-shadow: inset 0 0 0 4px var(--color-card-ink);
+}
+@media (min-width: 900px) {
+  .quest-screen-body {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+    align-items: start;
+  }
+}
+.quest-more {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+}
+.quest-more-link {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  min-height: 56px;
+  padding: 4px;
+  color: inherit;
+  text-decoration: none;
+  box-shadow: inset 0 0 0 2px var(--color-border);
+}
+.quest-more-link:hover b,
+.quest-more-link:focus-visible b {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+}
+.quest-more-link .quest-thumb {
+  width: 64px;
+  height: 48px;
+}
+
+/* The Museum's two circles (D-129): rooms and their exhibits, on the chosen room's own wall and floor. */
+.museum-room-backdrop {
+  background: linear-gradient(to bottom, var(--color-museum-garden-wall) 0 84%, var(--color-museum-garden-floor) 84% 100%);
+}
+.museum-room-backdrop[data-style='arcade'] {
+  background: linear-gradient(to bottom, var(--color-museum-arcade-wall) 0 84%, var(--color-museum-arcade-floor) 84% 100%);
+}
+.museum-room-backdrop[data-style='lab'] {
+  background: linear-gradient(to bottom, var(--color-museum-lab-wall) 0 84%, var(--color-museum-lab-floor) 84% 100%);
+}
+.museum-room-backdrop[data-style='library'] {
+  background: linear-gradient(to bottom, var(--color-museum-library-wall) 0 84%, var(--color-museum-library-floor) 84% 100%);
+}
+.museum-room-backdrop[data-style='trophy'] {
+  background: linear-gradient(to bottom, var(--color-museum-trophy-wall) 0 84%, var(--color-museum-trophy-floor) 84% 100%);
+}
+.circles-rings {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  image-rendering: pixelated;
+}
+.room-banner {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  z-index: 20;
+  max-width: calc(100% - 24px);
+  transform: translateX(-50%);
+  padding: 4px 12px;
+  font-family: var(--font-display);
+  font-size: 16px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background: var(--color-card-ink);
+  color: var(--color-card-cream);
+}
+.museum-room-backdrop[data-mode='stack'] .room-banner {
+  display: none; /* the chosen room's name stands under its door */
+}
+.room-banner-count {
+  font-family: var(--font-body);
+  font-size: 13px;
+}
+.room-tile {
+  display: grid;
+  place-items: center;
+}
+.room-tile[data-style='arcade'] { background: var(--color-museum-arcade-wall); color: var(--color-museum-arcade-accent); }
+.room-tile[data-style='lab'] { background: var(--color-museum-lab-wall); color: var(--color-card-ink); }
+.room-tile[data-style='library'] { background: var(--color-museum-library-wall); color: var(--color-museum-library-accent); }
+.room-tile[data-style='garden'] { background: var(--color-museum-garden-wall); color: var(--color-card-ink); }
+.room-tile[data-style='trophy'] { background: var(--color-museum-trophy-wall); color: var(--color-museum-trophy-accent); }
+.room-glyph {
+  font-size: 26px;
+  line-height: 1;
+}
+.room-name {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  width: 104px;
+  margin-left: -52px;
+  padding: 0 2px;
+  font-family: var(--font-display);
+  font-size: 11px;
+  line-height: 14px;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background: var(--color-card-ink);
+  color: var(--color-card-cream);
+}
+.circles[data-mode='stack'] .arc-rooms .arc-option:not([data-chosen]) .room-name {
+  display: none;
+}
+.circles[data-mode='stack'] .arc-rooms .arc-option[data-chosen]::after {
+  display: none; /* the name stands where the arrow would */
+}
+.circles-console {
+  position: absolute;
+  transform: translateY(-50%);
+}
+.museum-circles .circles-console .exhibit-view {
+  width: 100%;
+}
+
 /* ---------------------------------------------------------------- badge (brief §13) */
 .slot {
   position: absolute;
@@ -615,19 +936,25 @@
 .flipper {
   perspective: 1200px;
 }
+/* The turn is one number, 0 for the front and 1 for the back (D-131). The rotation and the face
+   swap both read it, so the swap can never run ahead of the badge, however busy the page is. */
+@property --turn {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 0;
+}
 .badge {
-  /* The turn and the moment it's edge-on belong together: this curve overshoots, so the badge
-     reaches 90° about 66ms into the 520ms turn (solve the bezier for y = 0.5 if you change it). */
   --flip-ms: 520ms;
-  --flip-edge-ms: 66ms;
+  --turn: 0;
   position: relative;
   width: calc(var(--p) * 56);
   height: calc(var(--p) * 88);
   transform-style: preserve-3d;
-  transition: transform var(--flip-ms) cubic-bezier(0.3, 1.35, 0.45, 1);
+  transform: rotateY(calc(var(--turn) * 180deg));
+  transition: --turn var(--flip-ms) cubic-bezier(0.3, 1.35, 0.45, 1);
 }
 .badge[data-flipped='true'] {
-  transform: rotateY(180deg);
+  --turn: 1;
 }
 .badge-face {
   position: absolute;
@@ -642,15 +969,23 @@
 /* backface-visibility alone isn't enough: Safari (every iPhone browser) still paints a face's own
    layers (photo, canvases, QR) mirrored through the back. So the turned-away face is also hidden.
    The incoming face shows the moment the turn starts (it is still facing away, so backface-visibility
-   keeps it out of sight while the browser paints it); the outgoing face hides only once the badge is
-   edge-on. One face is always on screen, and nothing has to be painted mid-turn. */
+   keeps it out of sight while the browser paints it). The outgoing face goes the frame the badge is
+   edge-on (--turn passes 0.5; the curve overshoots, so that is early in the turn), and is hidden
+   once the turn is over (D-056, D-131). One face is always on screen, and nothing has to be
+   painted mid-turn. */
 .badge-face {
   transition: visibility 0s linear 0s;
+}
+.badge[data-flipped='true'] > .badge-face[data-side='front'] {
+  opacity: clamp(0, (0.5 - var(--turn)) * 1000, 1);
+}
+.badge[data-flipped='false'] > .badge-face[data-side='back'] {
+  opacity: clamp(0, (var(--turn) - 0.5) * 1000, 1);
 }
 .badge[data-flipped='true'] > .badge-face[data-side='front'],
 .badge[data-flipped='false'] > .badge-face[data-side='back'] {
   visibility: hidden;
-  transition-delay: var(--flip-edge-ms);
+  transition-delay: var(--flip-ms);
 }
 /* The face turned away is `inert` (no focus) and never catches clicks. */
 .badge-face[inert] {
@@ -2649,6 +2984,25 @@ textarea.pixel-input {
   margin: 0;
   padding: 0;
   list-style: none;
+}
+/* Admin → Museum (D-130): one row per project, featured ones marked by a bar as well as the tick. */
+.feature-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.feature-list > li {
+  display: grid;
+  gap: 4px;
+  padding: 8px 12px;
+  background: var(--color-surface);
+  box-shadow: inset 0 0 0 2px var(--color-border);
+}
+.feature-list > li[data-featured] {
+  box-shadow: inset 0 0 0 2px var(--color-border), inset 8px 0 0 var(--color-accent);
+  padding-left: 20px;
 }
 /* Editor → Museum: the console picker and its live preview (D-091). */
 .console-picker {

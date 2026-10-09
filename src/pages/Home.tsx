@@ -5,9 +5,10 @@ import { InstallPrompt } from '../components/install/InstallPrompt';
 
 // `/` and `/member/:username` are the same screen: the hall, with that member's profile open inside
 // the device when the address names one (the Hall sets the page title). `/passport` opens the
-// Passport inside the device the same way (V2-2).
+// Passport inside the device the same way (V2-2), and `/member/:username/quest/:quest` one quest of
+// theirs (D-129).
 export default function Home() {
-  const { username = null } = useParams();
+  const { username = null, quest = null } = useParams();
   const passport = Boolean(useMatch('/passport'));
   return (
     <div className="mx-auto max-w-[1080px] px-space-4 pb-space-8">
@@ -20,7 +21,7 @@ export default function Home() {
           </h1>
           <p className="m-0 text-text-secondary">Meet the members of the hall: flip a badge to see what they build.</p>
         </div>
-        <Hall profile={username} passport={passport} />
+        <Hall profile={username} passport={passport} quest={quest} />
       </main>
       <footer className="mt-space-6 grid justify-items-center gap-space-2 text-center text-caption text-text-secondary">
         <InstallPrompt compact />

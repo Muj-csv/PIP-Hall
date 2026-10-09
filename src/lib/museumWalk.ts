@@ -52,7 +52,7 @@ export interface MuseumParts {
   events: readonly MuseumEvent[];
   /** The wings with something on show, each with its exhibits in this visit's order. */
   wings: readonly WingRoom[];
-  /** Every exhibit, members' and the archive's: featured makers first, then this visit's order. */
+  /** Every exhibit, members' and the archive's: featured projects first, then this visit's order. */
   everything: { featured: readonly Exhibit[]; rest: readonly Exhibit[] };
   archive: readonly ArchiveExhibit[];
 }
