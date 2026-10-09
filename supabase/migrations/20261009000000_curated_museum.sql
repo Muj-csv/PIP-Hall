@@ -5,7 +5,41 @@
 -- Members with Museum access still offer projects (museum_entries, and the console they hang in);
 -- an offer is now a suggestion the admin sees, not an exhibit. Event rooms show their winners only.
 -- On the first run, exhibits by members an admin had Featured become featured projects, so the
--- Museum's Featured row stays as it was. Safe to run again.
+-- Museum's Featured row stays as it was. Safe to run again. If an earlier migration never ran on
+-- this database, it stops first and names the files to run.
+
+-- ---------------------------------------------------------------- what this needs first
+-- This builds on the Museum, passport, events, hackathons, archive and showcase migrations. If any of
+-- them never ran on this database, stop before changing anything and name the files to run, in order.
+do $$
+declare
+  missing text[] := '{}';
+  col boolean;
+begin
+  if to_regclass('public.museum_entries') is null then missing := array_append(missing, '20261005000100_museum.sql'); end if;
+  if to_regprocedure('public.museum_follow_card()') is null then missing := array_append(missing, '20261005000300_museum_follows_card.sql'); end if;
+  select exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'museum_entries' and column_name = 'console') into col;
+  if not col then missing := array_append(missing, '20261006000400_museum_consoles.sql'); end if;
+  if to_regclass('public.passport_visits') is null then missing := array_append(missing, '20261006000500_passport.sql'); end if;
+  if to_regclass('public.hall_events') is null then missing := array_append(missing, '20261006000600_missions_events.sql'); end if;
+  if to_regclass('public.notification_reads') is null then missing := array_append(missing, '20261006000700_notifications.sql'); end if;
+  if to_regprocedure('public.title_catalog()') is null then missing := array_append(missing, '20261006000800_identity.sql'); end if;
+  if to_regclass('public.museum_wings') is null then missing := array_append(missing, '20261006000900_museum_wings.sql'); end if;
+  if to_regclass('public.hall_seasons') is null then missing := array_append(missing, '20261006001000_seasons.sql'); end if;
+  if to_regclass('public.event_awards') is null then missing := array_append(missing, '20261007000000_hackathons.sql'); end if;
+  if to_regclass('public.archive_exhibits') is null then missing := array_append(missing, '20261008000000_archive.sql'); end if;
+  select exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'member_affiliations' and column_name = 'position') into col;
+  if not col then missing := array_append(missing, '20261008000100_officers.sql'); end if;
+  select exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'museum_wings' and column_name = 'style') into col;
+  if not col then missing := array_append(missing, '20261008000200_museum_walk.sql'); end if;
+  if to_regclass('public.event_checkins') is null then missing := array_append(missing, '20261008000300_showcase.sql'); end if;
+  if to_regprocedure('public.my_progress()') is null then missing := array_append(missing, '20261008000400_close_gaps.sql'); end if;
+  if cardinality(missing) > 0 then
+    raise exception 'Nothing was changed. This database is missing earlier migrations: run %, in this order, then run this one again.',
+      array_to_string(missing, ', ') using errcode = 'P0001';
+  end if;
+end;
+$$;
 
 -- ---------------------------------------------------------------- featured projects
 do $$
