@@ -1,7 +1,6 @@
 // Grab and fling (D-082): hold the current badge to swing it; it never browses or flips, and a quick
 // drag still browses. Reduced motion turns it off.
 import { expect, test, type Page } from '@playwright/test';
-import { inLevel } from './level';
 
 const slot = (p: Page) => p.locator('.slot:not([aria-hidden])');
 const current = (p: Page) => slot(p).locator('.badge');
@@ -11,7 +10,6 @@ const angle = (p: Page) => slot(p).evaluate((el) => Number(/rotate\(([-\d.]+)deg
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => sessionStorage.setItem('piphall-booted', '1'));
-  await inLevel(page);
   await page.goto('/');
   await expect(current(page)).toBeVisible();
   await page.locator('.screen').scrollIntoViewIfNeeded();

@@ -2,7 +2,6 @@
 // the address becomes /member/:username; that address (what a badge's QR opens) loads straight
 // onto it. Fixture data.
 import { expect, test, type Page } from '@playwright/test';
-import { inLevel } from './level';
 
 const profile = (page: Page) => page.locator('.profile-screen');
 const badge = (page: Page) => profile(page).locator('.badge');
@@ -41,12 +40,12 @@ test('a QR link loads cold onto the profile inside the device: tappable badge, a
 
 test('VIEW PROFILE on a badge opens the profile inside the device, and browser Back closes it', async ({ page }) => {
   await page.addInitScript(() => sessionStorage.setItem('piphall-booted', '1'));
-  await inLevel(page);
   await page.goto('/');
   const current = page.locator('.slot:not([aria-hidden]) .badge');
   await page.locator('.slot:not([aria-hidden]) .badge-face[data-side="front"] .badge-hit').click();
   await expect(current).toHaveAttribute('data-flipped', 'true');
-  await page.locator('.slot:not([aria-hidden])').getByRole('button', { name: 'VIEW PROFILE ▸' }).click();
+  // On its back the badge stands between the two circles (D-132), with VIEW PROFILE.
+  await page.locator('.circles .badge').getByRole('button', { name: 'VIEW PROFILE ▸' }).click();
   await expect(page).toHaveURL(/\/member\/sample-player-1$/);
   await expect(page.locator('#profile-name, #missing-title')).toHaveText('Sample Player 1');
   // Still the same page: the handheld is there and its button now says BACK.

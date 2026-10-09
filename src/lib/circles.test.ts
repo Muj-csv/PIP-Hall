@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { questIndex, questPath } from './publicUrl';
-import { arcDots, arcIndices, arcLook, BADGE_W, circlesCentre, circlesLayout, SIDE_MIN, type Arc } from './circles';
+import { arcDots, arcIndices, arcLook, BADGE_SCALES, BADGE_W, circlesCentre, circlesLayout, crispScale, SIDE_MIN, type Arc } from './circles';
 
 const left: Arc = { side: 'left', apex: { x: 100, y: 300 }, radius: 400, spacing: 76, item: 56 };
 
@@ -77,8 +77,7 @@ describe('the two circles (D-129)', () => {
     for (const [w, h] of [[560, 576], [676, 576], [900, 576], [320, 576], [280, 576]] as const) {
       const l = circlesLayout(w, h);
       const c = circlesCentre(l, w);
-      expect(c.badge.scale).toBeGreaterThanOrEqual(0.5);
-      expect(c.badge.scale).toBeLessThanOrEqual(1);
+      expect(BADGE_SCALES).toContain(c.badge.scale); // whole pixels for its pixel art: never blurred
       expect(c.badge.width).toBe(Math.round(BADGE_W * c.badge.scale));
       expect(c.panel.left).toBeGreaterThanOrEqual(c.badge.left + c.badge.width);
       expect(c.panel.left + c.panel.width).toBeLessThanOrEqual(l.mode === 'side' ? l.second.apex.x - l.second.item / 2 : w);
@@ -89,6 +88,15 @@ describe('the two circles (D-129)', () => {
       }
     }
     expect(circlesCentre(circlesLayout(900, 576), 900).badge.scale).toBe(1);
+  });
+
+  it('draws the badge only at sizes where its 4px art pixels land on whole pixels', () => {
+    expect(crispScale(1.2)).toBe(1);
+    expect(crispScale(0.94)).toBe(0.75);
+    expect(crispScale(0.75)).toBe(0.75);
+    expect(crispScale(0.7)).toBe(0.5);
+    expect(crispScale(0.3)).toBe(0.5);
+    for (const s of BADGE_SCALES) expect(Number.isInteger(4 * s)).toBe(true);
   });
 
   it('gives a quest its own address: by its id, or its place for a card from before project ids', () => {

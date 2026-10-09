@@ -43,7 +43,7 @@ test('one search row above the device; everything else is one press of START awa
   await start.click();
   await expect(start).toHaveAttribute('aria-expanded', 'true');
   const menu = page.getByRole('region', { name: 'START', exact: true });
-  await expect(menu.getByRole('listitem')).toHaveText([/Walk the level/, /Random player/, /Passport/, /Museum/, /Share the hall/, /Night world|Day world/]);
+  await expect(menu.getByRole('listitem')).toHaveText([/Random player/, /Passport/, /Museum/, /Share the hall/, /Night world|Day world/]);
   await expect(menu.getByRole('button', { name: /BACK to the hall/ })).toBeFocused();
   await page.locator('.device-outer').screenshot({ path: `${EVIDENCE}/start-menu.png` });
   await page.getByRole('button', { name: 'BACK', exact: true }).click();

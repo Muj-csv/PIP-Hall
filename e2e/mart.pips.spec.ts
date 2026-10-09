@@ -3,7 +3,6 @@ import { expect, test, type Page } from '@playwright/test';
 import samples from '../src/data/sample-cards.json' with { type: 'json' };
 import { emptyDb, type MockDb, type Row } from './mockDb';
 import { mockSupabase } from './mockSupabase';
-import { inLevel } from './level';
 
 const ME = { id: '00000000-0000-4000-8000-0000000000a1', email: 'me@example.org', name: 'Test Member', role: 'member' as const };
 const ADMIN = { id: '00000000-0000-4000-8000-0000000000ad', email: 'admin@example.org', name: 'Test Admin', role: 'admin' as const };
@@ -22,10 +21,7 @@ function hall(pips = 500): MockDb {
   return db;
 }
 
-const boot = async (page: Page) => {
-  await page.addInitScript(() => sessionStorage.setItem('piphall-booted', '1'));
-  await inLevel(page); // the badges hang in the level here
-};
+const boot = (page: Page) => page.addInitScript(() => sessionStorage.setItem('piphall-booted', '1'));
 const preview = (page: Page) => page.locator('.preview-stage .badge');
 const balance = (page: Page) => page.getByRole('status').filter({ hasText: 'PIPs' }).first();
 const row = (page: Page, name: string) => page.locator('.mart-row').filter({ hasText: name });

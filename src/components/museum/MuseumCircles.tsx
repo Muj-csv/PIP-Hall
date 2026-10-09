@@ -8,7 +8,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { SLOT_SPACING, slotX } from '../../lib/carousel';
-import { arcDots, circlesCentre, circlesLayout, type Arc, type CirclesLayout } from '../../lib/circles';
+import { arcDots, circlesCentre, circlesLayout, panelBox, type Arc, type CirclesLayout } from '../../lib/circles';
 import { consoleFor } from '../../lib/museum';
 import { awardLine, planRooms, plaqueBy, plaqueOrigin, type MuseumParts, type PlannedRoom, type RoomKind } from '../../lib/museumWalk';
 import { exhibitPath, memberPath } from '../../lib/publicUrl';
@@ -278,7 +278,7 @@ export default function MuseumCircles({ parts, room, at, onRoom }: Props) {
                   <div className="circles-console" style={{ left: centre.badge.left, width: centre.badge.width, top: centre.panel.mid }}>
                     <ExhibitArt key={stop.exhibit.project_id} project={stop.exhibit.project} console={consoleFor(stop.exhibit.project_id, stop.exhibit.console)} featured={stop.exhibit.featured} eager />
                   </div>
-                  <section className="quest-panel" style={{ left: centre.panel.left, width: centre.panel.width, top: centre.panel.mid }} aria-labelledby="museum-plaque-title">
+                  <section className="quest-panel" style={panelBox(centre)} aria-labelledby="museum-plaque-title">
                     <p className="quest-count m-0">
                       EXHIBIT {ei + 1}/{stops.length}
                     </p>
