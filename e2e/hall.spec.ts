@@ -1,7 +1,6 @@
 // Phase 1 acceptance (docs/build/PHASE-1.md): browse, flip, QR full screen, drag vs tap,
 // keyboard only, reduced motion. Runs on the fixture data.
 import { expect, test, type Page } from '@playwright/test';
-import { inLevel } from './level';
 
 const current = (p: Page) => p.locator('.slot:not([aria-hidden]) .badge');
 const playerCount = (p: Page) => p.locator('.hud span').last();
@@ -10,7 +9,6 @@ const coins = (p: Page) => p.locator('.hud-coins');
 test.beforeEach(async ({ page }) => {
   // Skip the once-per-session boot animation so tests start in a settled level.
   await page.addInitScript(() => sessionStorage.setItem('piphall-booted', '1'));
-  await inLevel(page);
   await page.goto('/');
   await expect(page.locator('.slot').first()).toBeVisible();
 });
@@ -35,8 +33,13 @@ test.describe('desktop', () => {
     await page.keyboard.press('Enter'); // Pip jumps; the flip lands on contact
     await expect(current(page)).toHaveAttribute('data-flipped', 'true');
     await expect(coins(page)).toContainText('01');
+    // On its back, the badge stands between the two circles (D-132); turned to its front, the level is back.
+    await expect(page.locator('.circles .badge')).toHaveAttribute('data-flipped', 'true');
+    await expect(screen).toBeFocused();
     await page.keyboard.press('Space');
+    await expect(page.locator('.circles')).toHaveCount(0);
     await expect(current(page)).toHaveAttribute('data-flipped', 'false');
+    await expect(coins(page)).toContainText('02');
 
     const qr = page.locator('.slot:not([aria-hidden]) .qr-button');
     for (let i = 0; i < 8 && !(await qr.evaluate((el) => el === document.activeElement)); i++) await page.keyboard.press('Tab');
@@ -125,7 +128,7 @@ test.describe('reduced motion', () => {
   test('flip is instant and the coin still counts', async ({ page }) => {
     await page.getByRole('region', { name: /PIP-Hall players/ }).focus();
     await page.keyboard.press('Enter');
-    await expect(current(page)).toHaveAttribute('data-flipped', 'true', { timeout: 100 });
+    await expect(page.locator('.circles .badge')).toHaveAttribute('data-flipped', 'true', { timeout: 100 }); // its back: the circles, at once
     await expect(coins(page)).toContainText('01');
   });
 });

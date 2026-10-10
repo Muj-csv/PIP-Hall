@@ -118,9 +118,22 @@ export interface CirclesCentre {
   panel: { left: number; width: number; mid: number };
 }
 
+/** The quest panel's (or plaque's) box: centred on its line by layout, not by a half-height shift,
+ *  which would put an odd-height panel half a pixel off and blur its text. */
+export function panelBox(c: CirclesCentre) {
+  const band = 600;
+  return { left: c.panel.left, width: c.panel.width, top: c.panel.mid - band, bottom: `calc(100% - ${c.panel.mid + band}px)` };
+}
+
 /** The badge at full size: 56 × 88u, plus its strap and clip (8u), at 4px a unit. */
 export const BADGE_W = 224;
 export const BADGE_H = 384;
+
+/** The sizes the badge is drawn at between the arcs: its 4px art pixels land on whole pixels (4, 3
+ *  or 2 px), so the pixel art and the text stay sharp. Any other scale blurs them. */
+export const BADGE_SCALES = [1, 0.75, 0.5] as const;
+/** The largest of BADGE_SCALES that fits, never below the smallest. */
+export const crispScale = (fit: number) => BADGE_SCALES.find((s) => s <= fit + 1e-9) ?? BADGE_SCALES[BADGE_SCALES.length - 1]!;
 
 export function circlesCentre(l: CirclesLayout, w: number): CirclesCentre {
   if (l.mode === 'side') {
@@ -128,7 +141,7 @@ export function circlesCentre(l: CirclesLayout, w: number): CirclesCentre {
     const from = l.first.apex.x + l.first.item / 2 + gap;
     const to = l.second.apex.x - l.second.item / 2 - gap;
     const room = to - from;
-    const scale = Math.max(0.6, Math.min(1, (room - gap - 200) / BADGE_W));
+    const scale = crispScale(Math.min(1, (room - gap - 200) / BADGE_W));
     const bw = Math.round(BADGE_W * scale);
     const pw = Math.max(160, Math.min(300, room - bw - gap));
     const left = Math.round(from + Math.max(0, (room - bw - gap - pw) / 2));
@@ -140,7 +153,7 @@ export function circlesCentre(l: CirclesLayout, w: number): CirclesCentre {
   const gap = 8;
   const top = l.first.apex.y + l.first.item / 2 + 16;
   const bottom = l.second.apex.y - l.second.item / 2 - 16;
-  const scale = Math.max(0.5, Math.min(0.85, (bottom - top) / BADGE_H, (w - 16 - gap - 136) / BADGE_W));
+  const scale = crispScale(Math.min(0.85, (bottom - top) / BADGE_H, (w - 16 - gap - 136) / BADGE_W));
   const bw = Math.round(BADGE_W * scale);
   const pw = Math.max(120, Math.min(220, w - 16 - gap - bw));
   const left = Math.round((w - bw - gap - pw) / 2);

@@ -4,9 +4,11 @@
 // D-072) narrow which badges hang in the level; they live in the address like /explore did. START
 // (D-107, D-126) opens the device's menu: Random player, the Passport, the Officers door, the map,
 // the Museum, the Mart, sharing and DAY/NIGHT. Below the device, one tab at a time (HallTabs).
-// The two circles (D-129) are the hall's first view: members on one arc, the chosen member's quests
-// on the other, their badge and the chosen quest between (HallCircles). The same loop draws the
-// world behind them with the camera still; START switches to walking the level and back.
+// The hall is the level. Flipping the current badge to its back (its Quest Log) turns the hall into
+// the two circles once the turn is over (D-129, D-132): members on one arc, the chosen member's
+// quests on the other, their badge (still on its back) and the chosen quest between (HallCircles).
+// Flipping that badge to its front brings the level back. The same loop draws the world behind the
+// circles with the camera still.
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router';
@@ -63,17 +65,12 @@ import { QuestScreen } from './QuestScreen';
 const BADGE_HALF_W = 28; // units
 const BOOT_KEY = 'piphall-booted';
 const HINT = 'Drag to browse, tap a card to flip it. START has your Passport, a random player and more.';
-const CIRCLES_HINT = 'Pick a player, then one of their quests. VIEW opens it; START has more.';
-/** Which view the hall opens in on this device (D-129): the two circles unless the level was chosen. */
-const VIEW_KEY = 'piphall-hall-view';
+const CIRCLES_HINT = 'Their quests, round the badge. Pick one; VIEW opens it. Flip the badge back for the level.';
+const LEVEL_HINT = 'Back in the level. Tap a card to flip it to their quests.';
+/** The badge's back is the two circles, its front the level (D-132). */
 type HallView = 'circles' | 'level';
-function savedView(): HallView {
-  try {
-    return localStorage.getItem(VIEW_KEY) === 'level' ? 'level' : 'circles';
-  } catch {
-    return 'circles';
-  }
-}
+/** How long a badge takes to turn (base.css `.badge` --flip-ms): the hall changes once it has. */
+const FLIP_MS = 520;
 const HALL_TITLE = 'PIP-Hall · Where every person has a place';
 
 type Line = { text: string; emote?: EmoteKind };
@@ -123,13 +120,17 @@ export function Hall({ profile = null, passport = false, quest = null }: HallPro
   const reduce = useReducedMotion();
   const { theme } = useTheme();
 
-  const [hallView, setHallView] = useState<HallView>(savedView);
+  // A quest's address opens on the badge's back: BACK from it returns to the circles.
+  const [hallView, setHallView] = useState<HallView>(() => (quest ? 'circles' : 'level'));
   const circles = hallView === 'circles';
+  /** The circles' badge faces its back; false while it turns to its front, on its way to the level. */
+  const [back, setBack] = useState(true);
+  const turnTimer = useRef(0);
   const [circlesMode, setCirclesMode] = useState<CirclesMode>('side');
   const circlesApi = useRef<CirclesHandle>(null);
   /** What Pip faces in the circles: the badge (to flip it) or the chosen quest. */
   const pipAt = useRef<'badge' | 'quest'>('badge');
-  const [line, setLine] = useState<Line>({ text: savedView() === 'circles' ? CIRCLES_HINT : HINT });
+  const [line, setLine] = useState<Line>({ text: HINT });
   const [flipped, setFlipped] = useState<ReadonlySet<string>>(() => new Set());
   const [coins, setCoins] = useState(0);
   const pips = usePips();
@@ -193,11 +194,12 @@ export function Hall({ profile = null, passport = false, quest = null }: HallPro
   const fx = useRef<{ boot: { t: number; order: number[] } | null; iris: { t: number; mid: () => void; done: boolean } | null }>({ boot: null, iris: null });
   const assets = useRef<WorldAssets | null>(null);
   const flipQueued = useRef(false);
+  const flipAfterWipe = useRef(false);
   /** What the circles last drew (D-129): the world is drawn again only when it changes. */
   const lastScene = useRef<{ key: string | null; assets: WorldAssets | null }>({ key: null, assets: null });
-  const live = useRef({ cards, flipped, reduce, mode, count, circles });
+  const live = useRef({ cards, flipped, reduce, mode, count, circles, back });
   useEffect(() => {
-    live.current = { cards, flipped, reduce, mode, count, circles };
+    live.current = { cards, flipped, reduce, mode, count, circles, back };
   });
   /** Where a coin pops: over the badge's block (in the circles, the one block there is). */
   const coinX = useCallback((i: number) => (live.current.circles ? 0 : slotX(i)), []);
@@ -207,31 +209,80 @@ export function Hall({ profile = null, passport = false, quest = null }: HallPro
     assets.current = buildWorldAssets(cssVarReader());
   }, [theme]);
 
+  const runIris = useCallback((mid: () => void) => {
+    if (live.current.reduce) {
+      mid();
+      return;
+    }
+    // A wipe already under way finishes its change first, so none is lost.
+    const going = fx.current.iris;
+    if (going && !going.done) going.mid();
+    fx.current.iris = { t: 0, mid, done: false };
+  }, []);
+
+  /** The hall follows the badge (D-132): its back is the circles, its front the level. */
+  const showSide = useCallback(
+    (view: HallView) => {
+      const swap = () => {
+        // Focus on the badge that is about to go moves to the screen, so the keys keep working.
+        const screen = screenRef.current;
+        const at = document.activeElement;
+        if (screen && (at === document.body || (screen.contains(at) && live.current.mode === 'level'))) screen.focus({ preventScroll: true });
+        setHallView(view);
+        setBack(true);
+        setFlipped(new Set());
+      };
+      if (live.current.mode !== 'level' || fx.current.iris) {
+        swap(); // behind a profile, the Passport or a wipe already under way: no second wipe
+        return;
+      }
+      runIris(swap);
+      setLine({ text: view === 'circles' ? CIRCLES_HINT : LEVEL_HINT });
+    },
+    [runIris],
+  );
+  useEffect(() => () => window.clearTimeout(turnTimer.current), []);
+
   // ---- actions
   const toggleFlip = useCallback((i: number) => {
-    const c = live.current.cards[i];
+    const l = live.current;
+    const c = l.cards[i];
     if (!c) return;
-    const nowFlipped = !live.current.flipped.has(c.username);
-    setFlipped((prev) => {
-      const next = new Set(prev);
-      if (nowFlipped) next.add(c.username);
-      else next.delete(c.username);
-      return next;
-    });
-    setLine({ text: nowFlipped ? 'Quest Log: the first three projects. OPEN shows everything.' : 'Front side. The QR opens this player’s page.' });
+    // In the level a badge turns to its back; in the circles it turns back to its front.
+    const toBack = l.circles ? !l.back : !l.flipped.has(c.username);
+    if (l.circles) setBack(toBack);
+    else
+      setFlipped((prev) => {
+        const next = new Set(prev);
+        if (toBack) next.add(c.username);
+        else next.delete(c.username);
+        return next;
+      });
+    setLine({ text: toBack ? 'Quest Log! Their quests come round the badge.' : 'Front side. Back to the level.' });
     setCoins((n) => n + 1);
-    if (!live.current.reduce) {
+    if (!l.reduce) {
       bumps.current.set(i, 6);
       coinFx.current.push({ x: coinX(i), y: CEIL_Y - 2, vy: -2.6, t: 0 });
       const s = swings.current.get(i) ?? { angle: 0, vel: 0 };
       swings.current.set(i, { ...s, vel: s.vel + (Math.random() < 0.5 ? -1.5 : 1.5) });
     }
-  }, [coinX]);
+    // Once the turn is over the hall follows the badge; turned again before then, it stays.
+    window.clearTimeout(turnTimer.current);
+    const next: HallView | null = l.circles ? (toBack ? null : 'level') : toBack ? 'circles' : null;
+    if (next && l.reduce) showSide(next);
+    else if (next) turnTimer.current = window.setTimeout(() => showSide(next), FLIP_MS);
+  }, [coinX, showSide]);
 
   /** Jump-to-flip (D-023): Pip jumps and headbutts the badge; the flip happens on contact. */
   const requestFlip = useCallback(() => {
     const l = live.current;
-    if (l.count === 0 || l.mode !== 'level') return;
+    if (l.count === 0) return;
+    // Pressed while the screen wipes: it waits for the wipe, then flips if the hall is what shows.
+    if (fx.current.iris) {
+      flipAfterWipe.current = true;
+      return;
+    }
+    if (l.mode !== 'level') return;
     const h = hero.current;
     pipAt.current = 'badge';
     if (l.reduce) {
@@ -246,14 +297,6 @@ export function Hall({ profile = null, passport = false, quest = null }: HallPro
     h.air = true;
     h.hit = false;
   }, [indexRef, toggleFlip]);
-
-  const runIris = useCallback((mid: () => void) => {
-    if (live.current.reduce) {
-      mid();
-      return;
-    }
-    fx.current.iris = { t: 0, mid, done: false };
-  }, []);
 
   // The address decides what the screen shows: OPEN goes to /member/:username and BACK leaves it,
   // and the effect below plays the iris either way (browser Back and Forward too).
@@ -398,9 +441,18 @@ export function Hall({ profile = null, passport = false, quest = null }: HallPro
         go(i);
         if (cold || now !== 'level') camRef.current.x = slotX(i); // already behind the screen: no walk
       }
+      // A quest is on the badge's back: the circles wait behind it, with that quest chosen (D-132).
+      const show = () => {
+        setMode(next);
+        if (next === 'quest') {
+          window.clearTimeout(turnTimer.current);
+          setHallView('circles');
+          setBack(true);
+        }
+      };
       if (now !== next) {
-        if (cold) setMode(next);
-        else runIris(() => setMode(next));
+        if (cold) show();
+        else runIris(show);
       }
       setLine({ text: next === 'profile' ? 'Profile screen. BACK or Esc returns to the hall.' : next === 'quest' ? 'A quest. BACK or Esc returns to the hall.' : 'No card at that address.' });
     } else if (now !== 'level') {
@@ -533,7 +585,7 @@ export function Hall({ profile = null, passport = false, quest = null }: HallPro
         if (!h.hit && GROUND_Y - 12 + h.y <= HEAD_HIT_Y && h.vy < 0) {
           h.hit = true;
           h.vy = Math.abs(h.vy) * 0.4;
-          toggleFlip(idx);
+          if (l.mode === 'level') toggleFlip(idx); // a profile or quest came over the hall mid-jump: nothing to turn
         }
         if (h.y >= 0) {
           h.y = 0;
@@ -563,11 +615,11 @@ export function Hall({ profile = null, passport = false, quest = null }: HallPro
       };
       const world = api
         ? // The circles: one block, over the current badge, when it hangs from the ceiling; calm scenery.
-          { w, cam, t, night, still: true, ends: false, count: api.mode() === 'side' && l.count > 0 ? 1 : 0, flipped: () => flippedAt(idx), bump: () => bumps.current.get(idx) ?? 0 }
+          { w, cam, t, night, still: true, ends: false, count: api.mode() === 'side' && l.count > 0 ? 1 : 0, flipped: () => l.back, bump: () => bumps.current.get(idx) ?? 0 }
         : { w, cam, t, night, still: l.reduce, count: l.count, flipped: flippedAt, bump: (i: number) => bumps.current.get(i) ?? 0 };
       // The circles redraw the world only when something in it changed: a still hall draws nothing.
       const scene = api
-        ? [w, Math.round(cam * 4), idx, flippedAt(idx), night, Math.round(h.x * 2), Math.round(h.y * 2), h.air, h.walking && ((h.t / 6) | 0) % 2, h.face, world.bump(0) > 0 && Math.round(world.bump(0))].join()
+        ? [w, Math.round(cam * 4), idx, l.back, night, Math.round(h.x * 2), Math.round(h.y * 2), h.air, h.walking && ((h.t / 6) | 0) % 2, h.face, world.bump(0) > 0 && Math.round(world.bump(0))].join()
         : null;
       if (!api || coinFx.current.length > 0 || scene !== lastScene.current.key || a !== lastScene.current.assets) {
         drawBackground(bg, world, a);
@@ -597,7 +649,13 @@ export function Hall({ profile = null, passport = false, quest = null }: HallPro
             iris.done = true;
             iris.mid();
           }
-          if (iris.t >= IRIS_FRAMES) fx.current.iris = null;
+          if (iris.t >= IRIS_FRAMES) {
+            fx.current.iris = null;
+            if (flipAfterWipe.current) {
+              flipAfterWipe.current = false;
+              requestFlip();
+            }
+          }
         }
       } else if (ov && !ov.hidden) {
         ov.hidden = true;
@@ -605,7 +663,7 @@ export function Hall({ profile = null, passport = false, quest = null }: HallPro
     };
     raf = requestAnimationFrame(frame);
     return () => cancelAnimationFrame(raf);
-  }, [step, camRef, indexRef, grab, placeSlot, toggleFlip]);
+  }, [step, camRef, indexRef, grab, placeSlot, toggleFlip, requestFlip]);
 
   // ---- keyboard: ←/→ move, Enter/Space flip, O opens, Esc goes back (README, ADR-001)
   const closeMenu = useCallback(() => {
@@ -713,20 +771,6 @@ export function Hall({ profile = null, passport = false, quest = null }: HallPro
             : HALL_TITLE;
   }, [profileName, questTitle, current?.card.full_name, mode]);
 
-  /** START → Walk the level / Two circles: remembered on this device. */
-  const switchView = useCallback(() => {
-    const next: HallView = live.current.circles ? 'level' : 'circles';
-    try {
-      localStorage.setItem(VIEW_KEY, next);
-    } catch {
-      // storage blocked: the choice lasts this visit
-    }
-    runIris(() => {
-      setHallView(next);
-      screenRef.current?.focus({ preventScroll: true });
-    });
-    setLine({ text: next === 'circles' ? CIRCLES_HINT : 'The level: Pip walks from badge to badge. START switches back to the circles.' });
-  }, [runIris]);
   const screen = (
     <div
       ref={screenRef}
@@ -736,8 +780,8 @@ export function Hall({ profile = null, passport = false, quest = null }: HallPro
       aria-roledescription="carousel"
       aria-label={
         circles
-          ? 'PIP-Hall players and their quests. Left and right arrow keys move between players, up and down between their quests, V views a quest, Enter flips the badge, O opens the profile, S opens START.'
-          : 'PIP-Hall players. Left and right arrow keys move, Enter flips, O opens the profile, S opens START.'
+          ? 'PIP-Hall players and their quests. Left and right arrow keys move between players, up and down between their quests, V views a quest, Enter flips the badge to its front and back to the level, O opens the profile, S opens START.'
+          : 'PIP-Hall players. Left and right arrow keys move, Enter flips the badge to its back and their quests, O opens the profile, S opens START.'
       }
       onKeyDown={onKeyDown}
       onPointerDown={mode === 'level' && !circles ? car.onPointerDown : undefined}
@@ -759,7 +803,7 @@ export function Hall({ profile = null, passport = false, quest = null }: HallPro
             onMember={(i) => go(i)}
             memberDrag={car.onPointerDown}
             memberMoved={moved}
-            flipped={Boolean(cards[car.index] && flipped.has(cards[car.index]!.username))}
+            flipped={back}
             onFlip={requestFlip}
             onOpen={openProfile}
             onShowQr={setQrCard}
@@ -827,11 +871,6 @@ export function Hall({ profile = null, passport = false, quest = null }: HallPro
           onShare={() => {
             setMenuOpen(false);
             setSharing(true);
-          }}
-          view={hallView}
-          onView={() => {
-            setMenuOpen(false);
-            switchView();
           }}
         />
       )}

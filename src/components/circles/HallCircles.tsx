@@ -1,5 +1,6 @@
-// The hall as two circles (D-129): the members on one arc, the chosen member's Quest Log on the
-// other, and between them that member's badge (the real one: flip it, scan its QR, open the
+// The badge's back as two circles (D-129, D-132): flipping a badge in the level to its Quest Log
+// brings the members onto one arc and the chosen member's quests onto the other, and between them
+// that member's badge, still on its back (flip it to its front to go back to the level, open the
 // profile) beside the chosen quest with VIEW. Picking someone else turns the quests' arc over to
 // their projects. Side by side on wide screens, members along the top and quests along the bottom
 // on narrow ones. The world behind it (sky, ground, Pip, the block the badge hangs from) is the
@@ -8,7 +9,7 @@
 
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { SLOT_SPACING, slotX } from '../../lib/carousel';
-import { arcDots, circlesCentre, circlesLayout, type CirclesLayout, type CirclesMode } from '../../lib/circles';
+import { arcDots, circlesCentre, circlesLayout, panelBox, type CirclesLayout, type CirclesMode } from '../../lib/circles';
 import { stepSwing, type SwingState } from '../../lib/swing';
 import type { PublicCard } from '../../types/card';
 import { Lanyard } from '../cards/Lanyard';
@@ -247,7 +248,7 @@ export const HallCircles = forwardRef<CirclesHandle, Props>(function HallCircles
             </div>
           </div>
 
-          <section className="quest-panel" style={{ left: centre.panel.left, width: centre.panel.width, top: centre.panel.mid }} aria-labelledby="quest-title">
+          <section className="quest-panel" style={panelBox(centre)} aria-labelledby="quest-title">
             {chosen ? (
               <>
                 <p className="quest-count m-0">

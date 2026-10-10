@@ -1,6 +1,6 @@
 # PIP-Hall v2, part two: the Museum, hackathons, and a hall that comes alive
 
-Status: **V2-9, V2-10, V2-10b, V2-11, V2-12, V2-13 and V2-15 built** (2026-10-08; V2-15 pulled forward with the calmer hall, D-126); V2-14 next. Owner changes between phases: **the two circles** (the hall and the Museum, D-129) and **the curated Museum** (featured projects, winners and the archive only, D-130), 2026-10-09. Follows `V2-LIVING-HALL.md` (V2-0 to V2-8, all built). No deadline (D-093). Decisions: D-106 to D-120 (the owner's answers, 2026-10-07), D-123 (the officers' space, 2026-10-08); build details D-121, D-122, D-124, D-125, D-127, D-128; the calmer hall D-126. Rules: `CLAUDE.md` → Product rules.
+Status: **V2-9, V2-10, V2-10b, V2-11, V2-12, V2-13 and V2-15 built** (2026-10-08; V2-15 pulled forward with the calmer hall, D-126); V2-14 next. Owner changes between phases: **the two circles** (the hall and the Museum, D-129; in the hall, the badge's back, D-132) and **the curated Museum** (featured projects, winners and the archive only, D-130), 2026-10-09. Follows `V2-LIVING-HALL.md` (V2-0 to V2-8, all built). No deadline (D-093). Decisions: D-106 to D-120 (the owner's answers, 2026-10-07), D-123 (the officers' space, 2026-10-08); build details D-121, D-122, D-124, D-125, D-127, D-128; the calmer hall D-126. Rules: `CLAUDE.md` → Product rules.
 
 ## Why this round
 

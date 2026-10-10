@@ -55,7 +55,7 @@ that makes discovering the people behind the work feel like browsing a game rost
 
 Most member directories are a grid of identical profile tiles. PIP-Hall turns each member into a **player card**: a pixel-art ID badge hanging from a lanyard inside **PIXENDO**, an original handheld-console world.
 
-The hall opens as **two circles**: the members on one arc and, on the other, the projects of whoever you pick, with their badge and the chosen project in between (**VIEW** opens it). Pick someone else and the projects follow. One press away (**START → Walk the level**), visitors walk through the hall like a side-scrolling level. **Pip**, PIXENDO's host, walks to whoever you're looking at. Tap a card and Pip jumps up and flips it over, revealing that member's **Quest Log**: their bio, projects and skills. Every card has a QR code that opens the member's public profile, so it works on a phone screen, a printed lanyard or a poster.
+Visitors walk through the hall like a side-scrolling level. **Pip**, PIXENDO's host, walks to whoever you're looking at. Tap a card and Pip jumps up and flips it over to that member's **Quest Log**, and the hall turns into **two circles**: the members on one arc and, on the other, the projects of whoever you pick, with their badge and the chosen project in between (**VIEW** opens it). Pick someone else and the projects follow. Flip the badge to its front and the level is back. Every card has a QR code that opens the member's public profile, so it works on a phone screen, a printed lanyard or a poster.
 
 Members build their own cards. They sign in with Google, connect GitHub, pick which repositories appear, and submit the card for review. An organization admin approves it into the public hall.
 
@@ -75,7 +75,7 @@ Everything below is live in v1.0. Decision numbers (D-…) point to [`docs/DECIS
 
 | Area | Feature |
 |---|---|
-| **Hall** | Two circles inside the PIXENDO handheld: members on one arc, the chosen member's projects on the other, their badge and the chosen project between, each project one VIEW away (D-129). Or the side-scrolling level: drag, swipe, fling, arrow keys, ◀ ▶ controls; Pip walks to the current badge and jumps to flip it (D-031, D-082) |
+| **Hall** | The side-scrolling level inside the PIXENDO handheld: drag, swipe, fling, arrow keys, ◀ ▶ controls; Pip walks to the current badge and jumps to flip it (D-031, D-082). A badge on its back turns the hall into two circles: members on one arc, the chosen member's projects on the other, their badge and the chosen project between, each project one VIEW away; on its front, the level again (D-129, D-132) |
 | | Badges that swing on lanyards, with animated borders and a foil shine; DAY / NIGHT world with parallax trees, birds, moon and stars, all original art (D-084, D-086) |
 | | QR code on every badge with a full-screen "scan me" view; **Share the hall** shows a QR for the site itself (D-088) |
 | | Search by name, @handle, role, skill or project; filter by department, skill or featured; **Random player** (D-072) |

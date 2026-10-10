@@ -597,6 +597,8 @@
 .arc:focus-visible {
   outline: none;
 }
+/* No will-change: the browser would keep a tile drawn at the size it first had, so a neighbour
+   turning into the chosen one would be blown up and blurred. */
 .arc-option {
   position: absolute;
   left: 0;
@@ -604,7 +606,6 @@
   pointer-events: auto;
   cursor: pointer;
   transform-origin: 50% 50%;
-  will-change: transform;
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
@@ -623,6 +624,8 @@
   background: var(--color-card-face);
   box-shadow: inset 0 0 0 4px var(--color-card-ink), 4px 4px 0 var(--color-card-ink);
 }
+/* Pixel art (sprites, drawn avatars) keeps hard pixels; photos and screenshots are smoothed when
+   they shrink, or their detail breaks up into jagged noise. */
 .arc-tile img,
 .arc-tile canvas,
 .member-tile .avatar {
@@ -630,6 +633,9 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+.arc-tile canvas,
+.member-tile canvas.avatar {
   image-rendering: pixelated;
 }
 .arc-option[data-chosen] .arc-tile {
@@ -699,6 +705,9 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+.quest-thumb canvas,
+.quest-art canvas {
   image-rendering: pixelated;
 }
 .circles-badge {
@@ -711,11 +720,11 @@
   width: calc(var(--p) * 56);
   margin-left: calc(var(--p) * -28);
   transform-origin: 50% 0;
-  will-change: transform;
 }
 .quest-panel {
   position: absolute;
-  transform: translateY(-50%);
+  height: fit-content;
+  margin-block: auto; /* centred on its line inside the band panelBox() gives it */
   display: grid;
   gap: 8px;
   padding: 16px;

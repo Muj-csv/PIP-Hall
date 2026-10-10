@@ -41,7 +41,8 @@ export function ArcList({ id, label, count, index, near, optionLabel, renderOpti
 
   const placeOne = useCallback((i: number, el: HTMLElement, pos: number, arc: Arc) => {
     const look = arcLook(i, pos, arc);
-    el.style.transform = `translate3d(${(look.x - arc.item / 2).toFixed(1)}px,${(look.y - arc.item / 2).toFixed(1)}px,0) scale(${look.scale.toFixed(3)})`;
+    // Whole pixels, and the chosen tile at exactly its size: a tile between pixels is drawn blurred.
+    el.style.transform = `translate(${Math.round(look.x - arc.item / 2)}px,${Math.round(look.y - arc.item / 2)}px) scale(${look.scale.toFixed(3)})`;
     el.style.opacity = String(look.opacity);
     el.style.zIndex = String(look.zIndex);
     el.style.width = el.style.height = `${arc.item}px`;
