@@ -190,11 +190,18 @@ test('turning pages: keys, a clicker, the device, a drag, a flick and a tap all 
   await atRest(page);
   await expect(book(page).locator('[data-front]')).toHaveCSS('transform', 'matrix(1, 0, 0, 1, 0, 0)');
 
-  // A flick riffles on: a quick swipe of one page's width carries further than one page.
-  await page.mouse.move(box.x + box.width / 2, y);
-  await page.mouse.down();
-  await page.mouse.move(box.x + box.width / 2 - per, y, { steps: 3 });
-  await page.mouse.up();
+  // A flick riffles on: a quick swipe of one page's width carries further than one page. Sent from
+  // inside the page, a frame apart, so it is quick however busy the test runner is.
+  await book(page).evaluate(async (stage, { x, y, per }) => {
+    const at = (type: string, cx: number) => new PointerEvent(type, { bubbles: true, isPrimary: true, pointerId: 1, button: 0, clientX: cx, clientY: y });
+    const frame = () => new Promise((r) => requestAnimationFrame(r));
+    stage.dispatchEvent(at('pointerdown', x));
+    for (let k = 1; k <= 3; k++) {
+      await frame();
+      window.dispatchEvent(at('pointermove', x - (per * k) / 3));
+    }
+    window.dispatchEvent(at('pointerup', x - per));
+  }, { x: box.x + box.width / 2, y, per });
   const pageNo = async () => Number((await front(page).getAttribute('aria-label'))!.match(/page (\d+) of/)![1]);
   await expect.poll(pageNo).toBeGreaterThan(4);
   await atRest(page);
@@ -298,11 +305,96 @@ test('the book opens as you arrive, the stacks fanning out; with reduced motion 
   await still.goto('/museum?room=all');
   await expect(front(still)).toHaveAccessibleName(/, page 1 of 10/);
   await expect(book(still)).not.toHaveAttribute('data-opening');
+  await expect(book(still).locator('.journal-cover')).toHaveCount(0); // no cover to swing open
   await book(still).focus();
   await still.keyboard.press('ArrowRight');
   await expect(front(still)).toHaveAccessibleName(/, page 2 of 10/);
   await expect(book(still).locator('[data-front]')).toHaveCSS('transform', 'matrix(1, 0, 0, 1, 0, 0)'); // a cut, no turn
   await ctx.close();
+});
+
+/** FILM=<dir> keeps every frame the browser shows (its own screencast: a screenshot is too slow to
+ *  catch a stepped swing), to cut the motion's filmstrip from. */
+async function film(page: Page) {
+  const dir = process.env.FILM;
+  if (!dir) return async () => {};
+  mkdirSync(dir, { recursive: true });
+  const cdp = await page.context().newCDPSession(page);
+  let n = 0;
+  cdp.on('Page.screencastFrame', (f) => {
+    writeFileSync(`${dir}/${String(n++).padStart(4, '0')}.png`, Buffer.from(f.data, 'base64'));
+    void cdp.send('Page.screencastFrameAck', { sessionId: f.sessionId }).catch(() => {});
+  });
+  await cdp.send('Page.startScreencast', { format: 'png' });
+  return async () => {
+    await cdp.send('Page.stopScreencast');
+  };
+}
+
+test('motion: the cover swings open, a turning page lifts, a page lands, the spread grows out of it and back', async ({ page }) => {
+  await boot(page);
+  await mockSupabase(page, { db: busy(10) });
+  const cut = await film(page);
+  await page.goto('/museum?room=all');
+  // The chapter's cover is drawn closed over the book, swings open on its spine, and is gone; then the
+  // stacks fan out from behind it.
+  const cover = book(page).locator('.journal-cover');
+  await expect(cover).toHaveAttribute('data-done', '', { timeout: 3000 });
+  await expect(cover).toBeHidden();
+  await atRest(page);
+
+  // A turning page lifts off the book as it goes over (it rises), and the page that lands in front
+  // drops into place.
+  const watch = page.evaluate(
+    () =>
+      new Promise<{ rise: number; landed: boolean }>((done) => {
+        const t0 = performance.now();
+        const seen = { rise: 0, landed: false };
+        const tick = () => {
+          for (const el of document.querySelectorAll<HTMLElement>('#journal .journal-page')) {
+            const y = /translate3d\([^,]+,\s*(-?[\d.]+)px/.exec(el.style.transform);
+            if (y) seen.rise = Math.min(seen.rise, Number(y[1]));
+          }
+          seen.landed ||= (document.querySelector('#journal [data-front] .journal-paper')?.getAnimations().length ?? 0) > 0;
+          if (performance.now() - t0 < 1500) requestAnimationFrame(tick);
+          else done(seen);
+        };
+        requestAnimationFrame(tick);
+      }),
+  );
+  await book(page).focus();
+  await page.keyboard.press('ArrowRight');
+  const seen = await watch;
+  expect(seen.rise).toBeLessThan(-2);
+  expect(seen.landed).toBe(true);
+  await atRest(page);
+
+  // The spread comes out of the page in front: it is first drawn over that page, smaller than itself.
+  const grown = page.evaluate(
+    () =>
+      new Promise<string>((done) => {
+        const mo = new MutationObserver(() => {
+          const el = document.querySelector('.spread-book');
+          if (!el) return;
+          mo.disconnect();
+          done(getComputedStyle(el).transform);
+        });
+        mo.observe(document.body, { childList: true, subtree: true });
+      }),
+  );
+  await page.keyboard.press('Enter');
+  const [scaleX] = (await grown).match(/-?[\d.]+/g)!.map(Number);
+  expect(scaleX).toBeLessThan(0.8);
+  const spread = page.getByRole('dialog');
+  await expect(spread).toBeVisible();
+  await page.waitForTimeout(900);
+  // Close: it folds and shrinks back into the page, then goes; focus is back on the book.
+  await spread.getByRole('button', { name: /^Close/ }).click();
+  await expect(page.locator('.spread-backdrop')).toHaveAttribute('data-closing', '');
+  await expect(spread).toHaveCount(0);
+  await expect(book(page)).toBeFocused();
+  await page.waitForTimeout(300);
+  await cut();
 });
 
 test('the walk and the list are one link away; the old circles address lands in the journal', async ({ page }) => {

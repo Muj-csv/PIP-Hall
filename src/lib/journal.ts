@@ -20,12 +20,17 @@ export const STACK_F = 0.08;
 export const STACK_DEPTH_F = 0.02;
 /** The perspective, in F. */
 export const PERSPECTIVE_F = 2.6;
+/** A page being turned arcs over: it lifts toward the viewer and rises a little at mid-turn (in F). */
+export const LIFT_F = 0.32;
+export const RISE_F = 0.035;
 /** Pages kept in each stack (past that they would turn their backs). */
 export const STACK = 6;
 /** Pointer travel (CSS px) before a press counts as a turn rather than a tap. */
 export const TURN_THRESHOLD_PX = 6;
 /** How far a flick carries on, in ms of its release speed (a riffle through the pages). */
 export const MOMENTUM_MS = 260;
+/** A flick's speed is read over the pointer's last FLICK_MS; a pause that long before letting go stops it. */
+export const FLICK_MS = 100;
 
 const clampPage = (i: number, count: number) => Math.max(0, Math.min(count - 1, i));
 
@@ -54,8 +59,9 @@ export function inView(cam: number, count: number): { i: number; off: number }[]
 }
 
 export interface PagePose {
-  /** Sideways and depth offsets of the page's centre from the front page's, in px. */
+  /** Sideways, vertical (up is negative) and depth offsets of the page's centre from the front page's, in px. */
   x: number;
+  y: number;
   z: number;
   /** Its turn about the vertical axis, in degrees (positive: its outer, right edge goes back). */
   rotate: number;
@@ -68,23 +74,33 @@ export interface PagePose {
 /**
  * A page's pose for the front page width F (px). `open` (0..1) is how far the book has opened: at 0
  * every page lies closed behind the front one, and the stacks fan out as it rises (arriving).
+ * Between the front and a stack a page is being turned: it arcs over (lifted toward the viewer and
+ * up a little, most at half a turn) and the shade on it peaks as it goes edge-on, like a real page.
  */
 export function pagePose(off: number, frontWidth: number, open = 1): PagePose {
   const a = Math.abs(off);
   const s = Math.sign(off);
   const t = Math.min(a, 1); // leaving the front
   const rest = Math.max(0, a - 1); // further into the stack
+  const arc = Math.sin(Math.PI * t); // 0 at rest, 1 at half a turn
   const tidy = (n: number, by: number) => Math.round(n * by) / by + 0; // + 0: never -0
   const x = s * (t * FIRST_F + rest * STACK_F) * frontWidth * open;
-  const z = -(t * DEPTH_F + rest * STACK_DEPTH_F) * frontWidth * open - (1 - open) * a * 2;
+  // A page's depth is all there from the start, only its spread and turn open out: half-open, a page
+  // would otherwise swing its near edge through the front page.
+  const z = (-(t * DEPTH_F + rest * STACK_DEPTH_F) + arc * LIFT_F * open) * frontWidth - (1 - open) * a * 2;
   return {
     x: tidy(x, 10),
+    y: tidy(-arc * RISE_F * frontWidth * open, 10),
     z: tidy(z, 10),
     rotate: tidy(s * t * TURN_DEG * open, 100),
-    dim: Math.min(1, t * 0.35 + rest * 0.11),
+    dim: Math.min(1, t * 0.35 + rest * 0.11 + arc * 0.15),
     hidden: a > STACK + 0.5,
   };
 }
+
+/** How the book opens (ms): first its cover swings open on the spine, then the stacks fan out. */
+export const COVER_MS = 380;
+export const FAN_MS = 600;
 
 /** The stage's perspective (px) for the front page width. */
 export const perspectiveFor = (frontWidth: number): number => Math.round(PERSPECTIVE_F * frontWidth);
