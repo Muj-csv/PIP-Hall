@@ -190,11 +190,18 @@ test('turning pages: keys, a clicker, the device, a drag, a flick and a tap all 
   await atRest(page);
   await expect(book(page).locator('[data-front]')).toHaveCSS('transform', 'matrix(1, 0, 0, 1, 0, 0)');
 
-  // A flick riffles on: a quick swipe of one page's width carries further than one page.
-  await page.mouse.move(box.x + box.width / 2, y);
-  await page.mouse.down();
-  await page.mouse.move(box.x + box.width / 2 - per, y, { steps: 3 });
-  await page.mouse.up();
+  // A flick riffles on: a quick swipe of one page's width carries further than one page. Sent from
+  // inside the page, a frame apart, so it is quick however busy the test runner is.
+  await book(page).evaluate(async (stage, { x, y, per }) => {
+    const at = (type: string, cx: number) => new PointerEvent(type, { bubbles: true, isPrimary: true, pointerId: 1, button: 0, clientX: cx, clientY: y });
+    const frame = () => new Promise((r) => requestAnimationFrame(r));
+    stage.dispatchEvent(at('pointerdown', x));
+    for (let k = 1; k <= 3; k++) {
+      await frame();
+      window.dispatchEvent(at('pointermove', x - (per * k) / 3));
+    }
+    window.dispatchEvent(at('pointerup', x - per));
+  }, { x: box.x + box.width / 2, y, per });
   const pageNo = async () => Number((await front(page).getAttribute('aria-label'))!.match(/page (\d+) of/)![1]);
   await expect.poll(pageNo).toBeGreaterThan(4);
   await atRest(page);

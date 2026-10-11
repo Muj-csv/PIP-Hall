@@ -184,7 +184,8 @@ export function JournalBook({ stops, index, scene = '', reduce, id, label, onTur
 
   // Turning by hand: drag to turn, let go to settle (a flick riffles on); a press that never moved is a tap.
   // A flick's speed is read over the pointer's last FLICK_MS, not its last event (one slow frame doesn't
-  // swallow it), and a pause before letting go stops it.
+  // swallow it), from the events' own times (when the hand moved, not when a busy page got to them),
+  // and a pause before letting go stops it.
   const press = useRef({ x: 0, cam: 0, trail: [] as { x: number; t: number }[], moved: false, target: null as Element | null });
   const onMove = useCallback((e: PointerEvent) => {
     const p = press.current;
@@ -194,13 +195,13 @@ export function JournalBook({ stops, index, scene = '', reduce, id, label, onTur
     p.moved = true;
     c.dragging = true;
     wake.current();
-    const now = performance.now();
+    const now = e.timeStamp;
     c.x = dragCam(p.cam - dx / pxPerPage(live.current.front), live.current.count);
     c.v = 0;
     p.trail.push({ x: e.clientX, t: now });
     while (p.trail.length > 2 && now - p.trail[0]!.t > FLICK_MS) p.trail.shift();
   }, []);
-  const onUp = useCallback(() => {
+  const onUp = useCallback((e: PointerEvent) => {
     window.removeEventListener('pointermove', onMove);
     const p = press.current;
     const c = cam.current;
@@ -208,7 +209,7 @@ export function JournalBook({ stops, index, scene = '', reduce, id, label, onTur
     if (p.moved) {
       const a = p.trail[0]!;
       const b = p.trail[p.trail.length - 1]!;
-      const speed = b.t > a.t && performance.now() - b.t < FLICK_MS ? -(b.x - a.x) / pxPerPage(live.current.front) / (b.t - a.t) : 0;
+      const speed = b.t > a.t && e.timeStamp - b.t < FLICK_MS ? -(b.x - a.x) / pxPerPage(live.current.front) / (b.t - a.t) : 0;
       c.dragging = false;
       c.target = settleTarget(c.x, speed, n);
       wake.current();
@@ -228,8 +229,7 @@ export function JournalBook({ stops, index, scene = '', reduce, id, label, onTur
   }, [onMove]);
   const onPointerDown = (e: ReactPointerEvent) => {
     if (e.button > 0 || count === 0) return;
-    const now = performance.now();
-    press.current = { x: e.clientX, cam: cam.current.x, trail: [{ x: e.clientX, t: now }], moved: false, target: e.target as Element };
+    press.current = { x: e.clientX, cam: cam.current.x, trail: [{ x: e.clientX, t: e.timeStamp }], moved: false, target: e.target as Element };
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp, { once: true });
     window.addEventListener('pointercancel', onUp, { once: true });
