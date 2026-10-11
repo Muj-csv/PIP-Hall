@@ -6,22 +6,23 @@
 // minute untouched it goes back to its own mode and plays on. While the event is on, a second QR
 // checks scanners in for a Passport stamp (D-127). No top bar and no sign-in: it's a public screen.
 
-import { useCallback, useEffect, useMemo, useState, type KeyboardEvent, type PointerEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
 import { useSearchParams } from 'react-router';
 import { DialogueBox } from '../components/dialogue/DialogueBox';
 import { Lanyard } from '../components/cards/Lanyard';
 import { MemberCard } from '../components/cards/MemberCard';
 import { QrCode } from '../components/cards/QrCode';
-import { ExhibitArt } from '../components/museum/ExhibitArt';
+import { JournalBook } from '../components/museum/JournalBook';
+import { JournalSpread } from '../components/museum/JournalSpread';
 import { Ribbon } from '../components/museum/Ribbon';
 import { SpriteCanvas } from '../components/pixel/SpriteCanvas';
-import { consoleFor } from '../lib/museum';
 import { awardLine, plaqueBy, plaqueOrigin } from '../lib/museumWalk';
 import { hallUrl, memberQrUrl } from '../lib/publicUrl';
 import { BOOTH, checkinUrl, placardUrl, tourStops, type ShowcaseStop } from '../lib/showcase';
 import { SPR, WORLD_OVERRIDES, WORLD_PALETTE } from '../lib/sprites';
 import { comicPanels } from '../lib/story';
 import { useCards } from '../lib/useCards';
+import { useReducedMotion } from '../lib/useReducedMotion';
 import { useShowcaseRooms } from '../lib/useShowcaseRooms';
 import { showcaseService, type CheckinEvent } from '../services/showcaseService';
 import type { PublicCard } from '../types/card';
@@ -46,9 +47,12 @@ export default function Booth() {
   const [tourAt, setTourAt] = useState(0);
   const [hallAt, setHallAt] = useState(0);
   const [paused, setPaused] = useState(false);
+  const reduce = useReducedMotion();
   const [touchedAt, setTouchedAt] = useState<number | null>(null);
   const [checkin, setCheckin] = useState<CheckinEvent | null>(null);
   const [full, setFull] = useState(false);
+  // The presenter opened the page in front (Enter, or Open the page): the tour waits behind it.
+  const [openPage, setOpenPage] = useState(false);
 
   useEffect(() => {
     document.title = 'Showcase · PIP-Hall';
@@ -131,16 +135,36 @@ export default function Booth() {
     touch();
     if (!(e.target as HTMLElement).closest('.booth-controls')) setPaused(true);
   };
-  const onKey = (e: KeyboardEvent) => {
+  const openFront = () => {
     touch();
-    if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+    setPaused(true);
+    setOpenPage(true);
+  };
+  // A presenter's clicker sends Page Down and Page Up (or the arrows): they turn the journal's pages,
+  // wherever the focus is (the kiosk listens to the whole window).
+  const onKey = (e: globalThis.KeyboardEvent) => {
+    touch();
+    if (openPage) return; // the open page has the keys (Esc closes it)
+    if (e.key === 'ArrowRight' || e.key === 'ArrowLeft' || e.key === 'PageDown' || e.key === 'PageUp') {
       e.preventDefault();
-      step(e.key === 'ArrowRight' ? 1 : -1);
+      step(e.key === 'ArrowRight' || e.key === 'PageDown' ? 1 : -1);
+    } else if (e.key === 'Enter' && mode === 'tour' && !(e.target as HTMLElement).closest('button, a')) {
+      e.preventDefault();
+      openFront();
     } else if (e.key === ' ' && !(e.target as HTMLElement).closest('button, a')) {
       e.preventDefault();
       setPaused((p) => !p);
     }
   };
+  const keys = useRef(onKey);
+  useEffect(() => {
+    keys.current = onKey;
+  });
+  useEffect(() => {
+    const listen = (e: globalThis.KeyboardEvent) => keys.current(e);
+    window.addEventListener('keydown', listen);
+    return () => window.removeEventListener('keydown', listen);
+  }, []);
   const fullscreen = () => {
     touch();
     if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
@@ -155,7 +179,7 @@ export default function Booth() {
 
   return (
     // The kiosk takes any touch or key as "someone is here".
-    <main className="booth" data-mode={mode} data-paused={paused || undefined} aria-label="PIP-Hall showcase" onPointerDownCapture={onPointerDown} onKeyDown={onKey}>
+    <main className="booth" data-mode={mode} data-paused={paused || undefined} aria-label="PIP-Hall showcase" onPointerDownCapture={onPointerDown}>
       <header className="booth-head">
         <p className="booth-brand">
           PIP-HALL <span>{eventName ? `· ${eventName}` : '· MUSEUM'}</span>
@@ -200,7 +224,10 @@ export default function Booth() {
       )}
       {nothing && <DialogueBox text="The hall and the Museum are waiting for their first members and exhibits. Members make their card at the hall, and it shows here once it’s approved." />}
 
-      {stop && <TourSlide key={stop.exhibit.project_id} stop={stop} nth={at + 1} count={count} live={paused} />}
+      {stop && <TourSlide stops={stops} at={at} reduce={reduce} live={paused} onOpen={openFront} />}
+      {stop && openPage && mode === 'tour' && (
+        <JournalSpread stop={stop} kicker={`${stop.roomName} · page ${at + 1} of ${count}`} reduce={reduce} stamp={false} onClose={() => setOpenPage(false)} />
+      )}
       {person && <HallSlide key={person.username} card={person} nth={at + 1} count={count} live={paused} />}
 
       <footer className="booth-foot">
@@ -239,63 +266,81 @@ export default function Booth() {
   );
 }
 
-function TourSlide({ stop, nth, count, live }: { stop: ShowcaseStop; nth: number; count: number; live: boolean }) {
+/** The tour (V2-24): the Museum's journal, its pages turning to each stop (the book stays, so it is
+ *  seen to turn); the stop's plaque slides in under it, with Open the page for the presenter. */
+function TourSlide({ stops, at, reduce, live, onOpen }: { stops: readonly ShowcaseStop[]; at: number; reduce: boolean; live: boolean; onOpen: () => void }) {
+  const stop = stops[at]!;
+  return (
+    <section className="booth-slide booth-tour" aria-labelledby="booth-title" aria-live={live ? 'polite' : 'off'}>
+      <div className="booth-journal">
+        <p className="booth-chapter" aria-hidden="true">
+          {stop.roomName}
+          <span>
+            Page {at + 1} of {stops.length}
+          </span>
+        </p>
+        <JournalBook stops={stops} index={at} reduce={reduce} />
+      </div>
+      <TourPlaque key={stop.exhibit.project_id} stop={stop} nth={at + 1} count={stops.length} onOpen={onOpen} />
+    </section>
+  );
+}
+
+function TourPlaque({ stop, nth, count, onOpen }: { stop: ShowcaseStop; nth: number; count: number; onOpen: () => void }) {
   const e = stop.exhibit;
   const by = plaqueBy(e);
   const origin = plaqueOrigin(e);
   const note = stop.awards.map((a) => a.award.note?.trim()).find(Boolean);
   const story = comicPanels(e.project.story); // the maker's three lines read better than the blurb
   return (
-    <section className="booth-slide" aria-labelledby="booth-title" aria-live={live ? 'polite' : 'off'}>
-      <div className="booth-art">
-        <ExhibitArt project={e.project} console={consoleFor(e.project_id, e.console)} featured={e.featured} eager />
-      </div>
-      <div className="booth-plaque">
-        <p className="booth-kicker">
-          {stop.roomName} · {nth} of {count}
-        </p>
-        <h1 id="booth-title" className="booth-title">
-          {e.project.title}
-        </h1>
-        {by && <p className="booth-by">by {by}</p>}
-        {origin && <p className="booth-origin">{origin}</p>}
-        {stop.awards.length > 0 && (
-          <ul className="booth-awards" aria-label="Awards">
-            {stop.awards.slice(0, 3).map((a) => (
-              <li key={`${a.award.place ?? a.award.name}-${a.award.track ?? ''}-${a.event ?? ''}`}>
-                <Ribbon award={a.award} className="booth-ribbon" />
-                {awardLine(a)}
+    <div className="booth-plaque">
+      <p className="booth-kicker">
+        {stop.roomName} · {nth} of {count}
+      </p>
+      <h1 id="booth-title" className="booth-title">
+        {e.project.title}
+      </h1>
+      {by && <p className="booth-by">by {by}</p>}
+      {origin && <p className="booth-origin">{origin}</p>}
+      <button type="button" className="pixel-btn booth-open" data-variant="primary" onClick={onOpen}>
+        <span aria-hidden="true">▶ </span>Open the page<span className="sr-only"> {e.project.title}</span>
+      </button>
+      {stop.awards.length > 0 && (
+        <ul className="booth-awards" aria-label="Awards">
+          {stop.awards.slice(0, 3).map((a) => (
+            <li key={`${a.award.place ?? a.award.name}-${a.award.track ?? ''}-${a.event ?? ''}`}>
+              <Ribbon award={a.award} className="booth-ribbon" />
+              {awardLine(a)}
+            </li>
+          ))}
+        </ul>
+      )}
+      {note && (
+        <q className="booth-note">
+          <span className="sr-only">Judges’ note: </span>
+          {note}
+        </q>
+      )}
+      {!note &&
+        (story.length > 0 ? (
+          <ol className="booth-story" aria-label="How it was made">
+            {story.map((l) => (
+              <li key={l.key}>
+                <b>{l.heading}:</b> {l.text}
               </li>
             ))}
-          </ul>
-        )}
-        {note && (
-          <q className="booth-note">
-            <span className="sr-only">Judges’ note: </span>
-            {note}
-          </q>
-        )}
-        {!note &&
-          (story.length > 0 ? (
-            <ol className="booth-story" aria-label="How it was made">
-              {story.map((l) => (
-                <li key={l.key}>
-                  <b>{l.heading}:</b> {l.text}
-                </li>
-              ))}
-            </ol>
-          ) : (
-            e.project.description && <p className="booth-desc">{e.project.description}</p>
-          ))}
-        <div className="booth-qr">
-          <QrCode value={placardUrl(e.project_id, stop.room)} title={`QR code for ${e.project.title}`} />
-          <p>
-            <b>SCAN TO VISIT</b>
-            Open it on your phone and stamp your Passport.
-          </p>
-        </div>
+          </ol>
+        ) : (
+          e.project.description && <p className="booth-desc">{e.project.description}</p>
+        ))}
+      <div className="booth-qr">
+        <QrCode value={placardUrl(e.project_id, stop.room)} title={`QR code for ${e.project.title}`} />
+        <p>
+          <b>SCAN TO VISIT</b>
+          Open it on your phone and stamp your Passport.
+        </p>
       </div>
-    </section>
+    </div>
   );
 }
 

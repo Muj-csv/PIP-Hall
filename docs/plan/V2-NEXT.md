@@ -1,6 +1,6 @@
 # PIP-Hall v2, part two: the Museum, hackathons, and a hall that comes alive
 
-Status: **V2-9, V2-10, V2-10b, V2-11, V2-12, V2-13 and V2-15 built** (2026-10-08; V2-15 pulled forward with the calmer hall, D-126); **the owner's round of 2026-10-11, V2-20 to V2-22** (a Museum the admins curate end to end, My Card made clear, Pip's new look and the affiliation looks) **and V2-23** (exhibits you can play) **built**. **Next: V2-14.** Owner changes between phases: **the two circles** (the hall and the Museum, D-129; in the hall, the badge's back, D-132) and **the curated Museum** (featured projects, winners and the archive only, D-130), 2026-10-09. Follows `V2-LIVING-HALL.md` (V2-0 to V2-8, all built). No deadline (D-093). Decisions: D-106 to D-120 (the owner's answers, 2026-10-07), D-123 (the officers' space, 2026-10-08); build details D-121, D-122, D-124, D-125, D-127, D-128; the calmer hall D-126. Rules: `CLAUDE.md` → Product rules.
+Status: **V2-9, V2-10, V2-10b, V2-11, V2-12, V2-13 and V2-15 built** (2026-10-08; V2-15 pulled forward with the calmer hall, D-126); **the owner's round of 2026-10-11, V2-20 to V2-22** (a Museum the admins curate end to end, My Card made clear, Pip's new look and the affiliation looks) **and V2-23** (exhibits you can play) **built**. **V2-24, the Journal, built** (2026-10-11). **Next: V2-14.** Owner changes between phases: **the two circles** (the hall and the Museum, D-129; in the hall, the badge's back, D-132) and **the curated Museum** (featured projects, winners and the archive only, D-130), 2026-10-09. Follows `V2-LIVING-HALL.md` (V2-0 to V2-8, all built). No deadline (D-093). Decisions: D-106 to D-120 (the owner's answers, 2026-10-07), D-123 (the officers' space, 2026-10-08); build details D-121, D-122, D-124, D-125, D-127, D-128; the calmer hall D-126. Rules: `CLAUDE.md` → Product rules.
 
 ## Why this round
 
@@ -204,6 +204,36 @@ Built 2026-10-11: migration `20261013000000_playable_exhibits.sql` (the three li
 - Keyboard and screen readers: Play, PRESS START, Eject and Walk there are buttons or links with their purpose in words; focus moves to PRESS START when the title screen is on and back to Play on Eject, and a status line says what happened; the comic is an ordered list of three steps; the title screen is drawn with real text and hidden from screen readers, since the same words are on the plaque.
 - **SQL:** `projects.story_problem`, `story_built`, `story_result` (each null or 1 to 90 characters; members write their own, like the description); `build_card()` adds them to each project as `story`; security tests.
 - **Budget:** ≤ 5 KB gzipped, all in the lazy Museum, Exhibit and My Card chunks (0 on the home page, except the hall reading `?walk=`); no new requests (the lines ride the card the Museum already reads).
+
+#### V2-24 · The Journal: the Museum as a flip book, and the booth presenter (P0) · built
+
+The owner's brief: a Museum that leaves a panel in awe, for presenting the projects at the booth. The look comes from a screenshot of a journal app (the layout idea only; nothing copied): the open page large in the middle, the pages already turned stacked on its left and the pages to come on its right, almost edge-on, like an open flip book. In PIXENDO the Museum becomes **the Journal**: each room a chapter, each exhibit a page, drawn in the app's own retro style from tokens (D-137). Planned first as "the Rotunda" (a turning drum with rooms as floors); the owner's second look at the screenshot made it a flip book, with chapters for floors, which also suits a presenter's clicker.
+
+**Loop:** a visitor (or a presenter at the booth) opens the Museum → the journal opens, its pages fanning out, and they turn through it, page after page, chapter after chapter → a page opens as a spread: its cartridge to Play (V2-23), its making-of comic, its makers and its QR → the Passport stamps what a visitor opened, as an exhibit's page does → new winners and new chapters bring them back, and at the next showcase the presenter turns it on the big screen.
+
+**What it looks like**
+- **The book:** the page in front stands flat and large; the pages already turned stack on the left, the pages to come on the right, each turned 70° and set back, a little further out and darker the deeper it is in its stack (six each side; `lib/journal.ts`). Each page is a journal page: cream paper, the project's picture taped in (the screenshot, GitHub's preview or the pixel cover), its title, "by" its makers, a page number, a folded corner in hard steps, and a ribbon (1ST, 2ND, 3RD, ♛) on a winner. Hard 3px ink edges and shadows; no blur, no rounding.
+- **The stage:** dark (the console's own darks), so the pages carry the light; each page's reflection on the floor, cut short with a hard edge.
+- **Above the book:** the chapter's name (its room glyph on the room's colour) and "Chapter 2 of 6 · 12 pages", like the journal's "70 pages", between ⏮ and ⏭.
+- **Below it:** ◀, **OPEN**, ▶ and **Present** (an icon on a phone).
+
+**The moments**
+1. **It opens.** Arriving, and on each new chapter, the book opens: the stacks fan out from behind the front page in six hard steps (720 ms).
+2. **It turns.** A drag, a flick (it riffles on), a sideways swipe, the arrow keys, Page Up and Page Down (what a presenter's clicker sends) or the device's MOVE turn the pages on the hall's spring (D-031); it always rests open square on a page. Next and back run on into the next chapter (and back into the last page of the one before), so a clicker walks the whole Museum; ⏮ ⏭, ↑ ↓ and the device's CHAPTER jump a chapter.
+3. **It opens a page.** OPEN, Enter or a tap on the front page opens it as a spread (JournalSpread: its cartridge and console on the left page, its title, ribbons, makers, the making-of comic or description and the QR on the right; a featured member's badge and the curator's note). The address keeps it (`?at=…&open=1`), so Back closes it and a shared link reopens it. Opening it stamps the Passport.
+4. **The booth presenter.** `/booth`'s tour is the journal: the chapter and "Page 3 of 12" above the book, the stop's plaque under it with **Open the page** and its QR. It turns a page every 12 s by itself; a clicker (Page Down/Up, arrows, anywhere on the page) takes over and pauses it; Enter opens the page as a spread, which takes the keys until Esc; the kiosk's own spread stamps nobody's Passport. A minute untouched, it plays on (as before). **Present** in the Museum opens it (the event's own tour for an event's chapter).
+
+**Rules it keeps**
+- **Honest when small:** a chapter with three pages shows three; nothing is added to fill a stack (rule 7).
+- **Accessibility:** the book is a listbox with `aria-activedescendant` (like D-129's arcs); a status line reads "Page 3 of 12 in chapter 2, Winners' Hall: Tide Tables, by Ada Lovelace, 1st place · Spring Hackathon"; the spread is a dialog that takes focus, keeps Tab inside and gives focus back. Vertical swipes still scroll the page. The List view stays one tap away.
+- **Reduced motion:** the book is simply open; turns cut to the page; the spread appears without the swing.
+- **Where it lives (owner, 2026-10-11):** the Museum's default view, in place of the Museum's circles (D-129 there; the hall keeps its circles); `?view=circles` lands in it. Very narrow screens still open the list first (D-119).
+
+**Not in this phase:** a phone as the kiosk's remote (its own plan, if wanted); sound (the page turn waits for V2-18).
+
+**SQL:** none.
+
+Built 2026-10-11: `lib/journal.ts` (poses, the opening, drag and flick, chapters and the whole-journal page step; 11 tests), `JournalBook` (the book: one `requestAnimationFrame` loop that writes transforms and each page's shade only, sleeps at rest, and memoised pages), `MuseumJournal` (the Museum view on the PIXENDO's screen), `JournalSpread` (the open page), the booth's tour as the presenter (`/booth`), and `MuseumCircles` retired. Budget: +5.7 KB gzipped in all, every byte in lazy chunks or the one stylesheet (JournalSpread +4.5, MakingOfComic split out of the exhibit page +2.2 and Exhibit −1.7, MuseumJournal +1.9, CSS +1.4, Booth +0.25, MuseumCircles −3.4); the home page's JS unchanged (171.2 KiB); no new requests. Frames (production build, 30 pages, CPU 4× slower, a page turned every 180 ms): median 16.7 ms (60 fps); each turn costs one main-thread task of about 80 ms at 4× (about 20 ms on a normal CPU: a frame or so as a turn starts), and this container's software compositor adds the rest of the p95 (133 ms); `docs/build/evidence/journal/perf.json`. Evidence: `docs/build/evidence/journal/`.
 
 ### V2-14 · The world reacts (#26, #9 sky) (P1)
 

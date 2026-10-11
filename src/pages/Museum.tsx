@@ -11,11 +11,13 @@
 // by year.
 // The walkable Museum (V2-11, D-119): Pip walks the rooms on the PIXENDO's screen (MuseumWalk, a
 // lazy chunk, ?view=walk); this page's rooms and grids are the List view (?view=list), what very
-// narrow screens (and 400% zoom) open first. Since D-129 the Museum opens as two circles (rooms and
-// their exhibits, MuseumCircles, another lazy chunk). All three views share the address.
+// narrow screens (and 400% zoom) open first. Since V2-24 (D-137) the Museum opens as a flip-book
+// journal: each room a chapter, its exhibits the pages (MuseumJournal, another lazy chunk; it took the
+// place of D-129's two circles here, and ?view=circles still lands in it). All three views share the
+// address.
 
-import { lazy, Suspense, useCallback, useEffect, useId, useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router';
+import { lazy, Suspense, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router';
 import { useAppearance } from '../app/appearanceContext';
 import { DialogueBox } from '../components/dialogue/DialogueBox';
 import { MenuPage } from '../components/shell/MenuPage';
@@ -42,7 +44,7 @@ import { useCards } from '../lib/useCards';
 import { PortraitArt } from '../components/museum/PortraitArt';
 
 const MuseumWalk = lazy(() => import('../components/museum/MuseumWalk'));
-const MuseumCircles = lazy(() => import('../components/museum/MuseumCircles'));
+const MuseumJournal = lazy(() => import('../components/museum/MuseumJournal'));
 
 /** A list-view address keeps the list view. */
 const inList = (path: string) => `${path}${path.includes('?') ? '&' : '?'}view=list`;
@@ -64,10 +66,13 @@ export default function Museum() {
   const [curation, setCuration] = useState<MuseumCuration | null>(null);
   const cardsState = useCards();
   const [params, setParams] = useSearchParams();
-  // The circles by default (D-129); the list first on very narrow screens (D-119). ?view= picks one.
+  const navigate = useNavigate();
+  // The journal by default (D-137); the list first on very narrow screens (D-119). ?view= picks one;
+  // the old ?view=circles lands in the journal, which took its place.
   const narrow = useMediaQuery('(max-width: 359px)');
-  const asked = params.get('view');
-  const view = asked === 'list' || asked === 'walk' || asked === 'circles' ? asked : narrow ? 'list' : 'circles';
+  const raw = params.get('view');
+  const asked = raw === 'circles' ? 'journal' : raw;
+  const view = asked === 'list' || asked === 'walk' || asked === 'journal' ? asked : narrow ? 'list' : 'journal';
 
   useEffect(() => {
     let on = true;
@@ -156,7 +161,7 @@ export default function Museum() {
     (id: string, at?: string) => {
       const [k, v] = roomParams(id);
       const next = new URLSearchParams({ [k]: v });
-      if (asked === 'walk' || asked === 'circles') next.set('view', asked);
+      if (asked === 'walk' || asked === 'journal') next.set('view', asked);
       if (at) {
         next.set('at', at);
         // Rewritten in place just before the exhibit opens, so Back lands on this exhibit.
@@ -165,11 +170,38 @@ export default function Museum() {
     },
     [asked, setParams],
   );
-  const viewHref = (v: 'circles' | 'walk' | 'list') => {
+  /** The journal's open page lives in the address (?at=…&open=1), so Back closes it and a link reopens it. */
+  const openedHere = useRef(false);
+  const openExhibit = useCallback(
+    (id: string, at: string) => {
+      const [k, v] = roomParams(id);
+      const next = new URLSearchParams({ [k]: v, at, open: '1' });
+      if (asked === 'journal') next.set('view', asked);
+      openedHere.current = true;
+      setParams(next);
+    },
+    [asked, setParams],
+  );
+  const closeExhibit = useCallback(() => {
+    if (openedHere.current) {
+      openedHere.current = false;
+      navigate(-1);
+      return;
+    }
+    const next = new URLSearchParams(params);
+    next.delete('open');
+    setParams(next, { replace: true });
+  }, [navigate, params, setParams]);
+  const isOpen = params.get('open') === '1';
+  useEffect(() => {
+    if (!isOpen) openedHere.current = false; // closed with Back
+  }, [isOpen]);
+  const viewHref = (v: 'journal' | 'walk' | 'list') => {
     const next = new URLSearchParams(params);
     next.delete('view');
     next.delete('at');
-    if (v !== 'circles' || narrow) next.set('view', v);
+    next.delete('open');
+    if (v !== 'journal' || narrow) next.set('view', v);
     const q = next.toString();
     return q ? `/museum?${q}` : '/museum';
   };
@@ -206,8 +238,8 @@ export default function Museum() {
         <Link to={viewHref('list')} className="chip" aria-current={view === 'list' ? 'page' : undefined}>
           <span aria-hidden="true">☰ </span>List view<span className="sr-only"> (reads best with a screen reader)</span>
         </Link>
-        <Link to={viewHref('circles')} className="chip" aria-current={view === 'circles' ? 'page' : undefined}>
-          <span aria-hidden="true">◎ </span>Rooms and exhibits
+        <Link to={viewHref('journal')} className="chip" aria-current={view === 'journal' ? 'page' : undefined}>
+          <span aria-hidden="true">▤ </span>The Journal
         </Link>
         <Link to={viewHref('walk')} className="chip" aria-current={view === 'walk' ? 'page' : undefined}>
           <span aria-hidden="true">▶ </span>Walk the Museum
@@ -223,9 +255,9 @@ export default function Museum() {
       )}
       {view !== 'list' && exhibits && !settled && <DialogueBox text="Opening the doors…" emote="pending" />}
       {view !== 'list' && exhibits && settled && !anything && <DialogueBox text={EMPTY} />}
-      {view === 'circles' && exhibits && settled && anything && (
+      {view === 'journal' && exhibits && settled && anything && (
         <Suspense fallback={<DialogueBox text="Opening the doors…" emote="pending" />}>
-          <MuseumCircles parts={walkParts} room={roomFromParams(params)} at={params.get('at')} onRoom={onRoom} />
+          <MuseumJournal parts={walkParts} room={roomFromParams(params)} at={params.get('at')} open={isOpen} onRoom={onRoom} onOpen={openExhibit} onClose={closeExhibit} />
         </Suspense>
       )}
       {view === 'walk' && exhibits && settled && anything && (
