@@ -241,7 +241,16 @@ export function museumErrorMessage(e: unknown): string {
   const msg = (e as { message?: string })?.message ?? '';
   if (/NO_MUSEUM_ACCESS/.test(msg)) return 'Your account doesn’t have Museum access. An admin can add it.';
   if (/NOT_LIVE/.test(msg)) return 'Only projects on an approved card can go in the Museum.';
+  if (/admin_museum_winners|admin_hang_|admin_set_portrait|admin_save_rooms|admin_set_wing_picks|museum_curation/.test(msg)) return 'This needs the Museum controls update (20261011000000_museum_control.sql). See the deploy guide.';
   if (/admin_feature_project|admin_museum_projects|PGRST202/.test(msg)) return 'Featuring projects needs the curated Museum update. See the deploy guide.';
+  if (/NOT_A_WINNER/.test(msg)) return 'Only a project that won at an announced event can hang as a winner.';
+  if (/NOT_ANNOUNCED/.test(msg)) return 'That event’s results aren’t announced yet.';
+  if (/BAD_NOTE/.test(msg)) return 'A curator’s note is at most 140 characters.';
+  if (/NO_SUCH_MEMBER/.test(msg)) return 'That member isn’t in the hall any more.';
+  if (/BAD_ROOMS/.test(msg)) return 'A room’s sign needs 2–30 characters. Check the signs and try again.';
+  if (/NOT_ON_SHOW/.test(msg)) return 'Only exhibits on show can be picked for a wing. One of them left the Museum; reload and try again.';
+  if (/TOO_MANY/.test(msg)) return 'A wing holds at most 60 hand-picked exhibits.';
+  if (/NO_SUCH_WING/.test(msg)) return 'That wing is gone. Reload the wings.';
   if (/NOT_YOURS/.test(msg)) return 'That project isn’t on your card.';
   if (/NOT_IN_MUSEUM/.test(msg)) return 'Put the project in the Museum first, then pick its console.';
   if (/BAD_CONSOLE/.test(msg)) return 'That console isn’t one of the five. Pick another.';

@@ -1,7 +1,7 @@
-// Admin → Museum (D-130): the curated Museum. It shows the projects admins feature here, every
-// project that won at an announced event, and the archive. Members with Museum access offer their
-// projects from the card editor; an offer is a suggestion, marked here and listed first. Featuring
-// saves at once (the database checks is_admin() and that the project is on an approved card).
+// Admin → Museum → Projects and Suggestions (D-130, D-133): every project on an approved card, to
+// feature in the Museum, and (Suggestions) only those members offered that aren't featured yet.
+// Members with Museum access offer their projects from the card editor; an offer is a suggestion.
+// Featuring saves at once (the database checks is_admin() and that the project is on an approved card).
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
@@ -17,7 +17,7 @@ function order(a: AdminMuseumProject, b: AdminMuseumProject): number {
   return rank(a) - rank(b) || a.member_no - b.member_no || a.title.localeCompare(b.title);
 }
 
-export function MuseumFeatures({ onDone }: { onDone: (message: string) => void }) {
+export function MuseumFeatures({ onDone, offersOnly = false }: { onDone: (message: string) => void; offersOnly?: boolean }) {
   const [list, setList] = useState<AdminMuseumProject[] | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
@@ -38,8 +38,11 @@ export function MuseumFeatures({ onDone }: { onDone: (message: string) => void }
 
   const shown = useMemo(() => {
     const words = q.trim().toLowerCase().split(/\s+/).filter(Boolean);
-    return (list ?? []).filter((p) => words.every((w) => `${p.title} ${p.full_name} ${p.username}`.toLowerCase().includes(w))).sort(order);
-  }, [list, q]);
+    return (list ?? [])
+      .filter((p) => !offersOnly || (p.offered && !p.featured))
+      .filter((p) => words.every((w) => `${p.title} ${p.full_name} ${p.username}`.toLowerCase().includes(w)))
+      .sort(order);
+  }, [list, q, offersOnly]);
   const featured = list?.filter((p) => p.featured).length ?? 0;
   const waiting = list?.filter((p) => p.offered && !p.featured).length ?? 0;
 
@@ -65,14 +68,21 @@ export function MuseumFeatures({ onDone }: { onDone: (message: string) => void }
   return (
     <section className="grid gap-space-3" aria-labelledby="museum-features-title">
       <h2 id="museum-features-title" className="panel-title">
-        Museum: featured projects
+        {offersOnly ? 'Suggestions from members' : 'Featured projects'}
       </h2>
       <p className="m-0 field-hint">
-        The Museum shows the projects you feature here, every project that won a place or an award at an announced event, and the{' '}
-        <Link to="/museum?room=archive&view=list" className="underline decoration-2">
-          archive
-        </Link>
-        . Members with Museum access can offer their projects; offers come first. Featuring needs no review and shows at once.
+        {offersOnly
+          ? 'Projects members with Museum access offered from My card. Nothing hangs until you feature it.'
+          : 'Feature any project on an approved card: it hangs in the Museum at once, with no review. '}
+        {!offersOnly && (
+          <>
+            Winners hang from the Winners tab, the{' '}
+            <Link to="/museum?room=archive&view=list" className="underline decoration-2">
+              archive
+            </Link>{' '}
+            from the Archive tab.
+          </>
+        )}
       </p>
       {error && (
         <p className="notice notice-bad m-0" role="status">
@@ -97,7 +107,8 @@ export function MuseumFeatures({ onDone }: { onDone: (message: string) => void }
         </DialogueBox>
       )}
       {list && list.length === 0 && <DialogueBox text="No approved card has a project yet. Projects show up here once a card with projects is approved." />}
-      {list && list.length > 0 && (
+      {list && list.length > 0 && offersOnly && waiting === 0 && <DialogueBox text="No suggestions waiting. Members with Museum access can offer a project from My card." />}
+      {list && list.length > 0 && (!offersOnly || waiting > 0) && (
         <>
           <p className="m-0 font-display tracking-[0.04em]" role="status">
             {featured} featured · {waiting} {waiting === 1 ? 'offer' : 'offers'} waiting · {list.length} {list.length === 1 ? 'project' : 'projects'} in the hall
@@ -123,7 +134,7 @@ export function MuseumFeatures({ onDone }: { onDone: (message: string) => void }
                     <span className="text-text-secondary">
                       · No.{String(p.member_no).padStart(3, '0')}
                       {p.offered && ' · ✉ offered by its maker'}
-                      {p.won && ' · ♛ won at an event (on show anyway)'}
+                      {p.won && (p.hung ? ' · ♛ won at an event (hangs as a winner)' : ' · ♛ won at an event (hang it from the Winners tab)')}
                     </span>
                   </p>
                 </li>

@@ -89,15 +89,21 @@ export const isShut = (c: Pick<MuseumCuration, 'rooms'>, key: string): boolean =
 /** The name on a room's door: the admins' sign, or the room's own name. */
 export const signOf = (c: Pick<MuseumCuration, 'rooms'>, key: string, name: string): string => layoutOf(c, key)?.sign ?? name;
 
+/** The rooms in the admins' order (those they placed first, then the rest as usual), none left out. */
+export function inLayoutOrder<T extends { id: string }>(rooms: readonly T[], c: Pick<MuseumCuration, 'rooms'>): T[] {
+  const place = new Map(c.rooms.map((r, i) => [r.key, i]));
+  return rooms
+    .map((r, i) => ({ r, i }))
+    .sort((a, b) => (place.get(a.r.id) ?? c.rooms.length + a.i) - (place.get(b.r.id) ?? c.rooms.length + b.i))
+    .map(({ r }) => r);
+}
+
 /**
  * The rooms as the admins arranged them: those they placed first, in their order, then the rest in
  * their usual order; shut rooms left out; each with the sign on its door.
  */
 export function arrangeRooms<T extends { id: string; name: string }>(rooms: readonly T[], c: Pick<MuseumCuration, 'rooms'>): T[] {
-  const place = new Map(c.rooms.map((r, i) => [r.key, i]));
-  return rooms
-    .map((r, i) => ({ r, i }))
-    .filter(({ r }) => !isShut(c, r.id))
-    .sort((a, b) => (place.get(a.r.id) ?? c.rooms.length + a.i) - (place.get(b.r.id) ?? c.rooms.length + b.i))
-    .map(({ r }) => ({ ...r, name: signOf(c, r.id, r.name) }));
+  return inLayoutOrder(rooms, c)
+    .filter((r) => !isShut(c, r.id))
+    .map((r) => ({ ...r, name: signOf(c, r.id, r.name) }));
 }

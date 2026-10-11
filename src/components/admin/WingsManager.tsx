@@ -1,10 +1,14 @@
 // Admin → Wings (V2-6, D-102): the curators' side of the Museum. Each wing has a name, a short
-// curator's note, and (for tag wings) the languages and tools that put an exhibit in it. Which
-// exhibits hang in a wing is always worked out from the exhibits; admins never place them by hand.
+// curator's note, and (for tag wings) the languages and tools that put an exhibit in it. Since D-133
+// admins can also hang exhibits in a wing by hand: a wing with no tools holds only those.
 // In the walkable Museum (V2-11, D-125) each wing is a room: its style is picked here.
 
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { affiliationKey, wingErrorMessage, wingService, type AdminWing } from '../../services/museumService';
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import { affiliationKey, museumErrorMessage, museumService, wingErrorMessage, wingService, type AdminWing } from '../../services/museumService';
+import { archiveAsExhibit } from '../../lib/archive';
+import { picksByWing } from '../../lib/curation';
+import { loadMuseumData } from '../../lib/useShowcaseRooms';
+import type { MuseumData } from '../../lib/showcase';
 import { DialogueBox } from '../dialogue/DialogueBox';
 import { ROOM_STYLES, wingStyle, type RoomStyle } from '../../lib/wings';
 import { SelectField, TextArea, TextField, Toggle } from '../editor/fields';
@@ -21,6 +25,8 @@ export function WingsManager({ onDone }: { onDone: (message: string) => void }) 
   const [name, setName] = useState('');
   const [tags, setTags] = useState('');
   const [style, setStyle] = useState<RoomStyle>('arcade');
+  // What is on show, for hand-picking (D-133): featured projects, hung winners, the archive.
+  const [museum, setMuseum] = useState<MuseumData | null>(null);
 
   const reload = useCallback(() => {
     setFailed(false);
@@ -32,6 +38,9 @@ export function WingsManager({ onDone }: { onDone: (message: string) => void }) 
       .list()
       .then((l) => on && setList(l))
       .catch(() => on && setFailed(true));
+    loadMuseumData()
+      .then((d) => on && setMuseum(d))
+      .catch(() => on && setMuseum(null));
     return () => {
       on = false;
     };
@@ -48,6 +57,29 @@ export function WingsManager({ onDone }: { onDone: (message: string) => void }) 
     } catch (e) {
       setError(wingErrorMessage(e));
       return false;
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const onShow = useMemo(() => {
+    if (!museum) return [];
+    const seen = new Set<string>();
+    return [...museum.exhibits, ...museum.events.flatMap((e) => e.entries), ...museum.archive.map(archiveAsExhibit)]
+      .filter((x) => !seen.has(x.project_id) && (seen.add(x.project_id), true))
+      .map((x) => ({ id: x.project_id, title: x.project.title, by: x.archive ? null : x.full_name }));
+  }, [museum]);
+  const picks = useMemo(() => (museum?.curation ? picksByWing(museum.curation) : new Map<string, string[]>()), [museum]);
+
+  const savePicks = async (w: AdminWing, ids: string[]) => {
+    setBusy(true);
+    setError(undefined);
+    try {
+      await museumService.setWingPicks(w.key, ids);
+      onDone(ids.length ? `${ids.length} hand-picked ${ids.length === 1 ? 'exhibit hangs' : 'exhibits hang'} in ${w.name}.` : `${w.name} has no hand-picked exhibits now.`);
+      reload();
+    } catch (e) {
+      setError(museumErrorMessage(e));
     } finally {
       setBusy(false);
     }
@@ -72,7 +104,9 @@ export function WingsManager({ onDone }: { onDone: (message: string) => void }) 
       <h2 id="wings-title" className="panel-title">
         Museum wings
       </h2>
-      <p className="m-0 field-hint">Wings fill themselves from the exhibits: a tag wing holds every exhibit whose language or tools name one of its tags. Empty wings stay hidden. No wing is ever behind PIPs.</p>
+      <p className="m-0 field-hint">
+        A tag wing holds every exhibit on show whose language or tools name one of its tags, plus any exhibits you hang in it by hand. A wing with no tags holds only those. Empty wings stay hidden. No wing is ever behind PIPs.
+      </p>
       {error && (
         <p className="notice notice-bad m-0" role="status">
           <span aria-hidden="true">! </span>
@@ -92,6 +126,7 @@ export function WingsManager({ onDone }: { onDone: (message: string) => void }) 
           {list.map((w) => (
             <li key={w.key}>
               <WingEditor wing={w} busy={busy} onSave={(next, msg) => void run(() => wingService.save(next), msg)} onRemove={() => void run(() => wingService.remove(w.key), `${w.name} is gone.`)} />
+              {museum && <WingPicks key={(picks.get(w.key) ?? []).join()} wing={w} options={onShow} picked={picks.get(w.key) ?? []} busy={busy} onSave={(ids) => void savePicks(w, ids)} />}
             </li>
           ))}
         </ul>
@@ -101,9 +136,9 @@ export function WingsManager({ onDone }: { onDone: (message: string) => void }) 
           Open a new wing
         </h3>
         <TextField field="wing-name" label="Name" max={30} value={name} onChange={setName} placeholder="e.g. Mobile Wing" />
-        <TextField field="wing-tags" label="Tags (comma-separated)" hint="Languages or tools, e.g. Kotlin, Swift, Flutter. Up to 12." value={tags} onChange={setTags} />
+        <TextField field="wing-tags" label="Tags (comma-separated)" hint="Languages or tools, e.g. Kotlin, Swift, Flutter. Up to 12. Leave empty for a wing you fill by hand." value={tags} onChange={setTags} />
         <SelectField field="wing-style" label="Room style" hint={STYLE_HINT} value={style} options={ROOM_STYLES} onChange={setStyle} />
-        <button type="submit" className="pixel-btn justify-self-start" data-variant="primary" disabled={busy || name.trim().length < 2 || splitTags(tags).length === 0}>
+        <button type="submit" className="pixel-btn justify-self-start" data-variant="primary" disabled={busy || name.trim().length < 2}>
           Open wing
         </button>
       </form>
@@ -156,5 +191,44 @@ function WingEditor({ wing, busy, onSave, onRemove }: { wing: AdminWing; busy: b
           ))}
       </div>
     </div>
+  );
+}
+
+/** The exhibits an admin hangs in a wing by hand (D-133), in the order they were ticked. */
+function WingPicks({ wing, options, picked, busy, onSave }: { wing: AdminWing; options: { id: string; title: string; by: string | null }[]; picked: string[]; busy: boolean; onSave: (ids: string[]) => void }) {
+  const [ids, setIds] = useState(picked.filter((id) => options.some((o) => o.id === id)));
+  const [q, setQ] = useState('');
+  const words = q.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const shown = options.filter((o) => ids.includes(o.id) || words.every((w) => `${o.title} ${o.by ?? ''}`.toLowerCase().includes(w)));
+  const changed = ids.join() !== picked.filter((id) => options.some((o) => o.id === id)).join();
+  return (
+    <details className="menu-panel wing-picks">
+      <summary className="font-display">
+        Hand-picked exhibits in {wing.name} <span className="text-caption">· {ids.length}</span>
+      </summary>
+      {options.length === 0 ? (
+        <p className="m-0 field-hint">Nothing is on show yet. Feature a project, hang a winner or publish the archive first.</p>
+      ) : (
+        <div className="grid gap-space-2">
+          <TextField field={`wing-${wing.key}-find`} label="Find an exhibit" value={q} onChange={setQ} />
+          <ul className="feature-list" aria-label={`Exhibits to hang in ${wing.name}`}>
+            {shown.map((o) => (
+              <li key={o.id} data-featured={ids.includes(o.id) || undefined}>
+                <label className="toggle">
+                  <input type="checkbox" checked={ids.includes(o.id)} disabled={busy || (!ids.includes(o.id) && ids.length >= 60)} onChange={(e) => setIds((l) => (e.target.checked ? [...l, o.id] : l.filter((x) => x !== o.id)))} />
+                  <span>
+                    <b>{o.title}</b>
+                    {o.by && <span className="text-caption"> · by {o.by}</span>}
+                  </span>
+                </label>
+              </li>
+            ))}
+          </ul>
+          <button type="button" className="pixel-btn justify-self-start" data-variant="primary" disabled={busy || !changed} onClick={() => onSave(ids)}>
+            Save the picks<span className="sr-only"> for {wing.name}</span>
+          </button>
+        </div>
+      )}
+    </details>
   );
 }

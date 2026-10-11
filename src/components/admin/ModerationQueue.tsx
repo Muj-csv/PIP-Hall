@@ -2,7 +2,7 @@
 // on the left and the selected card's ReviewPanel on the right. The Affiliations tab manages the
 // labels admins give members (D-067); the Rewards tab designs borders and badges (D-087); the
 // Archive tab compiles past projects and answers members' claims on them (D-118); the Museum tab
-// features projects in the curated Museum (D-130).
+// is the Museum curated end to end (D-130, D-133): suggestions, projects, winners, members, rooms.
 
 import { useRef, useState, type KeyboardEvent } from 'react';
 import type { Queue } from '../../services/adminService';
@@ -10,7 +10,7 @@ import { DialogueBox } from '../dialogue/DialogueBox';
 import { pipsEnabled } from '../../lib/features';
 import { AffiliationsManager } from './AffiliationsManager';
 import { ArchiveManager } from './ArchiveManager';
-import { MuseumFeatures } from './MuseumFeatures';
+import { MuseumAdmin } from './MuseumAdmin';
 import { RewardsManager } from './RewardsManager';
 import { SeasonsManager } from './SeasonsManager';
 import { WingsManager } from './WingsManager';
@@ -99,7 +99,7 @@ export function ModerationQueue({ queue, onDone }: { queue: Queue; onDone: (mess
         {tab === 'affiliations' ? (
           <AffiliationsManager onDone={onDone} />
         ) : tab === 'museum' ? (
-          <MuseumFeatures onDone={onDone} />
+          <MuseumAdmin cards={queue.published} onDone={onDone} />
         ) : tab === 'wings' ? (
           <WingsManager onDone={onDone} />
         ) : tab === 'events' ? (
