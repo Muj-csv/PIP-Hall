@@ -224,7 +224,7 @@ export default function Booth() {
       )}
       {nothing && <DialogueBox text="The hall and the Museum are waiting for their first members and exhibits. Members make their card at the hall, and it shows here once it’s approved." />}
 
-      {stop && <TourSlide stops={stops} at={at} reduce={reduce} live={paused} onOpen={openFront} />}
+      {stop && <TourSlide stops={stops} at={at} reduce={reduce} live={paused} onOpen={openFront} title={eventName ?? 'The Museum'} />}
       {stop && openPage && mode === 'tour' && (
         <JournalSpread stop={stop} kicker={`${stop.roomName} · page ${at + 1} of ${count}`} reduce={reduce} stamp={false} onClose={() => setOpenPage(false)} />
       )}
@@ -268,7 +268,7 @@ export default function Booth() {
 
 /** The tour (V2-24): the Museum's journal, its pages turning to each stop (the book stays, so it is
  *  seen to turn); the stop's plaque slides in under it, with Open the page for the presenter. */
-function TourSlide({ stops, at, reduce, live, onOpen }: { stops: readonly ShowcaseStop[]; at: number; reduce: boolean; live: boolean; onOpen: () => void }) {
+function TourSlide({ stops, at, reduce, live, onOpen, title }: { stops: readonly ShowcaseStop[]; at: number; reduce: boolean; live: boolean; onOpen: () => void; title: string }) {
   const stop = stops[at]!;
   return (
     <section className="booth-slide booth-tour" aria-labelledby="booth-title" aria-live={live ? 'polite' : 'off'}>
@@ -279,7 +279,7 @@ function TourSlide({ stops, at, reduce, live, onOpen }: { stops: readonly Showca
             Page {at + 1} of {stops.length}
           </span>
         </p>
-        <JournalBook stops={stops} index={at} reduce={reduce} />
+        <JournalBook stops={stops} index={at} reduce={reduce} cover={{ title, glyph: '▤', line: `${stops.length} ${stops.length === 1 ? 'page' : 'pages'}` }} />
       </div>
       <TourPlaque key={stop.exhibit.project_id} stop={stop} nth={at + 1} count={stops.length} onOpen={onOpen} />
     </section>

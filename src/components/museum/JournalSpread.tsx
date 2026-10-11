@@ -3,9 +3,11 @@
 // ribbons and makers, the making-of comic (or the description), the QR, and the way to its own page.
 // A featured member opens to their badge and the curator's note. Opening an exhibit stamps the
 // Passport, as its page does. A dialog: it takes focus, keeps Tab inside, and Esc or Close puts the
-// exhibit back on the wall. Reduced motion: it simply appears.
+// exhibit back on the wall. It grows out of the page in front and, on Close, Esc or a click outside,
+// folds and shrinks back into it, so it is plainly that page opened. Reduced motion: it simply
+// appears and goes.
 
-import { useEffect, useId, useRef, type KeyboardEvent } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, type KeyboardEvent } from 'react';
 import { Link } from 'react-router';
 import { stopPath } from '../../lib/curation';
 import { consoleFor } from '../../lib/museum';
@@ -30,12 +32,27 @@ interface Props {
 }
 
 const FOCUSABLE = 'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])';
+/** The left page turned edge-on, on the spine (above it, when the spread is one column). */
+const edgeOn = () => (window.matchMedia('(max-width: 820px)').matches ? 'perspective(2400px) rotateX(-90deg)' : 'perspective(2400px) rotateY(90deg)');
+
+/** The spread drawn over the page in front of the book, as a transform from where the spread sits. */
+function overPage(book: HTMLElement): Keyframe | null {
+  const page = document.querySelector('.journal-page[data-front] .journal-paper')?.getBoundingClientRect();
+  const at = book.getBoundingClientRect();
+  if (!page?.width || !at.width || !at.height) return null;
+  const x = page.left + page.width / 2 - (at.left + at.width / 2);
+  const y = page.top + page.height / 2 - (at.top + at.height / 2);
+  return { transform: `translate(${x}px, ${y}px) scale(${page.width / at.width}, ${page.height / at.height})` };
+}
 
 export function JournalSpread({ stop, kicker, reduce, stamp = true, onClose }: Props) {
   const e = stop.exhibit;
   const titleId = useId();
   const box = useRef<HTMLDivElement>(null);
+  const back = useRef<HTMLDivElement>(null);
   const close = useRef<HTMLButtonElement>(null);
+  const closing = useRef(false);
+  const mounted = useRef(false);
   const { stampExhibit } = usePassport();
 
   // Opening an exhibit is visiting it (V2-2): the Passport stamps it, as the exhibit's page does.
@@ -54,10 +71,47 @@ export function JournalSpread({ stop, kicker, reduce, stamp = true, onClose }: P
     };
   }, []);
 
+  // Gone another way (Back) while it was shrinking: the shrink must not close it a second time.
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+
+  // It comes out of the page in front: drawn over that page first, then grown to the spread in hard
+  // steps (the left page unfolds after, in CSS). With no book behind it, it scales up in place.
+  useLayoutEffect(() => {
+    const book = box.current;
+    if (reduce || !book || typeof book.animate !== 'function') return;
+    const from = overPage(book);
+    const grow = from
+      ? book.animate([from, { transform: 'none' }], { duration: 280, easing: 'steps(6, end)', fill: 'backwards' })
+      : book.animate([{ scale: '0.4' }, { scale: '1' }], { duration: 200, easing: 'steps(4, end)', fill: 'backwards' });
+    return () => grow.cancel();
+  }, [reduce]);
+
+  // Closing folds the left page and shrinks the spread back into the page, then lets it go.
+  const shut = () => {
+    if (closing.current) return;
+    const book = box.current;
+    const to = !reduce && book && typeof book.animate === 'function' ? overPage(book) : null;
+    if (!book || !to) return onClose();
+    closing.current = true;
+    back.current?.setAttribute('data-closing', '');
+    // The left page folds to edge-on and is gone (hidden, as it was before it opened).
+    const edge = edgeOn();
+    book
+      .querySelector('.spread-page[data-page="left"]')
+      ?.animate([{ transform: edge.replace(/-?90deg/, '0deg') }, { transform: edge, visibility: 'hidden' }], { duration: 160, easing: 'steps(4, end)', fill: 'forwards' });
+    const done = () => mounted.current && onClose();
+    book.animate([{ transform: 'none' }, to], { duration: 240, easing: 'steps(5, end)', fill: 'forwards' }).finished.then(done, done);
+  };
+
   const onKeyDown = (ev: KeyboardEvent) => {
     if (ev.key === 'Escape') {
       ev.preventDefault();
-      onClose();
+      shut();
       return;
     }
     if (ev.key !== 'Tab') return;
@@ -79,7 +133,7 @@ export function JournalSpread({ stop, kicker, reduce, stamp = true, onClose }: P
   const place = stop.awards.map((a) => a.award.place).filter((p): p is 1 | 2 | 3 => p === 1 || p === 2 || p === 3).sort()[0] ?? null;
 
   return (
-    <div className="spread-backdrop" onPointerDown={(ev) => ev.target === ev.currentTarget && onClose()}>
+    <div ref={back} className="spread-backdrop" onPointerDown={(ev) => ev.target === ev.currentTarget && shut()}>
       <div ref={box} className="spread-book" role="dialog" aria-modal="true" aria-labelledby={titleId} data-still={reduce || undefined} onKeyDown={onKeyDown}>
         <div className="spread-page" data-page="left">
           {e.portrait ? (
@@ -145,7 +199,7 @@ export function JournalSpread({ stop, kicker, reduce, stamp = true, onClose }: P
                 {e.portrait ? 'Open profile' : 'Visit the exhibit'}
                 <span className="sr-only"> {e.portrait ? `of ${e.full_name}` : e.project.title}</span>
               </Link>
-              <button ref={close} type="button" className="pixel-btn" onClick={onClose}>
+              <button ref={close} type="button" className="pixel-btn" onClick={shut}>
                 Close<span className="sr-only"> the page</span>
               </button>
             </div>

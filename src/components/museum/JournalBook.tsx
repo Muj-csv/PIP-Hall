@@ -10,7 +10,7 @@
 
 import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { stepCamera } from '../../lib/carousel';
-import { dragCam, frontIndex, inView, offsetOf, openAt, pagePose, perspectiveFor, pxPerPage, settleTarget, stopLabel, TURN_THRESHOLD_PX, type PagePose } from '../../lib/journal';
+import { COVER_MS, dragCam, FAN_MS, FLICK_MS, frontIndex, inView, offsetOf, openAt, pagePose, perspectiveFor, pxPerPage, settleTarget, stopLabel, TURN_THRESHOLD_PX, type PagePose } from '../../lib/journal';
 import { plaqueBy } from '../../lib/museumWalk';
 import type { ShowcaseStop } from '../../lib/showcase';
 import { PixelAvatar } from '../cards/PixelAvatar';
@@ -34,12 +34,11 @@ interface Props {
   onOpen?: () => void;
   /** Keys the book does not use itself (the chapters). */
   onKey?: (e: KeyboardEvent) => void;
+  /** The journal's cover, which swings open on its spine before the pages fan out (not with reduced motion). */
+  cover?: { title: string; glyph?: string; line: string };
 }
 
-/** How long the book takes to open (ms). */
-const OPEN_MS = 720;
-
-export function JournalBook({ stops, index, scene = '', reduce, id, label, onTurn, onStep, onOpen, onKey }: Props) {
+export function JournalBook({ stops, index, scene = '', reduce, id, label, onTurn, onStep, onOpen, onKey, cover }: Props) {
   const count = stops.length;
   const interactive = Boolean(onTurn);
   const stage = useRef<HTMLDivElement>(null);
@@ -58,9 +57,12 @@ export function JournalBook({ stops, index, scene = '', reduce, id, label, onTur
   const pages = useRef(new Map<number, HTMLElement>());
   /** Starts the loop if it is asleep (it sleeps whenever the book is at rest). */
   const wake = useRef(() => {});
-  const live = useRef({ count, front, reduce, onTurn, onOpen });
+  /** The page that last landed in front (it gives a little thump as it lands). */
+  const landed = useRef(-1);
+  const hasCover = Boolean(cover) && !reduce;
+  const live = useRef({ count, front, reduce, onTurn, onOpen, hasCover });
   useEffect(() => {
-    live.current = { count, front, reduce, onTurn, onOpen };
+    live.current = { count, front, reduce, onTurn, onOpen, hasCover };
   });
 
   // One loop: open the book, step the spring, write each page's pose. At rest it sleeps (no frames
@@ -80,9 +82,13 @@ export function JournalBook({ stops, index, scene = '', reduce, id, label, onTur
         return;
       }
       if (opening.current === -1) opening.current = now;
-      const open = opening.current ? openAt(now - opening.current, OPEN_MS) : 1;
+      // The cover swings open first (CSS, from the moment it is drawn), then the stacks fan out.
+      const open = opening.current ? openAt(now - opening.current - (l.hasCover ? COVER_MS : 0), FAN_MS) : 1;
       openNow.current = open;
-      if (open >= 1 && opening.current) opening.current = 0;
+      if (open >= 1 && opening.current) {
+        opening.current = 0;
+        stage.current?.querySelector('.journal-cover')?.setAttribute('data-done', '');
+      }
       if (!c.dragging) {
         if (l.reduce) {
           c.x = c.target;
@@ -104,6 +110,14 @@ export function JournalBook({ stops, index, scene = '', reduce, id, label, onTur
       stage.current?.toggleAttribute('data-opening', open < 1);
       const still = !moved && !c.dragging;
       if (still !== was.still) stage.current?.toggleAttribute('data-still', still);
+      // A page coming to rest in front lands with a little thump, and a winner's ribbon swings.
+      if (still && !was.still && !opening.current && !l.reduce) {
+        const f = Math.max(0, Math.min(l.count - 1, Math.round(c.x)));
+        if (f !== landed.current) {
+          landed.current = f;
+          land(pages.current.get(f));
+        }
+      }
       Object.assign(was, { x: c.x, front: l.front, open, still, n: pages.current.size });
       if (still && !opening.current) {
         awake = false; // at rest: sleep
@@ -133,6 +147,7 @@ export function JournalBook({ stops, index, scene = '', reduce, id, label, onTur
     c.x = c.target = index;
     c.v = 0;
     opening.current = reduce ? 0 : -1;
+    landed.current = -1;
     wake.current();
     // Only when the chapter changes; index changes are followed below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -168,7 +183,9 @@ export function JournalBook({ stops, index, scene = '', reduce, id, label, onTur
   useEffect(() => wake.current(), [front]);
 
   // Turning by hand: drag to turn, let go to settle (a flick riffles on); a press that never moved is a tap.
-  const press = useRef({ x: 0, cam: 0, lastX: 0, lastT: 0, speed: 0, moved: false, target: null as Element | null });
+  // A flick's speed is read over the pointer's last FLICK_MS, not its last event (one slow frame doesn't
+  // swallow it), and a pause before letting go stops it.
+  const press = useRef({ x: 0, cam: 0, trail: [] as { x: number; t: number }[], moved: false, target: null as Element | null });
   const onMove = useCallback((e: PointerEvent) => {
     const p = press.current;
     const c = cam.current;
@@ -177,13 +194,11 @@ export function JournalBook({ stops, index, scene = '', reduce, id, label, onTur
     p.moved = true;
     c.dragging = true;
     wake.current();
-    const per = pxPerPage(live.current.front);
     const now = performance.now();
-    c.x = dragCam(p.cam - dx / per, live.current.count);
+    c.x = dragCam(p.cam - dx / pxPerPage(live.current.front), live.current.count);
     c.v = 0;
-    p.speed = -(e.clientX - p.lastX) / per / Math.max(1, now - p.lastT);
-    p.lastX = e.clientX;
-    p.lastT = now;
+    p.trail.push({ x: e.clientX, t: now });
+    while (p.trail.length > 2 && now - p.trail[0]!.t > FLICK_MS) p.trail.shift();
   }, []);
   const onUp = useCallback(() => {
     window.removeEventListener('pointermove', onMove);
@@ -191,8 +206,11 @@ export function JournalBook({ stops, index, scene = '', reduce, id, label, onTur
     const c = cam.current;
     const n = live.current.count;
     if (p.moved) {
+      const a = p.trail[0]!;
+      const b = p.trail[p.trail.length - 1]!;
+      const speed = b.t > a.t && performance.now() - b.t < FLICK_MS ? -(b.x - a.x) / pxPerPage(live.current.front) / (b.t - a.t) : 0;
       c.dragging = false;
-      c.target = settleTarget(c.x, p.speed, n);
+      c.target = settleTarget(c.x, speed, n);
       wake.current();
       live.current.onTurn?.(frontIndex(c.target, n));
       return;
@@ -211,7 +229,7 @@ export function JournalBook({ stops, index, scene = '', reduce, id, label, onTur
   const onPointerDown = (e: ReactPointerEvent) => {
     if (e.button > 0 || count === 0) return;
     const now = performance.now();
-    press.current = { x: e.clientX, cam: cam.current.x, lastX: e.clientX, lastT: now, speed: 0, moved: false, target: e.target as Element };
+    press.current = { x: e.clientX, cam: cam.current.x, trail: [{ x: e.clientX, t: now }], moved: false, target: e.target as Element };
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp, { once: true });
     window.addEventListener('pointercancel', onUp, { once: true });
@@ -305,6 +323,14 @@ export function JournalBook({ stops, index, scene = '', reduce, id, label, onTur
         : { 'aria-hidden': true })}
     >
       <div key={scene} className="journal-book">
+        {front > 0 && hasCover && cover && (
+          <div className="journal-cover" aria-hidden="true">
+            <span className="journal-cover-kicker">PIXENDO MUSEUM</span>
+            {cover.glyph && <span className="journal-cover-glyph">{cover.glyph}</span>}
+            <b className="journal-cover-title">{cover.title}</b>
+            <span className="journal-cover-line">{cover.line}</span>
+          </div>
+        )}
         {front > 0 && shown.map(({ i }) => <PageView key={stops[i]!.exhibit.project_id} stop={stops[i]!} i={i} count={count} isFront={i === at} listId={interactive ? id : undefined} register={register} />)}
       </div>
     </div>
@@ -314,7 +340,7 @@ export function JournalBook({ stops, index, scene = '', reduce, id, label, onTur
 /** Writes a page's pose: its place and turn, whether it is drawn, and the shade on it (its last
  *  child's opacity alone, so the page itself is never restyled). */
 function poseOn(el: HTMLElement, p: PagePose) {
-  el.style.transform = `translate3d(${p.x}px, 0, ${p.z}px) rotateY(${p.rotate}deg)`;
+  el.style.transform = `translate3d(${p.x}px, ${p.y}px, ${p.z}px) rotateY(${p.rotate}deg)`;
   el.style.visibility = p.hidden ? 'hidden' : '';
   (el.lastElementChild as HTMLElement | null)?.style.setProperty('opacity', String(Math.round(p.dim * 80) / 100));
 }
@@ -370,3 +396,10 @@ const PageView = memo(function PageView({ stop: s, i, count, isFront, listId, re
     </div>
   );
 });
+
+/** A page lands in front: the paper drops into place in hard steps; a winner's ribbon swings. */
+function land(el: HTMLElement | undefined) {
+  if (!el?.animate) return;
+  el.querySelector('.journal-paper')?.animate([{ translate: '0 -6px' }, { translate: '0 2px' }, { translate: '0 0' }], { duration: 220, easing: 'steps(4, end)' });
+  el.querySelector('.journal-ribbon')?.animate([{ rotate: '0deg' }, { rotate: '14deg' }, { rotate: '-10deg' }, { rotate: '5deg' }, { rotate: '0deg' }], { duration: 560, easing: 'steps(8, end)' });
+}

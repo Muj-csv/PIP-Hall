@@ -120,6 +120,7 @@ export default function MuseumJournal({ parts, room, at, open, onRoom, onOpen, o
             onStep={step}
             onOpen={openFront}
             onKey={onKey}
+            cover={{ title: here.room.name, glyph: GLYPH[here.room.kind], line: `Chapter ${ch + 1} · ${n} ${members ? (n === 1 ? 'member' : 'members') : n === 1 ? 'page' : 'pages'}` }}
           />
         )}
         {stop && (

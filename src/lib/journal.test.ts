@@ -23,7 +23,7 @@ describe('the pages in view', () => {
 
 describe('poses', () => {
   it('the front page is flat and square, sharp at rest', () => {
-    expect(pagePose(0, 300)).toEqual({ x: 0, z: 0, rotate: 0, dim: 0, hidden: false });
+    expect(pagePose(0, 300)).toEqual({ x: 0, y: 0, z: 0, rotate: 0, dim: 0, hidden: false });
   });
 
   it('a page leaving the front turns almost edge-on and steps back; the stacks mirror each other', () => {
@@ -47,8 +47,15 @@ describe('poses', () => {
     expect(pagePose(STACK + 1, 300).hidden).toBe(true);
   });
 
-  it('half a turn is half way: the page swings over smoothly', () => {
-    expect(pagePose(0.5, 300).rotate).toBe(TURN_DEG / 2);
+  it('half a turn is half way, and the page arcs over: lifted toward you, up a little, in shade', () => {
+    const half = pagePose(0.5, 300);
+    const landed = pagePose(1, 300);
+    expect(half.rotate).toBe(TURN_DEG / 2);
+    expect(half.z).toBeGreaterThan(landed.z / 2); // lifted, not slid flat
+    expect(half.y).toBeLessThan(0);
+    expect(landed.y).toBe(0);
+    expect(half.dim).toBeGreaterThan(landed.dim / 2);
+    expect(pagePose(-0.5, 300).y).toBe(half.y); // either way over
   });
 
   it('a closed book holds every page behind the front one; it opens in six hard steps', () => {
@@ -56,6 +63,14 @@ describe('poses', () => {
     expect(closed.x).toBe(0);
     expect(closed.rotate).toBe(0);
     expect(closed.z).toBeLessThan(0);
+    // Half open, a page's near edge stays behind the front page (z 0): it never cuts through it.
+    for (const open of [1 / 6, 2 / 6, 3 / 6, 4 / 6, 5 / 6, 1]) {
+      for (const off of [1, 2, 4, -1, -3]) {
+        const p = pagePose(off, 300, open);
+        const near = p.z + 150 * Math.sin((Math.abs(p.rotate) * Math.PI) / 180);
+        expect(near).toBeLessThan(0);
+      }
+    }
     expect(openAt(0)).toBe(0);
     expect(openAt(100)).toBeCloseTo(1 / 6);
     expect(openAt(360)).toBeCloseTo(0.5);
