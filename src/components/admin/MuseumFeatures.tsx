@@ -24,6 +24,8 @@ export function MuseumFeatures({ onDone, offersOnly = false }: { onDone: (messag
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState('');
+  /** Suggestions featured on this visit stay in the list, ticked, so the admin sees it took (and can undo it). */
+  const [touched, setTouched] = useState<ReadonlySet<string>>(new Set());
 
   useEffect(() => {
     let on = true;
@@ -39,10 +41,10 @@ export function MuseumFeatures({ onDone, offersOnly = false }: { onDone: (messag
   const shown = useMemo(() => {
     const words = q.trim().toLowerCase().split(/\s+/).filter(Boolean);
     return (list ?? [])
-      .filter((p) => !offersOnly || (p.offered && !p.featured))
+      .filter((p) => !offersOnly || (p.offered && (!p.featured || touched.has(p.project_id))))
       .filter((p) => words.every((w) => `${p.title} ${p.full_name} ${p.username}`.toLowerCase().includes(w)))
       .sort(order);
-  }, [list, q, offersOnly]);
+  }, [list, q, offersOnly, touched]);
   const featured = list?.filter((p) => p.featured).length ?? 0;
   const waiting = list?.filter((p) => p.offered && !p.featured).length ?? 0;
 
@@ -50,6 +52,7 @@ export function MuseumFeatures({ onDone, offersOnly = false }: { onDone: (messag
     async (p: AdminMuseumProject, on: boolean) => {
       const set = (v: boolean) => setList((l) => l?.map((x) => (x.project_id === p.project_id ? { ...x, featured: v } : x)) ?? l);
       set(on); // show it at once; undo if the database refuses
+      setTouched((t) => new Set(t).add(p.project_id));
       setBusy(p.project_id);
       setError(null);
       try {
@@ -107,8 +110,8 @@ export function MuseumFeatures({ onDone, offersOnly = false }: { onDone: (messag
         </DialogueBox>
       )}
       {list && list.length === 0 && <DialogueBox text="No approved card has a project yet. Projects show up here once a card with projects is approved." />}
-      {list && list.length > 0 && offersOnly && waiting === 0 && <DialogueBox text="No suggestions waiting. Members with Museum access can offer a project from My card." />}
-      {list && list.length > 0 && (!offersOnly || waiting > 0) && (
+      {list && list.length > 0 && offersOnly && waiting === 0 && touched.size === 0 && <DialogueBox text="No suggestions waiting. Members with Museum access can offer a project from My card." />}
+      {list && list.length > 0 && (!offersOnly || waiting > 0 || touched.size > 0) && (
         <>
           <p className="m-0 font-display tracking-[0.04em]" role="status">
             {featured} featured · {waiting} {waiting === 1 ? 'offer' : 'offers'} waiting · {list.length} {list.length === 1 ? 'project' : 'projects'} in the hall

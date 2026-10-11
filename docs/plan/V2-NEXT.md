@@ -139,7 +139,9 @@ Built as planned (details: D-128). #23 found one thing and made the rest diagnos
 
 Everyone shares their card and projects in the hall; the Museum is where the admins choose what is shown. My Card should be easy for a first-time member, with what you *say* (information) apart from how your badge *looks* (customizing). Two frames and their pins carry the real logos of two affiliations, uploaded by an admin as data (D-135); Pip is redrawn in their style (a blue diamond with a ring; a red block with cat eyes). Decisions: D-133 (the Museum), D-134 (My Card), D-135 (Pip and the affiliation looks). Order: V2-20, V2-21, V2-22; each one SQL first where there is SQL, then stop and report.
 
-#### V2-20 · The Museum, curated end to end (P0)
+#### V2-20 · The Museum, curated end to end (P0) · built
+
+Built 2026-10-11: migration `20261011000000_museum_control.sql` (hung winners, portraits, the rooms' layout, hand-picked wings; `museum_curation()` for everyone, five admin functions), Admin → Museum's five tabs, hand-picked exhibits in Admin → Wings, the Featured Members room in the circles, the walk and the list, the bell line. The kiosk tour and the placards follow the rooms' order, signs and picks; the Featured Members room is for the Museum page (portraits aren't exhibits to print). Budget: 0 KB on the home page; the Museum page makes one more request, in parallel (`museum_curation()`), and the hall's cards when there are featured members. Evidence: `docs/build/evidence/museum-control/`.
 
 **Loop:** an admin picks a project, a winner or a member → it hangs in a room with a plaque → visitors find it there and stamp it in their Passport → its maker is told (bell) and it shows on their profile → the admins keep the Museum fresh.
 

@@ -76,19 +76,22 @@ test('a member offers a project, an admin features it; visitors see it as approv
   await visitor.goto('http://localhost:5174/museum?view=list');
   await expect(visitor.locator('.dialogue .sr-only')).toContainText('waiting for its first exhibit');
 
-  // Admin → Museum: the offer comes first; featuring it hangs it at once.
+  // Admin → Museum opens on its Suggestions (D-133): the offer is there; featuring it hangs it at once.
   const adminCtx = await browser.newContext();
   const admin = await adminCtx.newPage();
   await mockSupabase(admin, { user: ADMIN, db });
   await admin.goto('http://localhost:5174/admin');
   await admin.getByRole('tab', { name: 'Museum' }).click();
+  await expect(admin.getByRole('tab', { name: 'Suggestions' })).toHaveAttribute('aria-selected', 'true');
   const list = admin.getByRole('list', { name: 'Projects in the hall' });
   await expect(list.getByRole('listitem').first()).toContainText('offered by its maker');
   await expect(admin.getByRole('status').filter({ hasText: 'featured ·' })).toHaveText('0 featured · 1 offer waiting · 2 projects in the hall');
   await list.getByLabel(/Feature Tide Tables/).check();
   await expect(admin.locator('main > .notice')).toHaveText('Tide Tables by Ada Lovelace hangs in the Museum.');
   expect(db.museumFeatures).toEqual([{ project_id: P1, member_id: ME.id }]);
-  await admin.getByRole('heading', { name: 'Museum: featured projects' }).scrollIntoViewIfNeeded();
+  await expect(list.getByLabel(/Feature Tide Tables/)).toBeChecked(); // it stays in the list, ticked, until the next visit
+  await expect(admin.getByRole('status').filter({ hasText: 'featured ·' })).toHaveText('1 featured · 0 offers waiting · 2 projects in the hall');
+  await admin.getByRole('heading', { name: 'Suggestions from members' }).scrollIntoViewIfNeeded();
   await admin.locator('[aria-labelledby="museum-features-title"]').screenshot({ path: 'docs/build/evidence/circles/admin-feature.png' });
   await adminCtx.close();
 
