@@ -61,9 +61,6 @@ const boot = (page: Page) =>
     sessionStorage.setItem('piphall-booted', '1');
     sessionStorage.setItem('piphall-splash', '1');
   });
-const rooms = (p: Page) => p.getByRole('listbox', { name: 'Rooms' });
-const exhibits = (p: Page) => p.locator('#museum-exhibits');
-const plaque = (p: Page) => p.locator('.quest-panel');
 
 test('visitors see what the admins hung, in their rooms, in their order', async ({ page }) => {
   const db = hall();
@@ -74,25 +71,33 @@ test('visitors see what the admins hung, in their rooms, in their order', async 
   await boot(page);
   await mockSupabase(page, { db });
   await page.goto('/museum');
-  await expect(rooms(page).getByRole('option').first()).toBeVisible();
-  // The members' room first, under its sign; the winner nobody hung is nowhere.
-  await expect(rooms(page).getByRole('option', { selected: true })).toHaveAccessibleName(/^Hall of Fame, room 1 of/);
-  await expect(exhibits(page)).toHaveAccessibleName('Exhibits in Hall of Fame');
-  await expect(exhibits(page).getByRole('option')).toHaveCount(1);
-  await expect(exhibits(page).getByRole('option')).toHaveAccessibleName('Player player-3, member 1 of 1');
-  await expect(plaque(page).getByRole('heading')).toHaveText('Player player-3');
-  await expect(plaque(page)).toContainText('FEATURED MEMBER 1/1');
-  await expect(plaque(page)).toContainText('Built the first kiosk.');
-  await expect(page.locator('.museum-circles .circles-portrait .badge')).toHaveCount(1); // their real badge
-  await page.waitForTimeout(800);
+  // The members' room is the journal's first chapter (D-137), under its sign.
+  const book = page.getByRole('listbox', { name: /^Hall of Fame, chapter 1 of/ });
+  await expect(book.getByRole('option')).toHaveCount(1);
+  await expect(book.getByRole('option')).toHaveAccessibleName('Player player-3, featured member, page 1 of 1');
+  await expect(book.getByRole('option')).toContainText('Featured member');
+  await expect(page.locator('.journal-sub')).toContainText('1 member');
+  await page.waitForTimeout(1300);
   await page.locator('.device-outer').screenshot({ path: `${EVIDENCE}/members-room.png` });
-  const names = await rooms(page).getByRole('option').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')!.split(',')[0]));
+  // The chapters in the admins' order; the winner nobody hung, and the closed wing, are nowhere.
+  const names: string[] = [];
+  for (let i = 0; i < 10; i++) {
+    const name = (await page.locator('.journal-chapter-name').textContent())!;
+    if (names[0] === name) break;
+    names.push(name);
+    await page.getByRole('button', { name: /^Next chapter/ }).click();
+  }
+  expect(names[0]).toBe('Hall of Fame');
   expect(names).not.toContain('Winners’ Hall');
   expect(names).not.toContain('Collab Wing');
   expect(names).not.toContain('Spring Hackathon');
 
-  // OPEN PROFILE goes to the member's page.
-  await plaque(page).getByRole('button', { name: /OPEN PROFILE/ }).click();
+  // Opened: their real badge and the curator's note; Open profile goes to their page.
+  await page.getByRole('button', { name: /^OPEN Player player-3/ }).click();
+  const spread = page.getByRole('dialog', { name: 'Player player-3' });
+  await expect(spread).toContainText('Built the first kiosk.');
+  await expect(spread.locator('.spread-portrait .badge')).toHaveCount(1);
+  await spread.getByRole('link', { name: /Open profile/ }).click();
   await expect(page).toHaveURL(/\/member\/player-3$/);
 
   // The list view: the same doors, the room with its note, and a closed room says so.

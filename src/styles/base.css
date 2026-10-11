@@ -843,72 +843,6 @@
   pointer-events: none;
   image-rendering: pixelated;
 }
-.room-banner {
-  position: absolute;
-  top: 12px;
-  left: 50%;
-  z-index: 20;
-  max-width: calc(100% - 24px);
-  transform: translateX(-50%);
-  padding: 4px 12px;
-  font-family: var(--font-display);
-  font-size: 16px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  background: var(--color-card-ink);
-  color: var(--color-card-cream);
-}
-.museum-room-backdrop[data-mode='stack'] .room-banner {
-  display: none; /* the chosen room's name stands under its door */
-}
-.room-banner-count {
-  font-family: var(--font-body);
-  font-size: 13px;
-}
-.room-tile {
-  display: grid;
-  place-items: center;
-}
-.room-tile[data-style='arcade'] { background: var(--color-museum-arcade-wall); color: var(--color-museum-arcade-accent); }
-.room-tile[data-style='lab'] { background: var(--color-museum-lab-wall); color: var(--color-card-ink); }
-.room-tile[data-style='library'] { background: var(--color-museum-library-wall); color: var(--color-museum-library-accent); }
-.room-tile[data-style='garden'] { background: var(--color-museum-garden-wall); color: var(--color-card-ink); }
-.room-tile[data-style='trophy'] { background: var(--color-museum-trophy-wall); color: var(--color-museum-trophy-accent); }
-.room-glyph {
-  font-size: 26px;
-  line-height: 1;
-}
-.room-name {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 50%;
-  width: 104px;
-  margin-left: -52px;
-  padding: 0 2px;
-  font-family: var(--font-display);
-  font-size: 11px;
-  line-height: 14px;
-  text-align: center;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  background: var(--color-card-ink);
-  color: var(--color-card-cream);
-}
-.circles[data-mode='stack'] .arc-rooms .arc-option:not([data-chosen]) .room-name {
-  display: none;
-}
-.circles[data-mode='stack'] .arc-rooms .arc-option[data-chosen]::after {
-  display: none; /* the name stands where the arrow would */
-}
-.circles-console {
-  position: absolute;
-  transform: translateY(-50%);
-}
-.museum-circles .circles-console .exhibit-view {
-  width: 100%;
-}
 /* A featured member's portrait (V2-20): their badge at a whole-pixel scale (PortraitArt). */
 .portrait-art {
   position: relative;
@@ -921,9 +855,6 @@
   top: 0;
   width: calc(var(--p) * 56);
   transform-origin: 0 0;
-}
-.circles-portrait {
-  position: absolute;
 }
 
 /* ---------------------------------------------------------------- badge (brief §13) */
@@ -4989,6 +4920,462 @@ a.net-node:focus {
   .ts-start,
   .ts-credits > span,
   .cartridge[data-inserting] {
+    animation: none;
+  }
+}
+
+/* ---------------------------------------------------------------- the Journal (V2-24, D-137) */
+/* The Museum as a flip-book journal on the PIXENDO's screen: a dark stage, one spotlight on the open
+   page, the turned pages stacked on the left and the pages to come on the right. JournalBook places
+   the pages (translate3d + rotateY only). The chapter's room style tints its glyph. */
+.journal-room,
+.booth-journal {
+  --rw: var(--color-museum-garden-wall);
+  overflow: hidden;
+  background: linear-gradient(to bottom, var(--color-void) 0 9%, var(--color-console-bezel) 9% 72%, var(--color-console-grille) 72% 100%);
+}
+.journal-room[data-style='arcade'] { --rw: var(--color-museum-arcade-wall); }
+.journal-room[data-style='lab'] { --rw: var(--color-museum-lab-wall); }
+.journal-room[data-style='library'] { --rw: var(--color-museum-library-wall); }
+.journal-room[data-style='trophy'] { --rw: var(--color-museum-trophy-wall); }
+/* The chapter's title, like a journal's name on its shelf. */
+.journal-head {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  right: 8px;
+  z-index: 20;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
+  align-items: center;
+  gap: 8px;
+}
+.journal-chapter-btn,
+.journal-round {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+}
+.journal-heading {
+  min-width: 0;
+  text-align: center;
+  color: var(--color-card-cream);
+}
+.journal-chapter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  overflow: hidden;
+  font-family: var(--font-display);
+  font-size: clamp(18px, 2.2vw, 28px);
+  font-weight: 400;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.journal-chapter-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.journal-glyph {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  font-size: 16px;
+  background: var(--rw);
+  color: var(--color-card-ink);
+  box-shadow: 0 0 0 2px var(--color-card-ink);
+}
+.journal-sub {
+  font-size: 13px;
+  color: var(--color-console-metal);
+}
+.journal-stage {
+  position: absolute;
+  top: 76px;
+  bottom: 76px;
+  left: 0;
+  right: 0;
+  perspective: var(--persp);
+  perspective-origin: 50% 40%;
+  touch-action: pan-y;
+  cursor: grab;
+}
+.journal-stage:active {
+  cursor: grabbing;
+}
+.journal-stage:focus-visible {
+  outline: 3px solid var(--color-card-cream);
+  outline-offset: -3px;
+}
+.journal-book {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0;
+  height: 0;
+  transform-style: preserve-3d;
+}
+.journal-page {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--front);
+  margin-left: calc(var(--front) / -2);
+  margin-top: calc(var(--front) * -0.43);
+  backface-visibility: hidden;
+  transform-origin: 50% 50%;
+  /* The floor shines: each page's reflection, cut short with a hard edge (no blur). */
+  -webkit-box-reflect: below 6px linear-gradient(transparent 0 74%, color-mix(in srgb, var(--color-card-ink) 24%, transparent) 74%);
+}
+/* Shade falls on the pages as they stack (its opacity is written per page, per frame). */
+.journal-shade {
+  position: absolute;
+  inset: 0;
+  background: var(--color-card-ink);
+  pointer-events: none;
+}
+.journal-paper {
+  position: relative;
+  display: grid;
+  gap: calc(var(--front) * 0.03);
+  padding: calc(var(--front) * 0.05) calc(var(--front) * 0.05) calc(var(--front) * 0.07);
+  background: var(--color-card-cream);
+  color: var(--color-card-ink);
+  box-shadow: 0 0 0 3px var(--color-card-ink), 6px 6px 0 3px var(--color-card-ink);
+}
+/* The folded corner, in two hard steps. */
+.journal-paper::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: calc(var(--front) * 0.1);
+  height: calc(var(--front) * 0.1);
+  background: var(--color-card-lanyard-dark);
+  clip-path: polygon(0 0, 25% 0, 25% 25%, 50% 25%, 50% 50%, 75% 50%, 75% 75%, 100% 75%, 100% 100%, 0 100%);
+}
+.journal-photo {
+  position: relative;
+  display: block;
+  aspect-ratio: 16 / 10;
+  background: var(--color-card-ink);
+  box-shadow: 0 0 0 2px var(--color-card-ink);
+}
+.journal-picture,
+.journal-portrait {
+  position: absolute;
+  inset: 0;
+  display: block;
+  overflow: hidden;
+}
+.journal-picture img,
+.journal-picture canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  image-rendering: pixelated;
+}
+.journal-portrait {
+  display: grid;
+  place-items: center;
+  background: var(--color-card-sky);
+}
+.journal-portrait > * {
+  width: 46%;
+  height: auto;
+}
+/* The photo is taped in. */
+.journal-tape {
+  position: absolute;
+  top: -6px;
+  width: 22%;
+  height: 12px;
+  background: color-mix(in srgb, var(--color-museum-gold-hi) 72%, transparent);
+}
+.journal-tape[data-at='left'] {
+  left: 6%;
+  rotate: -4deg;
+}
+.journal-tape[data-at='right'] {
+  right: 6%;
+  rotate: 3deg;
+}
+.journal-caption {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding-right: calc(var(--front) * 0.12);
+}
+.journal-title {
+  overflow: hidden;
+  font-family: var(--font-display);
+  font-size: clamp(11px, calc(var(--front) * 0.068), 26px);
+  font-weight: 400;
+  line-height: 1.15;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.journal-by {
+  overflow: hidden;
+  font-size: clamp(10px, calc(var(--front) * 0.046), 17px);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.journal-folio {
+  position: absolute;
+  right: calc(var(--front) * 0.05);
+  bottom: calc(var(--front) * 0.035);
+  font-family: var(--font-display);
+  font-size: clamp(9px, calc(var(--front) * 0.04), 14px);
+  color: var(--color-card-plum);
+}
+/* A winner's page wears its ribbon. */
+.journal-ribbon {
+  position: absolute;
+  top: calc(var(--front) * -0.03);
+  left: calc(var(--front) * 0.08);
+  padding: 6px 6px 12px;
+  font-family: var(--font-display);
+  font-size: clamp(9px, calc(var(--front) * 0.04), 14px);
+  background: var(--color-museum-gold);
+  color: var(--color-card-ink);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 78%, 0 100%);
+}
+.journal-ribbon[data-place='2'] {
+  background: var(--color-museum-silver);
+}
+.journal-ribbon[data-place='3'] {
+  background: var(--color-museum-bronze);
+}
+.journal-stage:focus-visible .journal-page[data-front] .journal-paper {
+  outline: 3px dashed var(--color-card-cream);
+  outline-offset: 6px;
+}
+/* Under the book: back, OPEN, next and Present. */
+.journal-controls {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 12px;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+@media (max-width: 520px) {
+  .journal-controls {
+    gap: 8px;
+  }
+  .journal-present-label {
+    display: none; /* the icon stays; its name is in the screen-reader text */
+  }
+}
+
+/* The open page (V2-24): the page in front, opened as a two-page spread over everything. */
+html.spread-open {
+  overflow: hidden;
+}
+.spread-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  justify-items: center;
+  align-items: start; /* with the book's auto margins: centred when it fits, never cut off when it doesn't */
+  padding: 16px;
+  overflow: auto;
+  background: color-mix(in srgb, var(--color-card-ink) 78%, transparent);
+}
+.spread-book {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 12px minmax(0, 1fr);
+  width: min(100%, 1080px);
+  margin-block: auto;
+  background: var(--color-card-face);
+  color: var(--color-card-ink);
+  box-shadow: 0 0 0 4px var(--color-card-ink), 12px 12px 0 4px var(--color-card-ink);
+  animation: spread-in 200ms steps(4) both;
+}
+.spread-page {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  min-width: 0;
+  padding: 20px;
+}
+.spread-page[data-page='left'] {
+  background: var(--color-card-cream);
+  transform-origin: 100% 50%;
+  animation: spread-open 240ms steps(4) 160ms both;
+}
+.spread-spine {
+  background: repeating-linear-gradient(to bottom, var(--color-card-ink) 0 8px, var(--color-card-plum) 8px 16px);
+}
+@keyframes spread-in {
+  from { scale: 0.4; }
+  to { scale: 1; }
+}
+@keyframes spread-open {
+  from { transform: perspective(1400px) rotateY(88deg); }
+  to { transform: none; }
+}
+.spread-book[data-still],
+.spread-book[data-still] .spread-page {
+  animation: none;
+}
+.spread-portrait {
+  display: grid;
+  place-items: center;
+  padding: 12px 0;
+}
+.spread-kicker {
+  font-family: var(--font-display);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+}
+.spread-title {
+  font-family: var(--font-display);
+  font-size: clamp(22px, 3vw, 32px);
+  font-weight: 400;
+  line-height: 1.1;
+}
+.spread-note {
+  display: block;
+  font-style: italic;
+}
+/* The comic reads down the page here: each panel a square beside its line. */
+.spread-page .comic {
+  padding: 0;
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+}
+.spread-page .comic-strip {
+  grid-auto-flow: row;
+}
+.spread-page .comic-panel {
+  grid-template-columns: 96px minmax(0, 1fr);
+  align-items: start;
+}
+.spread-page .comic-art {
+  aspect-ratio: 1;
+}
+.spread-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 4px;
+}
+.spread-qr {
+  display: grid;
+  justify-items: start;
+  gap: 4px;
+}
+.spread-qr svg {
+  display: block;
+  width: 104px;
+  height: 104px;
+}
+.spread-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+@media (max-width: 820px) {
+  .spread-book {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .spread-spine {
+    height: 12px;
+    background: repeating-linear-gradient(to right, var(--color-card-ink) 0 8px, var(--color-card-plum) 8px 16px);
+  }
+  .spread-page[data-page='left'] {
+    transform-origin: 50% 100%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .spread-book,
+  .spread-page {
+    animation: none;
+  }
+}
+/* The kiosk's tour is the presenter's journal (V2-24): the book stays and turns its pages; the
+   stop's plaque slides in under it as a strip. */
+.booth-tour {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: clamp(8px, 1.6vh, 20px);
+  animation: none;
+}
+.booth-journal {
+  position: relative;
+  height: min(52vh, 600px);
+  min-height: 0;
+  box-shadow: 0 0 0 4px var(--color-card-ink), 8px 8px 0 4px var(--color-card-ink);
+}
+.booth-journal .journal-stage {
+  top: 72px;
+  bottom: 16px;
+  cursor: default;
+}
+.booth-chapter {
+  position: absolute;
+  top: 10px;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  margin: 0;
+  text-align: center;
+  font-family: var(--font-display);
+  font-size: clamp(22px, 3.2vh, 38px);
+  color: var(--color-card-cream);
+}
+.booth-chapter span {
+  display: block;
+  font-family: var(--font-body);
+  font-size: clamp(13px, 1.7vh, 18px);
+  color: var(--color-console-metal);
+}
+.booth-tour .booth-plaque {
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) auto;
+  grid-auto-flow: row dense;
+  column-gap: clamp(16px, 2vw, 32px);
+  align-content: start;
+  animation: booth-in 360ms steps(6) both;
+}
+.booth-tour :is(.booth-kicker, .booth-title, .booth-by, .booth-origin, .booth-open) {
+  grid-column: 1;
+}
+.booth-tour :is(.booth-awards, .booth-note, .booth-story, .booth-desc) {
+  grid-column: 2;
+}
+.booth-tour .booth-qr {
+  grid-column: 3;
+  grid-row: 1 / span 6;
+  align-self: start;
+}
+.booth-tour .booth-title {
+  font-size: clamp(26px, 3.8vh, 46px);
+}
+.booth-tour .booth-plaque {
+  padding-block: clamp(10px, 1.8vh, 22px);
+}
+.booth-tour .booth-qr svg {
+  width: clamp(110px, 17vh, 200px);
+}
+.booth-open {
+  justify-self: start;
+}
+@media (prefers-reduced-motion: reduce) {
+  .booth-tour .booth-plaque {
     animation: none;
   }
 }
