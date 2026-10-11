@@ -67,7 +67,7 @@ test('when GitHub’s preview fails to load, the screen falls back to the pixel 
 test('a member uploads a screenshot; after approval it shows on the console instead of GitHub’s preview', async ({ page, browser }) => {
   const db = museum();
   await mockSupabase(page, { user: ME, db, githubRepos: [] });
-  await page.goto('/edit');
+  await page.goto('/edit?tab=projects');
   const list = page.getByRole('list', { name: 'Projects on your card' });
   await expect(list.getByText(/Upload a screenshot to show your app on the console screen/).first()).toBeVisible();
   await list.getByLabel('Upload a screenshot for Tide Tables').setInputFiles({ name: 'app.png', mimeType: 'image/png', buffer: TINY_PNG });

@@ -3,7 +3,7 @@
 import { DialogueBox } from '../dialogue/DialogueBox';
 import type { StatusView } from '../../lib/editorModel';
 
-export function StatusBanner({ view }: { view: StatusView }) {
+export function StatusBanner({ view, compact = false }: { view: StatusView; compact?: boolean }) {
   return (
     <div className="grid gap-space-2">
       <p className="m-0">
@@ -11,7 +11,8 @@ export function StatusBanner({ view }: { view: StatusView }) {
           {view.label}
         </span>
       </p>
-      <DialogueBox text={view.text} emote={view.emote} />
+      {/* Beside the folded badge on phones (D-134) the same words, without Pip's box. */}
+      {compact ? <p className="m-0 text-caption">{view.text}</p> : <DialogueBox text={view.text} emote={view.emote} />}
     </div>
   );
 }

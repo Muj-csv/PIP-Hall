@@ -157,10 +157,16 @@ export default function Mart() {
       {mart && mart.eligible && (
         <>
           <DialogueBox text="Welcome to the PIP MART! Try a frame on your badge, then buy it with PIPs. Frames are yours to keep." />
-          <p className="m-0 font-display text-h3 tracking-[0.04em]" role="status">
-            <span aria-hidden="true">◉ </span>
-            {formatPips(mart.balance)} PIPs
-          </p>
+          <div className="flex flex-wrap items-center justify-between gap-space-2">
+            <p className="m-0 font-display text-h3 tracking-[0.04em]" role="status">
+              <span aria-hidden="true">◉ </span>
+              {formatPips(mart.balance)} PIPs
+            </p>
+            {/* Wearing lives in My Card → Customize too (D-134): one place for everything you wear. */}
+            <Link to="/edit?tab=customize" className="pixel-btn">
+              Wear it in My Card
+            </Link>
+          </div>
           {notice && (
             <p className={notice.bad ? 'notice notice-bad m-0' : 'notice m-0'} role="status">
               {notice.bad && <span aria-hidden="true">! </span>}

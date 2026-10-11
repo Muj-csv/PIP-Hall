@@ -89,7 +89,7 @@ test('delete account: confirm by typing the username; images, account and card g
 
 test('the card editor links to Settings', async ({ page }) => {
   await mockSupabase(page, { user: USER, db: withCard() });
-  await page.goto('/edit');
+  await page.goto('/edit?tab=account');
   await page.getByRole('region', { name: 'Account' }).getByRole('link', { name: 'Settings' }).click();
   await expect(page).toHaveURL(/\/settings$/);
 });

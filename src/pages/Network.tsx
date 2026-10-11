@@ -41,7 +41,7 @@ export default function Network() {
         <DialogueBox
           text={`The map opens when ${DENSITY.members} members have projects and ${DENSITY.teamups} pairs have made something together, so it shows real connections instead of an empty sky. Right now: ${d.members} ${d.members === 1 ? 'member' : 'members'} with projects and ${d.teamups} ${d.teamups === 1 ? 'team-up' : 'team-ups'}.`}
         >
-          <Link to="/edit#collaborators" className="hw-btn no-underline" data-variant="small">
+          <Link to="/edit?tab=projects#collaborators" className="hw-btn no-underline" data-variant="small">
             TAG A TEAMMATE
           </Link>
         </DialogueBox>

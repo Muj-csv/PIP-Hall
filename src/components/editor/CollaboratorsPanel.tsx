@@ -30,7 +30,7 @@ export function CollaboratorsPanel({ projects, myId }: { projects: DraftProject[
     };
   }, [attempt]);
 
-  // Arriving from the bell (/edit#collaborators): bring the panel into view once it has loaded.
+  // Arriving from the bell (/edit?tab=projects#collaborators): bring the panel into view once it has loaded.
   const loaded = state !== null;
   useEffect(() => {
     if (loaded && window.location.hash === '#collaborators') document.getElementById('collaborators')?.scrollIntoView({ block: 'start' });

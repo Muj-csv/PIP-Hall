@@ -54,21 +54,22 @@ test('the callback refuses to redirect off-site', async ({ page }) => {
 
 test('a member can connect GitHub; it asks Supabase to link the identity and goes to GitHub', async ({ page }) => {
   const log = await mockSupabase(page, { user: MEMBER });
-  await page.goto('/edit');
+  await page.goto('/edit?tab=account');
   await expect(page.getByRole('heading', { name: 'My card', level: 1 })).toBeVisible();
   await expect(page.getByRole('region', { name: 'Account' })).toContainText('member@example.org');
+  await page.getByRole('tab', { name: /^Projects/ }).click();
   await page.getByRole('button', { name: 'Connect GitHub', exact: true }).click();
   await expect(page).toHaveURL(/github\.com\/login\/oauth\/authorize/);
   const link = log.requests.find((r) => r.startsWith('GET /auth/v1/user/identities/authorize'));
   const params = new URL(`https://x${link!.slice(4)}`).searchParams;
   expect(params.get('provider')).toBe('github');
-  expect(params.get('redirect_to')).toBe('http://localhost:5173/auth/callback?next=%2Fedit');
+  expect(params.get('redirect_to')).toBe('http://localhost:5173/auth/callback?next=%2Fedit%3Ftab%3Dprojects'); // back to the Projects tab
 });
 
 test('after connecting, the verified handle shows and the callback syncs it to the profile', async ({ page }) => {
   const log = await mockSupabase(page, { user: { ...MEMBER, github: 'octocat' }, githubRepos: [] });
-  await page.goto('/auth/callback?next=%2Fedit');
-  await expect(page).toHaveURL(/\/edit$/);
+  await page.goto('/auth/callback?next=%2Fedit%3Ftab%3Dprojects');
+  await expect(page).toHaveURL(/\/edit\?tab=projects$/);
   await expect(page.getByRole('region', { name: 'Projects' })).toContainText('Public repos of @octocat');
   await expect(page.locator('.preview-stage .sticker').first()).toHaveText('✓ GITHUB');
   expect(log.requests).toContain('POST /rest/v1/rpc/sync_github_identity');
@@ -94,7 +95,7 @@ test('a member who opens /admin is turned away; an admin gets in', async ({ page
 test('signing out on a slow device still lands in the hall, from My card and Settings', async ({ page }) => {
   await mockSupabase(page, { user: MEMBER });
   const cdp = await page.context().newCDPSession(page);
-  for (const from of ['/edit', '/settings']) {
+  for (const from of ['/edit?tab=account', '/settings']) {
     await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
     await page.goto(from);
     await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible();
@@ -109,6 +110,7 @@ test('signing out returns to the hall as a visitor', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('link', { name: 'My card' })).toBeVisible();
   await page.getByRole('link', { name: 'My card' }).click();
+  await page.getByRole('tab', { name: 'Account' }).click(); // My Card → Account (D-134)
   await page.getByRole('button', { name: 'Sign out' }).click();
   await expect(page).toHaveURL('http://localhost:5173/');
   await expect(page.getByRole('link', { name: 'Make your card' })).toBeVisible();
@@ -130,7 +132,7 @@ test('a device clock hours ahead does not loop token refreshes and role lookups'
   // With the clock 15 hours ahead, every token looks expired.
   await page.clock.setSystemTime(new Date(Date.now() + 15 * 3600 * 1000));
   const log = await mockSupabase(page, { user: MEMBER });
-  await page.goto('/edit');
+  await page.goto('/edit?tab=account');
   await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible();
   await page.waitForTimeout(1500);
   const roleReads = log.requests.filter((r) => r.startsWith('GET /rest/v1/user_roles')).length;

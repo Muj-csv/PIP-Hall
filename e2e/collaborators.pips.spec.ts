@@ -33,7 +33,7 @@ const panel = (page: Page) => page.getByRole('region', { name: 'Collaborators' }
 test('tag a member on a project; they accept in their own editor', async ({ page, browser }) => {
   const db = hall();
   await mockSupabase(page, { user: ME, db, githubRepos: [] });
-  await page.goto('/edit');
+  await page.goto('/edit?tab=projects');
   const tide = panel(page).getByRole('form', { name: 'Tag someone on Tide Tables' });
   await tide.getByLabel('Member’s @username').fill('@bee');
   await tide.getByRole('button', { name: 'Tag' }).click();
@@ -44,7 +44,7 @@ test('tag a member on a project; they accept in their own editor', async ({ page
   const ctx = await browser.newContext();
   const bee = await ctx.newPage();
   await mockSupabase(bee, { user: BEE, db, githubRepos: [] });
-  await bee.goto('/edit');
+  await bee.goto('/edit?tab=projects');
   await expect(panel(bee).getByRole('heading', { name: /Collaborators · 1 new/ })).toBeVisible();
   const req = panel(bee).getByRole('list', { name: 'Projects you were tagged on' });
   await expect(req).toContainText('Tide Tables by Ada Lovelace (@ada)');
@@ -60,7 +60,7 @@ test('tag a member on a project; they accept in their own editor', async ({ page
 test('tagging someone not in the hall, or yourself, says why', async ({ page }) => {
   const db = hall();
   await mockSupabase(page, { user: ME, db, githubRepos: [] });
-  await page.goto('/edit');
+  await page.goto('/edit?tab=projects');
   const tide = panel(page).getByRole('form', { name: 'Tag someone on Tide Tables' });
   await tide.getByLabel('Member’s @username').fill('nobody-here');
   await tide.getByRole('button', { name: 'Tag' }).click();
@@ -76,13 +76,13 @@ test('a declined member can’t be asked again', async ({ page, browser }) => {
   const ctx = await browser.newContext();
   const bee = await ctx.newPage();
   await mockSupabase(bee, { user: BEE, db, githubRepos: [] });
-  await bee.goto('/edit');
+  await bee.goto('/edit?tab=projects');
   await panel(bee).getByRole('button', { name: 'Decline Tide Tables' }).click();
   await expect(panel(bee).getByRole('status')).toHaveText('Declined Tide Tables. You won’t be asked about it again.');
   await ctx.close();
 
   await mockSupabase(page, { user: ME, db, githubRepos: [] });
-  await page.goto('/edit');
+  await page.goto('/edit?tab=projects');
   await expect(panel(page).getByRole('list', { name: 'Collaborators on Tide Tables' })).toContainText('✕ declined');
   const tide = panel(page).getByRole('form', { name: 'Tag someone on Tide Tables' });
   await tide.getByLabel('Member’s @username').fill('bee');

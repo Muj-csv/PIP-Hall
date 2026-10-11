@@ -1984,6 +1984,43 @@ a.item-slot:focus-visible,
 .preview-stage .flipper {
   width: calc(var(--p) * 56);
 }
+/* My Card's tabs (V2-21, D-134). Phones and tablets: one row that scrolls sideways. */
+.editor-tabs .tab {
+  flex: none;
+}
+@media (max-width: 1023px) {
+  .tabs.editor-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding: 0 6px 8px 0; /* room for the buttons' hard shadow */
+    scrollbar-width: thin;
+  }
+}
+.tab-note {
+  font-family: var(--font-body);
+  font-size: var(--text-body);
+  letter-spacing: 0;
+}
+.editor-next {
+  display: flex;
+  justify-content: flex-end;
+}
+/* Phones and tablets: the badge folds into a small preview beside its status; tap for the big one. */
+.badge-mini {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+}
+.badge-mini-art {
+  padding: 8px;
+  cursor: pointer;
+  background: var(--color-world-sky);
+  box-shadow: inset 0 0 0 3px var(--color-border);
+}
+.badge-mini-art .flipper {
+  zoom: 0.5; /* a whole step down, so its pixel art stays crisp */
+}
 .field {
   display: grid;
   gap: 4px;
@@ -2606,6 +2643,7 @@ textarea.pixel-input {
 }
 .tab[aria-selected='true']::before {
   content: '▸ ';
+  content: '▸ ' / ''; /* a marker to see, not a word to read: "selected" already says it */
 }
 .queue {
   display: grid;

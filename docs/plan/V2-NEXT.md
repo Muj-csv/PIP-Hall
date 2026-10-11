@@ -157,7 +157,9 @@ Built 2026-10-11: migration `20261011000000_museum_control.sql` (hung winners, p
 - **SQL:** hung winners (seeded with the winners on show today), member portraits with their notes, the rooms' layout (sign, place, hidden), hand-picked wing exhibits; `museum_on_show()`, `museum_exhibits()`, stamps and imports, the Curator title and "a new exhibit" news follow the new rule; admin functions; security tests.
 - **Budget:** ≤ 4 KB gzipped, all in the lazy Museum and Admin chunks (0 on the home page); no extra request on `/museum` (the layout and portraits come with the exhibits).
 
-#### V2-21 · My Card, made clear (P0)
+#### V2-21 · My Card, made clear (P0) · built
+
+Built 2026-10-11: `CardEditor` in four tabs beside the live badge (`lib/editorTabs.ts`), the guide in three steps (`guideStages` in `lib/setupGuide.ts`), `CustomizePanel` (frame, title, plate; wearing only), the Mart's **Wear it in My Card**, the phone fold. Links that pointed into the editor now name their tab: the bell and the network go to `?tab=projects#collaborators`, connecting GitHub comes back to `?tab=projects`. The band picks wait for V2-22. Budget: +2.9 KB gzipped in all (the My Card chunk +2.6, the Mart +0.05, CSS +0.15, the entry +0.04); the home page stays at about 170 KB; Customize asks `my_mart` and `my_titles` only when it is opened, and only for an approved card. Evidence: `docs/build/evidence/my-card/`.
 
 **Loop:** open My Card → see where you are → fill one tab while the live badge changes as you type → Submit → the status says what happens next → once approved, come back to Customize.
 

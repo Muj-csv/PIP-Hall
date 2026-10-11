@@ -1,9 +1,10 @@
-// "Make your card" (D-078): a short quest at the top of My card. Each step says what to do, shows
-// ✓ when it's done, and GO jumps to the field. First-time members get a welcome; once the card is
-// live the guide folds away (and can be hidden or shown any time).
+// "Make your card" (D-078, D-134): a first card is made in three steps, Info → Projects → Send it.
+// Each step says what's still missing, shows ✓ when it's done, and GO opens its tab at the field.
+// First-time members get a welcome; once the card is live the guide is gone (and it can be hidden
+// or shown any time before).
 
 import { useState } from 'react';
-import { guideProgress, jumpToField, type GuideStep } from '../../lib/setupGuide';
+import { guideStages, type GuideStage, type GuideStep } from '../../lib/setupGuide';
 import { DialogueBox } from '../dialogue/DialogueBox';
 
 const HIDE_KEY = 'piphall-guide-hidden';
@@ -16,9 +17,12 @@ function readHidden(): boolean {
   }
 }
 
-export function SetupGuide({ steps, firstTime }: { steps: GuideStep[]; firstTime: boolean }) {
-  const p = guideProgress(steps);
-  const complete = p.done === p.total;
+const list = (steps: GuideStep[]) => steps.map((s) => s.short).join(', ');
+
+export function SetupGuide({ steps, firstTime, onGo }: { steps: GuideStep[]; firstTime: boolean; onGo: (stage: GuideStage) => void }) {
+  const stages = guideStages(steps);
+  const done = stages.filter((g) => g.done).length;
+  const next = stages.find((g) => !g.done) ?? null;
   const [hidden, setHidden] = useState(() => readHidden() && !firstTime);
   const toggle = () =>
     setHidden((h) => {
@@ -31,12 +35,12 @@ export function SetupGuide({ steps, firstTime }: { steps: GuideStep[]; firstTime
     });
 
   const line = firstTime
-    ? 'Welcome to PIP-Hall! Make your badge in a few steps. When you send it, an admin checks it, and then it hangs in the hall for everyone to flip.'
-    : complete
-      ? 'Your card is complete. Nice work!'
-      : p.next
-        ? `Next up: ${p.next.title.toLowerCase()}. ${p.next.hint}`
-        : '';
+    ? 'Welcome to PIP-Hall! Make your badge in three steps: Info, Projects, then send it. An admin checks it, and then it hangs in the hall for everyone to flip.'
+    : !next
+      ? 'Sent! An admin will check your card.'
+      : next.key === 'submit'
+        ? `Last step: ${next.title.toLowerCase()}. ${next.hint}`
+        : `Next up: ${next.title}. Still to add: ${list(next.todo)}.`;
 
   return (
     <section className="menu-panel setup-guide" aria-labelledby="guide-title">
@@ -48,34 +52,34 @@ export function SetupGuide({ steps, firstTime }: { steps: GuideStep[]; firstTime
           {hidden ? 'Show guide' : 'Hide guide'}
         </button>
       </div>
-      <div className="guide-progress" role="progressbar" aria-label="Card setup" aria-valuemin={0} aria-valuemax={p.total} aria-valuenow={p.done} aria-valuetext={`${p.done} of ${p.total} steps done`}>
-        {steps.map((s) => (
-          <i key={s.key} data-done={s.done} />
+      <div className="guide-progress" role="progressbar" aria-label="Card setup" aria-valuemin={0} aria-valuemax={stages.length} aria-valuenow={done} aria-valuetext={`${done} of ${stages.length} steps done`}>
+        {stages.map((g) => (
+          <i key={g.key} data-done={g.done} />
         ))}
       </div>
       <p className="m-0 font-display tracking-[0.04em]">
-        {p.done} of {p.total} steps done{p.ready && !complete ? ' · ready to send' : ''}
+        {done} of {stages.length} steps done{next?.key === 'submit' ? ' · ready to send' : ''}
       </p>
       {!hidden && (
         <div id="guide-steps" className="grid gap-space-3">
-          {line && <DialogueBox text={line} emote={complete ? 'approved' : undefined} />}
+          <DialogueBox text={line} emote={next ? undefined : 'approved'} />
           <ol className="guide-steps">
-            {steps.map((s, i) => (
-              <li key={s.key} data-done={s.done} aria-current={p.next?.key === s.key ? 'step' : undefined}>
+            {stages.map((g, i) => (
+              <li key={g.key} data-done={g.done} aria-current={next?.key === g.key ? 'step' : undefined}>
                 <span className="guide-mark" aria-hidden="true">
-                  {s.done ? '✓' : i + 1}
+                  {g.done ? '✓' : i + 1}
                 </span>
                 <span className="grid gap-[2px]">
-                  <b>
-                    {s.title}
-                    {s.optional && <span className="text-caption text-text-secondary"> (optional)</span>}
-                  </b>
-                  <span className="text-caption text-text-secondary">{s.hint}</span>
-                  <span className="sr-only">{s.done ? 'Done.' : 'Not done yet.'}</span>
+                  <b>{g.title}</b>
+                  <span className="text-caption text-text-secondary">
+                    {g.key === 'submit' ? g.hint : g.done ? 'Done.' : `Still to add: ${list(g.todo)}.`}
+                    {g.key !== 'submit' && g.extra.length > 0 && ` Optional: ${list(g.extra)}.`}
+                  </span>
+                  <span className="sr-only">{g.done ? 'Done.' : 'Not done yet.'}</span>
                 </span>
-                {!s.done && (
-                  <button type="button" className="pixel-btn guide-go" onClick={() => jumpToField(s.field)}>
-                    Go<span className="sr-only"> to {s.title.toLowerCase()}</span>
+                {!g.done && (
+                  <button type="button" className="pixel-btn guide-go" onClick={() => onGo(g)}>
+                    Go<span className="sr-only"> to {g.title.toLowerCase()}</span>
                   </button>
                 )}
               </li>
