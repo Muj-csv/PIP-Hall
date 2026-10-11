@@ -137,7 +137,7 @@ Built as planned (details: D-128). #23 found one thing and made the rest diagnos
 
 ### The owner's round (2026-10-11): V2-20 to V2-22, before V2-14
 
-Everyone shares their card and projects in the hall; the Museum is where the admins choose what is shown. My Card should be easy for a first-time member, with what you *say* (information) apart from how your badge *looks* (customizing). Pip and two frames take their look from the two logos the owner shared (a blue diamond with a ring; a red block with cat eyes), inspired, never copied. Decisions: D-133 (the Museum), D-134 (My Card), D-135 (Pip and the affiliation looks). Order: V2-20, V2-21, V2-22; each one SQL first where there is SQL, then stop and report.
+Everyone shares their card and projects in the hall; the Museum is where the admins choose what is shown. My Card should be easy for a first-time member, with what you *say* (information) apart from how your badge *looks* (customizing). Two frames and their pins carry the real logos of two affiliations, uploaded by an admin as data (D-135); Pip is redrawn in their style (a blue diamond with a ring; a red block with cat eyes). Decisions: D-133 (the Museum), D-134 (My Card), D-135 (Pip and the affiliation looks). Order: V2-20, V2-21, V2-22; each one SQL first where there is SQL, then stop and report.
 
 #### V2-20 · The Museum, curated end to end (P0)
 
@@ -174,12 +174,11 @@ Everyone shares their card and projects in the hall; the Museum is where the adm
 
 **Loop:** an admin tags a member with an affiliation → the member finds its frame and pin in My Card → Customize → they wear them and choose their band → everyone in the hall sees it on their badge.
 
-- **Pip** (D-135), from the two logos, inspired and not copied: a blue diamond body, a white ring for a face, red cat eyes, the antenna bulb kept; no letters, no exact logo shapes. Every pose and every place Pip appears: the hall, the Museum walk, the dialogue portrait, the Mart's unboxing, the kiosk, the badge PNG and the posters. Two new colour tokens (a deep blue, a signal red) in `tokens.json`, checked for contrast by day and by night.
-- **Two new frames,** named for their look, never for anyone: **Diamond** (blue rails, a white ring line, diamond studs, ring corners) and **Cat-eye** (red rails, white stepped trim, cat-eye corners). In Admin → Affiliations an admin gives an affiliation its frame (Member, Diamond or Cat-eye) and its pin; the label the frame prints is the affiliation's name as the admin typed it, so names stay data (D-029, D-067 stand).
-- **Two new pins:** a diamond in a ring and a cat-eye block, in the new blue and red, for affiliations and in the admin's badge builder.
+- **Pip** (D-135), an original sprite in the logos' style: a blue diamond body, a white ring for a face, red cat eyes, the antenna bulb kept; no letters. Every pose and every place Pip appears: the hall, the Museum walk, the dialogue portrait, the Mart's unboxing, the kiosk, the badge PNG and the posters. Two new colour tokens (a deep blue, a signal red) in `tokens.json`, checked for contrast by day and by night.
+- **The real logos, as data:** in Admin → Affiliations an admin uploads the affiliation's logo (PNG, stored like every image, as a Storage path) and gives it a frame: Member, **Diamond** (blue rails, a white ring line, diamond studs) or **Cat-eye** (red rails, white stepped trim). The frame carries the uploaded logo in its corner and prints the affiliation's name as the admin typed it; the **pin** on the band is the logo itself. The code holds only the frame designs, never a logo or a name (D-135).
 - **Who gets them:** members tagged with the affiliation, free; each member chooses whether to wear the frame and show the pin. Nobody else can get them.
 - **The band:** from everything a member has earned (affiliation pins, admin badges, award ribbons, an officer seat) they pick up to 3, in their order, in My Card → Customize; the rest stay on the profile's Proof panel. Until they choose, the band shows what it shows today.
-- **SQL:** the two frames and an affiliation's pin; the member's band (up to 3, each checked as earned); the public card read includes the band; security tests.
+- **SQL:** an affiliation's logo path (admins only upload; a public bucket path read like covers), the two frames; the member's band (up to 3, each checked as earned); the public card read includes the band; security tests.
 - **Budget:** ≤ 4 KB gzipped (sprites and the band picker); sprites drawn once into canvases, as now.
 
 ### V2-14 · The world reacts (#26, #9 sky) (P1)
