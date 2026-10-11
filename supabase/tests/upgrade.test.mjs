@@ -67,6 +67,16 @@ try {
   }
   const made = (await c.query(`select to_regclass('public.museum_features') as t`)).rows[0].t;
   check('…and changes nothing', made === null, made);
+  // The Museum curated end to end (D-133) needs the curated Museum first, and says so.
+  const CONTROL = files.find((f) => f.includes('museum_control'));
+  try {
+    await c.query(readFileSync(join(migDir, CONTROL), 'utf8'));
+    check('the Museum controls refuse to run before the curated Museum', false, 'it ran');
+  } catch (e) {
+    check('the Museum controls refuse to run before the curated Museum, naming it', /run 20261009000000_curated_museum\.sql first/.test(e.message), e.message);
+  }
+  const hung = (await c.query(`select to_regclass('public.museum_hung_winners') as t`)).rows[0].t;
+  check('…and change nothing', hung === null, hung);
 
   console.log('upgrade: Museum migrations on existing cards');
   for (const f of files.filter((f) => f >= BEFORE)) await c.query(readFileSync(join(migDir, f), 'utf8'));
