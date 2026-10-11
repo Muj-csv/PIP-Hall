@@ -1589,6 +1589,86 @@ try {
   await expectOk(c, '…keeping the picks and portraits', 'anon', `select museum_curation() as m`, [], (r) => r.rows[0].m.picks.some((p) => p.wing === 'picked-x' && p.project_id === arc));
   await as(c, ADMIN, `select admin_hang_winner($1, $2, true)`, [season, P1]);
 
+  console.log('the affiliation looks and the band (D-134, D-135)');
+  // Older migrations re-run above (identity, seasons) brought back an older my_mart: run this one
+  // again, twice, as an upgrade would (safe to run again).
+  const LOOKS = readFileSync(join(here, '..', 'migrations', '20261012000100_affiliation_looks.sql'), 'utf8');
+  await c.query(LOOKS);
+  await c.query(LOOKS);
+  const LOGO = `${ADMIN}/11111111-2222-3333-4444-555555555555.png`;
+  await as(c, ADMIN, `select admin_save_affiliation('guild-a', 'Code Guild', false)`);
+  await expectErr(c, 'members cannot set an affiliation’s logo', A, `select admin_set_affiliation_logo('guild-a', $1)`, [`${A}/11111111-2222-3333-4444-555555555555.png`], /NOT_ADMIN/);
+  await expectErr(c, 'visitors cannot either', 'anon', `select admin_set_affiliation_logo('guild-a', null)`, [], /permission denied/);
+  await expectErr(c, 'an admin sets only a logo they uploaded (their own folder)', ADMIN, `select admin_set_affiliation_logo('guild-a', $1)`, [`${A}/11111111-2222-3333-4444-555555555555.png`], /BAD_PATH/);
+  await expectErr(c, '…as a PNG or WebP Storage path, never a URL', ADMIN, `select admin_set_affiliation_logo('guild-a', 'https://example.org/logo.png')`, [], /BAD_PATH/);
+  await expectErr(c, '…not a JPEG', ADMIN, `select admin_set_affiliation_logo('guild-a', $1)`, [LOGO.replace('.png', '.jpg')], /BAD_PATH/);
+  await expectErr(c, '…for an affiliation that exists', ADMIN, `select admin_set_affiliation_logo('nope', $1)`, [LOGO], /NO_SUCH_AFFILIATION/);
+  await expectOk(c, 'an admin sets the logo they uploaded', ADMIN, `select admin_set_affiliation_logo('guild-a', $1)`, [LOGO]);
+  await expectErr(c, 'members cannot write a logo directly', A, `update affiliations set logo_path=$1 where key='guild-a'`, [LOGO], /permission denied/);
+  await expectErr(c, 'the column takes only Storage paths', ADMIN, `update affiliations set logo_path='logo.png' where key='guild-a'`, [], /permission denied|check constraint/);
+  await expectOk(c, 'visitors read the logo’s path with the affiliation', 'anon', `select logo_path from affiliations where key='guild-a'`, [], (r) => r.rows[0].logo_path === LOGO);
+  await expectErr(c, 'a frame is Member, Diamond or Cat-eye', ADMIN, `select admin_set_affiliation_frame('guild-a', 'sparkle')`, [], /NO_SUCH_FRAME/);
+  await expectErr(c, '…for an affiliation that exists', ADMIN, `select admin_set_affiliation_frame('nope', 'diamond')`, [], /NO_SUCH_AFFILIATION/);
+  await expectOk(c, 'an admin gives the affiliation the Diamond frame', ADMIN, `select admin_set_affiliation_frame('guild-a', 'diamond')`, []);
+  await expectErr(c, 'only its members can wear it', A, `select equip_frame('member', 'guild-a')`, [], /NO_SUCH_PERK/);
+  await expectOk(c, '…nor show its pin', A, `select my_mart() as m`, [], (r) => !r.rows[0].m.band_items.some((i) => i.ref === 'pin:guild-a'));
+  await as(c, ADMIN, `select set_member_affiliation($1, 'guild-a', true)`, [A]);
+  await expectOk(c, 'a tagged member finds the frame with its design and logo', A, `select my_mart() as m`, [], (r) =>
+    r.rows[0].m.perks.some((x) => x.key === 'guild-a' && x.design === 'diamond' && x.logo === LOGO && x.label === 'Code Guild'));
+  await expectOk(c, '…and wears it for free', A, `select equip_frame('member', 'guild-a')`, []);
+  await expectOk(c, 'visitors see the Diamond frame with the logo and the name as typed', 'anon', `select card_appearances() as a`, [], (r) =>
+    r.rows[0].a.some((x) => x.profile_id === A && x.frame === 'diamond' && x.label === 'Code Guild' && x.logo === LOGO && x.affiliation === 'guild-a'));
+  await as(c, ADMIN, `select admin_set_affiliation_frame('guild-a', 'cateye')`);
+  await expectOk(c, 'the admin changes the design: the badge follows', 'anon', `select card_appearances() as a`, [], (r) => r.rows[0].a.some((x) => x.profile_id === A && x.frame === 'cateye'));
+  await as(c, ADMIN, `select admin_set_affiliation_frame('guild-a', 'member')`);
+  await expectOk(c, 'the Member design prints NAME MEMBER, with the logo too', 'anon', `select card_appearances() as a`, [], (r) =>
+    r.rows[0].a.some((x) => x.profile_id === A && x.frame === 'member' && x.label === 'CODE GUILD MEMBER' && x.logo === LOGO));
+  await as(c, ADMIN, `select admin_set_affiliation_frame('guild-a', 'diamond')`);
+
+  // The band.
+  const items = (await as(c, A, `select my_mart() as m`)).rows[0].m;
+  const refs = items.band_items.map((i) => i.ref);
+  const award = refs.find((x) => x.startsWith('award:'));
+  if (items.band === null && refs.includes('pin:guild-a') && award) ok('until they choose, no band; the choices are what they earned: the pin and their ribbons');
+  else bad('until they choose, no band; the choices are what they earned: the pin and their ribbons', { band: items.band, refs });
+  await expectOk(c, '…the pin carries the logo and the name', A, `select my_mart() as m`, [], (r) => r.rows[0].m.band_items.some((i) => i.ref === 'pin:guild-a' && i.kind === 'pin' && i.logo === LOGO && i.name === 'Code Guild'));
+  await expectOk(c, '…a ribbon says where it was won', A, `select my_mart() as m`, [], (r) => r.rows[0].m.band_items.some((i) => i.ref === award && i.kind === 'award' && i.event && (i.place || i.name)));
+  await expectErr(c, 'visitors cannot choose a band', 'anon', `select set_band(array['pin:guild-a'])`, [], /permission denied/);
+  await expectErr(c, 'a member without a card in the hall cannot', NOCARD, `select set_band(array[]::text[])`, [], /NOT_ELIGIBLE/);
+  await expectErr(c, 'up to 3 things', A, `select set_band($1)`, [['pin:guild-a', award, 'badge:x', 'officer:y']], /TOO_MANY/);
+  await expectErr(c, '…each once', A, `select set_band($1)`, [['pin:guild-a', 'pin:guild-a']], /TWICE/);
+  await expectErr(c, '…each earned: not another affiliation’s pin', A, `select set_band(array['pin:robotics'])`, [], /NOT_EARNED/);
+  await expectErr(c, '…not a badge they don’t have', A, `select set_band(array['badge:nope'])`, [], /NOT_EARNED/);
+  await expectErr(c, '…not a blank', A, `select set_band(array[null]::text[])`, [], /NOT_EARNED/);
+  await expectErr(c, 'another member cannot wear the pin', B, `select set_band(array['pin:guild-a'])`, [], /NOT_EARNED|NOT_ELIGIBLE/);
+  await expectErr(c, 'members cannot write their band directly', A, `update card_appearance set band = array['pin:robotics'] where member_id=$1`, [A], /permission denied/);
+  await expectErr(c, 'visitors cannot read anyone’s choices directly', 'anon', `select band_items($1)`, [A], /permission denied/);
+  await expectErr(c, '…nor their awards', 'anon', `select member_awards($1)`, [A], /permission denied/);
+  await expectOk(c, 'a member chooses their band, in their order', A, `select set_band($1)`, [[award, 'pin:guild-a']]);
+  await expectOk(c, 'visitors see it in that order', 'anon', `select card_appearances() as a`, [], (r) => {
+    const me = r.rows[0].a.find((x) => x.profile_id === A);
+    return me?.band.map((i) => i.ref).join() === `${award},pin:guild-a` && me.band[1].logo === LOGO && me.frame === 'diamond';
+  });
+  await expectOk(c, 'my_mart says what’s on it', A, `select my_mart() as m`, [], (r) => r.rows[0].m.band.join() === `${award},pin:guild-a`);
+  await expectOk(c, 'the order can change', A, `select set_band($1)`, [['pin:guild-a', award]]);
+  await expectOk(c, '…and the badge follows', 'anon', `select card_appearances() as a`, [], (r) => r.rows[0].a.find((x) => x.profile_id === A)?.band[0].ref === 'pin:guild-a');
+  await as(c, ADMIN, `select admin_set_affiliation_logo('guild-a', null)`);
+  await expectOk(c, 'when an admin takes the logo away, the pin goes and the frame shows none', 'anon', `select card_appearances() as a`, [], (r) => {
+    const me = r.rows[0].a.find((x) => x.profile_id === A);
+    return me?.band.map((i) => i.ref).join() === award && me.frame === 'diamond' && me.logo === null;
+  });
+  await as(c, ADMIN, `select admin_set_affiliation_logo('guild-a', $1)`, [LOGO]);
+  await as(c, ADMIN, `select set_member_affiliation($1, 'guild-a', false)`, [A]);
+  await expectOk(c, 'when the member leaves the affiliation, its frame and pin go; the rest stays', 'anon', `select card_appearances() as a`, [], (r) => {
+    const me = r.rows[0].a.find((x) => x.profile_id === A);
+    return me && me.frame === undefined && me.band.map((i) => i.ref).join() === award;
+  });
+  await expectOk(c, 'showing nothing is a choice too', A, `select set_band(array[]::text[])`, []);
+  await expectOk(c, '…an empty band, not the hall’s pick', 'anon', `select card_appearances() as a`, [], (r) => r.rows[0].a.find((x) => x.profile_id === A)?.band.length === 0);
+  await expectOk(c, 'and back to the band the hall picks', A, `select set_band(null)`, []);
+  await expectOk(c, '…which leaves nothing to say about the badge', 'anon', `select card_appearances() as a`, [], (r) => !r.rows[0].a.some((x) => x.profile_id === A));
+  await expectOk(c, 'the frame’s title and plate stay as they were', A, `select my_mart() as m`, [], (r) => r.rows[0].m.band === null && 'title' in r.rows[0].m.equipped);
+
   console.log('account deletion');
   await expectErr(c, 'anon cannot call delete_my_account', 'anon', `select delete_my_account()`, [], /permission denied/);
   await expectOk(c, 'member deletes own account', B, `select delete_my_account()`, []);

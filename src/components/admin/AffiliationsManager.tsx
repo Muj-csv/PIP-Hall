@@ -1,12 +1,14 @@
 // Admin → Affiliations (D-067): the labels admins give members, e.g. an organization or
-// "CS Student". One can grant Museum access, or be an officers' team for a term (D-123). Names are
-// data, so the code stays brand-neutral.
+// "CS Student". One can grant Museum access, be an officers' team for a term (D-123), and give its
+// members a frame and a pin carrying the logo an admin uploads (D-135). Names and logos are data,
+// so the code stays brand-neutral.
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { affiliationKey, affiliationService, museumErrorMessage, museumService } from '../../services/museumService';
 import type { Affiliation, MuseumSummaryRow } from '../../types/museum';
 import { pipsEnabled } from '../../lib/features';
-import { martService } from '../../services/martService';
+import { AffiliationLook } from './AffiliationLook';
+import { FRAME_NAME } from '../../lib/looks';
 import { officerErrorMessage, officerService } from '../../services/officerService';
 import { OfficerTeams } from './OfficerTeams';
 import { DialogueBox } from '../dialogue/DialogueBox';
@@ -91,7 +93,14 @@ export function AffiliationsManager({ onDone }: { onDone: (message: string) => v
               <li key={a.key} className="flex flex-wrap items-center gap-space-3">
                 <b>◆ {a.name}</b>
                 <span className="text-caption text-text-secondary">
-                  {[a.grants_museum ? 'Museum access' : null, a.frame_key === 'member' ? 'member frame' : null, a.officers ? 'officers’ team' : null].filter(Boolean).join(' · ') || 'Label only'}
+                  {[
+                    a.grants_museum ? 'Museum access' : null,
+                    a.frame_key && a.frame_key in FRAME_NAME ? `${FRAME_NAME[a.frame_key as keyof typeof FRAME_NAME]} frame` : null,
+                    a.logo_path ? 'logo' : null,
+                    a.officers ? 'officers’ team' : null,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ') || 'Label only'}
                 </span>
                 <button
                   type="button"
@@ -114,21 +123,6 @@ export function AffiliationsManager({ onDone }: { onDone: (message: string) => v
                 >
                   {a.grants_museum ? 'Remove Museum access' : 'Give Museum access'}
                 </button>
-                {pipsEnabled && (
-                  <button
-                    type="button"
-                    className="pixel-btn"
-                    disabled={busy}
-                    onClick={() =>
-                      void run(
-                        () => martService.setAffiliationFrame(a.key, a.frame_key !== 'member'),
-                        a.frame_key === 'member' ? `${a.name} no longer gives a member frame.` : `${a.name} members can now wear a member frame.`,
-                      )
-                    }
-                  >
-                    {a.frame_key === 'member' ? 'Remove member frame' : 'Give member frame'}
-                  </button>
-                )}
                 {confirm === a.key ? (
                   <>
                     <button type="button" className="pixel-btn" data-variant="primary" disabled={busy} onClick={() => void run(() => affiliationService.remove(a.key), `Deleted ${a.name}.`).then(() => setConfirm(null))}>
@@ -143,6 +137,7 @@ export function AffiliationsManager({ onDone }: { onDone: (message: string) => v
                     Delete…
                   </button>
                 )}
+                {pipsEnabled && <AffiliationLook a={a} busy={busy} run={run} />}
               </li>
             ))}
           </ul>

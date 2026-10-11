@@ -5,10 +5,11 @@
 export type SpriteMap = readonly string[];
 
 export const SPR = {
-  // Pip, the hall's host: antenna bulb, shining eyes, blushing cheeks, shaded on the right.
-  pipIdle: ['.....kyk....', '......k.....', '...kkkkkk...', '..kwwwwwwk..', '.kwwwwwwwPk.', '.kwkwwwkwPk.', '.kwkkwwkkPk.', '.kErwwwwErk.', '.kwwwkkwwPk.', '..kwwwwwPk..', '...kkkkkk...', '..kvvk.kvvk.'],
-  pipWalk: ['......kyk...', '......k.....', '...kkkkkk...', '..kwwwwwwk..', '.kwwwwwwwPk.', '.kwkwwwkwPk.', '.kwkkwwkkPk.', '.kErwwwwErk.', '.kwwwkkwwPk.', '..kwwwwwPk..', '...kkkkkk...', '...kvvvvk...'],
-  pipJump: ['.....kyk....', '......k.....', '.k.kkkkkk.k.', '.kkwwwwwwkk.', '.kwwwwwwwPk.', '.kwkkwwkkPk.', '.kwwwwwwwPk.', '.kErwwwwErk.', '.kwwwrrwwPk.', '..kwwwwwPk..', '...kkkkkk...', '..kvk..kvk..'],
+  // Pip, the hall's host (V2-22, D-135): a blue diamond with a white face and red cat eyes, the
+  // antenna bulb on its tip; lit on the left, shaded on the right. No letters.
+  pipIdle: ['.....kyk....', '......k.....', '.....kIk....', '....kIAAk...', '...kIwwwAk..', '..kIekwkePk.', '.kAwwewewwPk', '..kAwwwwwPk.', '...kAwwwPk..', '....kAAPk...', '.....kPk....', '...kvk.kvk..'],
+  pipWalk: ['......kyk...', '......k.....', '.....kIk....', '....kIAAk...', '...kIwwwAk..', '..kIekwkePk.', '.kAwwewewwPk', '..kAwwwwwPk.', '...kAwwwPk..', '....kAAPk...', '.....kPk....', '....kvkvk...'],
+  pipJump: ['.....kyk....', '......k.....', '.....kIk....', '....kIAAk...', '...kIwwwAk..', '..kIekwkePk.', '.kAwwewewwPk', '..kAwwkwwPk.', '...kAwwwPk..', '....kAAPk...', '.....kPk....', '..kvk...kvk.'],
   // A spinning coin: face with an embossed slot, quarter turn, edge.
   coin0: ['..kkkk..', '.khhyyk.', 'khyyyydk', 'khydhydk', 'khydhydk', 'khydhydk', 'khydhydk', 'khyyyydk', '.kyyddk.', '..kkkk..'],
   coin1: ['...kk...', '..khyk..', '..khyk..', '..khdk..', '..khdk..', '..khdk..', '..khdk..', '..khyk..', '..kydk..', '...kk...'],
@@ -56,8 +57,11 @@ export type Palette = Readonly<Record<string, string>>;
 /** The level. Follows DAY/NIGHT. */
 export const WORLD_PALETTE: Palette = {
   k: '--color-card-ink',
-  w: '--color-world-pip-body',
-  r: '--color-world-pip-cheek',
+  // Pip: a deep blue body (lit, shaded), a white face, signal red eyes (D-135).
+  A: '--color-world-pip-body',
+  I: '--color-world-pip-hi',
+  w: '--color-card-face',
+  e: '--color-card-signal-red',
   v: '--color-world-pip-feet',
   y: '--color-world-coin',
   d: '--color-world-coin-shade',
@@ -77,7 +81,6 @@ export const WORLD_PALETTE: Palette = {
   M: '--color-card-metal',
   // Shading tones from the art pass (D-079).
   P: '--color-world-pip-shade',
-  E: '--color-world-cheek-hi',
   L: '--color-world-grass-hi',
   O: '--color-world-dirt-hi',
   Q: '--color-world-brick-hi',
@@ -288,6 +291,9 @@ export const FRAME_DOODLES: Readonly<Record<string, { sprite: SpriteMap; palette
   pearl: { sprite: ['.m.', 'mhm', '.m.'], palette: { m: '--color-card-metal', h: '--color-card-metal-hi' } },
   gold: { sprite: ['.h.', 'hyd', '.d.'], palette: { h: '--color-card-coin-hi', y: '--color-card-coin', d: '--color-card-coin-shade' } },
   member: { sprite: ['.H.', 'HMk', '.k.'], palette: { H: '--color-card-metal-hi', M: '--color-card-metal', k: '--color-card-ink' } },
+  // The affiliation designs (V2-22, D-135): a white diamond stud on blue, a white step on red.
+  diamond: { sprite: ['.w.', 'wbw', '.w.'], palette: { w: '--color-card-face', b: '--color-card-deep-blue' } },
+  cateye: { sprite: ['w..', 'ww.', '.ww'], palette: { w: '--color-card-face' } },
 };
 
 /** Rank gems on the badge band (D-080): a different shape per rank, not just a different colour. */

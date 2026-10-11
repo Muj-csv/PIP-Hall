@@ -1,5 +1,6 @@
-// My Card → Customize (V2-21, D-134): everything a member can wear, in one place: the frame, the
-// title and the plate it sits on. Wearing happens here; buying stays in the PIP MART. It asks the
+// My Card → Customize (V2-21, D-134): everything a member can wear, in one place: the frame (bought,
+// or an affiliation's, V2-22), the title and the plate it sits on, and the band (up to 3 things
+// earned, in order, V2-22). Wearing happens here; buying stays in the PIP MART. It asks the
 // Mart's own questions (my_mart, my_titles) when the tab first opens, and every change is checked
 // by the database. The badge beside the tabs shows what's worn as soon as the hall's looks refresh.
 
@@ -7,11 +8,13 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { useAppearance } from '../../app/appearanceContext';
 import { pipsEnabled } from '../../lib/features';
+import { perkFrameName } from '../../lib/looks';
 import { TITLES, type TitleKey } from '../../lib/titles';
 import { martErrorMessage, martNotSetUp, martService, type MyTitles } from '../../services/martService';
 import type { MyMart } from '../../types/mart';
 import { DialogueBox } from '../dialogue/DialogueBox';
 import { Panel } from '../shell/MenuPage';
+import { BandPicker } from './BandPicker';
 
 type Load = { status: 'loading' } | { status: 'error'; notSetUp: boolean } | { status: 'ready'; mart: MyMart; titles: MyTitles | null };
 
@@ -94,7 +97,7 @@ function Wardrobe() {
 
   return (
     <>
-      <DialogueBox text="Pick what your badge wears. It changes on your badge here and in the hall. New frames and plates come from the PIP MART." />
+      <DialogueBox text="Pick what your badge wears: a frame, a title, its plate, and the band of pins along the top. It changes on your badge here and in the hall. New frames and plates come from the PIP MART." />
       {notice && (
         <p className={notice.bad ? 'notice notice-bad m-0' : 'notice m-0'} role="status">
           {notice.bad && <span aria-hidden="true">! </span>}
@@ -118,11 +121,11 @@ function Wardrobe() {
           {mart.perks.map((p) => (
             <li key={p.key}>
               <WearRow
-                name={`${p.label} frame`}
+                name={perkFrameName(p)}
                 detail={`Free with your ${p.name} affiliation.`}
                 wearing={e.frame === 'member' && e.affiliation === p.key}
                 busy={busy}
-                onWear={() => void wear(() => martService.equip('member', p.key), `Wearing the ${p.label} frame.`)}
+                onWear={() => void wear(() => martService.equip('member', p.key), `Wearing the ${perkFrameName(p)}.`)}
               />
             </li>
           ))}
@@ -175,6 +178,15 @@ function Wardrobe() {
             </Link>
           )}
         </section>
+      )}
+
+      {mart.band_items && (
+        <BandPicker
+          chosen={mart.band ?? null}
+          items={mart.band_items}
+          busy={busy}
+          onSave={(refs) => void wear(() => martService.setBand(refs), refs === null ? 'The hall picks your band again.' : refs.length === 0 ? 'Your band is empty now.' : 'Your band is saved.')}
+        />
       )}
     </>
   );

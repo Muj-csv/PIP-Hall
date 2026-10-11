@@ -174,7 +174,9 @@ Built 2026-10-11: `CardEditor` in four tabs beside the live badge (`lib/editorTa
 - **Phones:** the badge folds into a small preview at the top (tap for the big one), the tabs scroll sideways, Save and Submit stay at the bottom.
 - No SQL. **Budget:** ≤ 3 KB gzipped (the editor is a lazy chunk); no new requests (Customize uses the Mart's calls, made when the tab opens).
 
-#### V2-22 · Pip's new look and the affiliation looks (P1)
+#### V2-22 · Pip's new look and the affiliation looks (P1) · built
+
+Built 2026-10-11: migrations `20261012000000_affiliation_logos_storage.sql` (the public logos bucket, admins only upload) and `20261012000100_affiliation_looks.sql` (an affiliation's logo path and frame design; the member's band, up to 3, each checked as earned when chosen and whenever a badge is drawn; `card_appearances()` and `my_mart()` carry them); Pip redrawn (all three poses, every place he appears, through the one sprite set); two tokens, `card.deep-blue` and `card.signal-red`, plus Pip's own body, shade and highlight re-valued (body lighter at night: 3.9:1 on the day sky, 3.6:1 on the night sky); the Diamond and Cat-eye frames; the logo in the frame's corner and as a pin; Admin → Affiliations' frame select and logo upload; My Card → Customize's band picker. Not in this phase: the badge PNG (`api/badge`) still draws the hall's band, not a chosen one, and no affiliation frame (a follow-up). Budget: +2.8 KB gzipped in all (the entry +0.75, CSS +0.43, My Card +0.73, Admin +0.85, the rest +0.07); the home page at 170.6 KB; no new requests (the band rides `card_appearances()` and `my_mart()`). Evidence: `docs/build/evidence/looks/`.
 
 **Loop:** an admin tags a member with an affiliation → the member finds its frame and pin in My Card → Customize → they wear them and choose their band → everyone in the hall sees it on their badge.
 

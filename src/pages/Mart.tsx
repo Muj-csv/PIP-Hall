@@ -13,6 +13,7 @@ import { DialogueBox } from '../components/dialogue/DialogueBox';
 import { Unbox } from '../components/mart/Unbox';
 import { MenuPage } from '../components/shell/MenuPage';
 import { pipsEnabled } from '../lib/features';
+import { perkFrameName } from '../lib/looks';
 import { formatPips } from '../lib/pips';
 import { dateRange } from '../lib/seasons';
 import { isPlateStyle, TITLES, type HallTitle, type PlateStyle, type TitleKey } from '../lib/titles';
@@ -94,7 +95,7 @@ export default function Mart() {
 
   const mine = cards.status === 'ready' ? cards.cards.find((c) => c.profile_id === userId) : undefined;
   const mart = load.status === 'ready' ? load.mart : null;
-  const perkLook = (p: Perk): Appearance => ({ frame: 'member', label: p.label });
+  const perkLook = (p: Perk): Appearance => ({ frame: p.design ?? 'member', label: p.label, logo: p.logo ?? null });
   const wearing: Appearance | null = (() => {
     const e = mart?.equipped;
     if (!e?.frame) return null;
@@ -315,12 +316,12 @@ export default function Mart() {
                   <ul className="mart-list">
                     {mart.perks.map((p) => (
                       <li key={p.key}>
-                        <Row name={`${p.label} frame`} detail={`Free with your ${p.name} affiliation.`} status={same(wearing, perkLook(p)) ? 'Wearing' : 'Free'}>
+                        <Row name={perkFrameName(p)} detail={`Free with your ${p.name} affiliation.`} status={same(wearing, perkLook(p)) ? 'Wearing' : 'Free'}>
                           <button type="button" className="pixel-btn" onClick={() => setTrying(perkLook(p))}>
                             Try on
                           </button>
                           {!same(wearing, perkLook(p)) && (
-                            <button type="button" className="pixel-btn" data-variant="primary" disabled={busy} onClick={() => void run(() => martService.equip('member', p.key), `Wearing the ${p.label} frame.`)}>
+                            <button type="button" className="pixel-btn" data-variant="primary" disabled={busy} onClick={() => void run(() => martService.equip('member', p.key), `Wearing the ${perkFrameName(p)}.`)}>
                               Wear
                             </button>
                           )}

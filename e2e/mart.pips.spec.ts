@@ -120,16 +120,20 @@ test('a member without a card in the hall is told the Mart opens after approval'
   await expect(page.locator('.dialogue').getByRole('link', { name: 'MY CARD', exact: true })).toBeVisible();
 });
 
-test('admins choose which affiliations give a member frame', async ({ page }) => {
+test('admins choose which affiliations give a frame, and which design (D-135)', async ({ page }) => {
   const db = hall();
   db.affiliations = [{ key: 'code-guild', name: 'Code Guild', grants_museum: false, frame_key: null, sort: 1 }];
   await mockSupabase(page, { user: ADMIN, db });
   await page.goto('/admin');
   await page.getByRole('tab', { name: 'Affiliations' }).click();
-  await page.getByRole('button', { name: 'Give member frame' }).click();
-  await expect(page.locator('main > .notice')).toHaveText('Code Guild members can now wear a member frame.');
+  const frame = page.getByRole('group', { name: 'Code Guild: frame and logo' }).getByLabel('Frame for its members');
+  await frame.selectOption('member');
+  await expect(page.locator('main > .notice')).toHaveText('Code Guild members can now wear the Member frame.');
   expect(db.affiliations[0]!.frame_key).toBe('member');
-  await expect(page.getByText('member frame', { exact: true })).toBeVisible();
+  await expect(page.getByText('Member frame', { exact: true })).toBeVisible();
+  await frame.selectOption('');
+  await expect(page.locator('main > .notice')).toHaveText('Code Guild no longer gives a frame.');
+  expect(db.affiliations[0]!.frame_key).toBeNull();
 });
 
 test('a database without the PIP MART update says so, instead of blaming the connection', async ({ page }) => {

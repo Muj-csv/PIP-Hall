@@ -1189,9 +1189,58 @@
     conic-gradient(at var(--p) var(--p), transparent 75%, var(--trim) 0) 0 0 / var(--p) var(--trim-gap);
   animation: pearl-gleam 3s steps(24) infinite;
 }
-/* The dark frames print in cream so the label stays readable. */
+/* The affiliation designs (V2-22, D-135), worn free by an affiliation's members. Diamond: deep
+   blue rails, a white line round the insert, white studs down the rails, white diamonds in the
+   corners. Cat-eye: signal red rails with a white stepped trim. They hold still: their marks are
+   the logo and the name. */
+.badge[data-frame='diamond'] {
+  --color-card-frame: var(--color-card-deep-blue);
+  --color-card-frame-hi: var(--color-card-deep-blue);
+  --color-card-frame-shade: var(--color-card-ink);
+  --trim: var(--color-card-face);
+  --trim-gap: calc(var(--p) * 4);
+}
+.badge[data-frame='cateye'] {
+  --color-card-frame: var(--color-card-signal-red);
+  --color-card-frame-hi: var(--color-card-signal-red);
+  --color-card-frame-shade: var(--color-card-ink);
+  --trim: var(--color-card-face);
+}
+.badge[data-frame='diamond'] .insert,
+.badge[data-frame='cateye'] .insert {
+  box-shadow: inset 0 0 0 3px var(--color-card-ink), 0 0 0 2px var(--color-card-face);
+}
+.badge[data-frame='cateye'] .holder::before,
+.badge[data-frame='cateye'] .holder::after {
+  width: calc(var(--p) * 2);
+  background:
+    conic-gradient(at var(--p) var(--p), transparent 75%, var(--trim) 0) 0 0 / calc(var(--p) * 2) calc(var(--p) * 2),
+    conic-gradient(at var(--p) var(--p), transparent 75%, var(--trim) 0) var(--p) var(--p) / calc(var(--p) * 2) calc(var(--p) * 2);
+}
+.badge[data-frame='cateye'] .holder::before {
+  left: var(--p);
+}
+.badge[data-frame='cateye'] .holder::after {
+  right: var(--p);
+}
+/* The dark frames print in cream so the label stays readable; the affiliation designs in white
+   (on blue 7.1:1, on red 5.0:1). */
 .badge[data-frame='dusk'] .holder-print {
   color: var(--color-card-cream);
+}
+.badge[data-frame='diamond'] .holder-print[data-label='perk'],
+.badge[data-frame='cateye'] .holder-print[data-label='perk'] {
+  color: var(--color-card-face);
+}
+/* The logo an admin uploaded for the affiliation (D-135), in the frame's top-left corner. A picture,
+   not pixel art: it scales smoothly. */
+.holder-logo {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: calc(var(--p) * 3.5);
+  height: calc(var(--p) * 3.5);
+  object-fit: contain;
 }
 /* A perk frame's label (e.g. ACM MEMBER) is the print: tighter tracking so longer names fit. */
 .holder-print[data-label='perk'] {
@@ -1253,6 +1302,13 @@
   height: 10px;
   width: auto;
   image-rendering: pixelated;
+}
+/* An affiliation's pin is its logo (D-135), a little larger than a gem so it can be told apart. */
+.pin-logo {
+  display: block;
+  width: 12px;
+  height: 12px;
+  object-fit: contain;
 }
 .band-rank {
   margin-left: auto;
@@ -4524,4 +4580,72 @@ a.net-node:focus {
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+/* ---------------------------------------------------------------- the affiliation looks (V2-22, D-135) */
+.aff-look {
+  flex-basis: 100%;
+  display: grid;
+  gap: 12px;
+  padding: 12px 0 0 16px;
+  border-left: 3px solid var(--color-border);
+}
+@media (min-width: 768px) {
+  .aff-look {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start;
+  }
+}
+.aff-logo {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+  background: var(--color-surface-raised);
+  box-shadow: inset 0 0 0 2px var(--color-border);
+}
+/* My Card → Customize → Band (D-134): the picks in order, then everything earned. */
+.band-picks {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.band-picks li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 8px;
+  background: var(--color-surface-raised);
+  box-shadow: inset 0 0 0 2px var(--color-border);
+}
+.band-pick-n {
+  flex: none;
+  width: 24px;
+  font-family: var(--font-display);
+  text-align: center;
+}
+.band-choices {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.band-choice {
+  align-items: center;
+}
+.band-choice .pin-gem,
+.band-choice .pin-ribbon,
+.band-choice .pin-logo,
+.band-picks .pin-gem,
+.band-picks .pin-ribbon,
+.band-picks .pin-logo {
+  flex: none;
+  height: 20px;
+  width: auto;
+}
+.band-choice .pin-logo,
+.band-picks .pin-logo {
+  width: 20px;
 }

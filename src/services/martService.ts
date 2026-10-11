@@ -1,7 +1,7 @@
 // PIP MART (E2). Buying and equipping happen in the database (supabase/migrations/*_pip_mart.sql);
 // this only asks. Prices and balances are never computed here.
 
-import type { AdminMartItem, Appearance, MyMart, Pin } from '../types/mart';
+import type { AdminMartItem, AffiliationFrame, Appearance, BandItem, MyMart, Pin } from '../types/mart';
 import type { FrameStyle } from '../lib/rewards';
 import { parseHallTitle, type HallTitle, type TitleKey } from '../lib/titles';
 import { requireSupabase } from './supabase';
@@ -64,12 +64,23 @@ export const martService = {
     if (error) throw error;
   },
 
-  /** Every badge's frame, keyed by profile id (public). Empty without a database. */
-  async appearances(): Promise<Map<string, Appearance>> {
-    if (!useSupabase) return new Map();
+  /** Every badge's frame and the band its member chose (V2-22), keyed by profile id (public).
+   *  Empty without a database. */
+  async appearances(): Promise<{ frames: Map<string, Appearance>; bands: Map<string, BandItem[]> }> {
+    if (!useSupabase) return { frames: new Map(), bands: new Map() };
     const { data, error } = await requireSupabase().rpc('card_appearances');
     if (error) throw error;
-    return new Map(((data ?? []) as (Appearance & { profile_id: string })[]).map((a) => [a.profile_id, { frame: a.frame, label: a.label, style: a.style ?? null }]));
+    const rows = (data ?? []) as (Partial<Appearance> & { profile_id: string; band?: BandItem[] })[];
+    return {
+      frames: new Map(rows.flatMap((a) => (a.frame ? [[a.profile_id, { frame: a.frame, label: a.label ?? null, style: a.style ?? null, logo: a.logo ?? null }] as const] : []))),
+      bands: new Map(rows.flatMap((a) => (Array.isArray(a.band) ? [[a.profile_id, a.band] as const] : []))),
+    };
+  },
+
+  /** Chooses the band: up to 3 refs from my_mart's band_items, in order; null lets the hall pick. */
+  async setBand(refs: string[] | null): Promise<void> {
+    const { error } = await requireSupabase().rpc('set_band', { p_band: refs });
+    if (error) throw error;
   },
 
   /** Every member's admin-made badges, keyed by profile id (public, D-087). Empty without a database
@@ -120,9 +131,15 @@ export const martService = {
     return Boolean(data);
   },
 
-  /** Admins: make an affiliation give its members the member frame, or stop. */
-  async setAffiliationFrame(key: string, gives: boolean): Promise<void> {
-    const { error } = await requireSupabase().rpc('admin_set_affiliation_frame', { p_key: key, p_frame: gives ? 'member' : null });
+  /** Admins: give an affiliation's members a frame design (Member, Diamond, Cat-eye), or none. */
+  async setAffiliationFrame(key: string, frame: AffiliationFrame | null): Promise<void> {
+    const { error } = await requireSupabase().rpc('admin_set_affiliation_frame', { p_key: key, p_frame: frame });
+    if (error) throw error;
+  },
+
+  /** Admins: set an affiliation's logo to a file they uploaded (a Storage path), or take it away. */
+  async setAffiliationLogo(key: string, path: string | null): Promise<void> {
+    const { error } = await requireSupabase().rpc('admin_set_affiliation_logo', { p_key: key, p_path: path });
     if (error) throw error;
   },
 };
@@ -145,6 +162,12 @@ export function martErrorMessage(e: unknown): string {
   if (/NO_SUCH_ITEM/.test(msg)) return 'That item isn’t for sale anymore.';
   if (/NOT_OWNED/.test(msg)) return 'Buy that frame first to wear it.';
   if (/NO_SUCH_PERK/.test(msg)) return 'That frame comes with an affiliation you don’t have.';
+  if (/TOO_MANY/.test(msg)) return 'Your band holds up to 3 things.';
+  if (/TWICE/.test(msg)) return 'Each thing goes on your band once.';
+  if (/NOT_EARNED/.test(msg)) return 'One of those isn’t yours to wear anymore. Pick again.';
+  if (/BAD_PATH/.test(msg)) return 'Upload the logo again: only a PNG or WebP you uploaded can be used.';
+  if (/NO_SUCH_AFFILIATION/.test(msg)) return 'That affiliation doesn’t exist anymore.';
+  if (/NO_SUCH_FRAME/.test(msg)) return 'Pick Member, Diamond or Cat-eye.';
   if (/NOT_ADMIN/.test(msg)) return 'Only hall admins can do that.';
   if (/BAD_STYLE/.test(msg)) return 'That border mixes options the hall doesn’t allow. Pick from the lists.';
   if (/BAD_KEY/.test(msg)) return 'Give it a name of at least two letters or numbers.';

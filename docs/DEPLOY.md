@@ -97,6 +97,13 @@ Both are safe to run again (they only add columns and replace functions).
 1. Supabase **SQL editor:** run `supabase/migrations/20261006000300_project_collaborators.sql`. Safe to run again.
 2. Check: a member opens **My card → Collaborators**, tags another member of the hall on a project; that member sees the request in their own **Collaborators** panel and accepts. After the owner's next approval, the project's public card lists them.
 
+## Pip's new look, the affiliation looks and the band (V2-22, D-134, D-135)
+
+1. Supabase **SQL editor:** run `supabase/migrations/20261012000000_affiliation_logos_storage.sql` (the public **affiliation-logos** bucket: only admins upload, PNG or WebP up to 512 KB), then `supabase/migrations/20261012000100_affiliation_looks.sql` (after the V2-20 one), **before** merging the app update. Run each as one query with nothing selected. Both are safe to run again. If the second stops with "This database is missing an earlier migration", nothing was changed: run `20261011000000_museum_control.sql` first, then this one.
+2. In the app: **Admin → Affiliations.** For an affiliation, pick **Frame for its members** (Member, Diamond or Cat-eye) and **Upload logo** (a PNG or WebP, square works best). Use an organization's logo only with its permission. **Remove logo** takes it off the frame and off every band.
+3. Tag members with the affiliation from the **Published** tab, as before. Nobody else can wear its frame or pin.
+4. Check: a tagged member opens **My card → Customize**: **Frame** lists "<name> · Diamond frame" (Wear it); **Band** lists the affiliation's pin with their ribbons, badges and officer seat: tick up to 3, order them, **Save band**. Their badge in the hall shows the frame with the logo and the band in their order. Pip is the blue diamond in the hall, the Museum walk, the text window and the kiosk.
+
 ## The Museum curated end to end (V2-20, D-133)
 
 1. Supabase **SQL editor:** run `supabase/migrations/20261011000000_museum_control.sql` (after the curated Museum one) **before** merging the app update. Run it as one query with nothing selected. Safe to run again. On its first run every winner already on show is hung, so nothing leaves the Museum; from then on, announcing an event's results doesn't hang its winners until you do. If it stops with "This database is missing an earlier migration", nothing was changed: run `20261009000000_curated_museum.sql` first (it names any others it needs), then this one. If you ever re-run the curated Museum migration, run this one again after it.

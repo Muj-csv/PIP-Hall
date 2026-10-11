@@ -1,5 +1,5 @@
 // What every badge wears (E2): loaded once from card_appearances() when PIPs are on, so the hall,
-// profiles and the editor preview all show members' frames, plus the admin-made badges pinned on
+// profiles and the editor preview all show members' frames and the bands they chose (V2-22), plus the admin-made badges pinned on
 // them (card_pins(), D-087) and their titles (hall_titles(), D-101). Off, or on failure: plain badges.
 // Ribbons from hall events (hall_awards(), D-116) and the officers (hall_officers(), D-123) aren't
 // part of the PIP economy: always loaded.
@@ -12,13 +12,14 @@ import type { HallTitle } from '../lib/titles';
 import { eventService } from '../services/eventService';
 import { martService } from '../services/martService';
 import { officerService } from '../services/officerService';
-import type { Appearance, Pin } from '../types/mart';
+import type { Appearance, BandItem, Pin } from '../types/mart';
 import { AppearanceContext } from './appearanceContext';
 
 const NO_AWARDS: HallAward[] = [];
 
 export function AppearanceProvider({ children }: { children: ReactNode }) {
   const [map, setMap] = useState<ReadonlyMap<string, Appearance>>(() => new Map());
+  const [bands, setBands] = useState<ReadonlyMap<string, BandItem[]>>(() => new Map());
   const [pins, setPins] = useState<ReadonlyMap<string, Pin[]>>(() => new Map());
   const [titles, setTitles] = useState<ReadonlyMap<string, HallTitle>>(() => new Map());
   const [awards, setAwards] = useState<ReadonlyMap<string, HallAward[]>>(() => new Map());
@@ -45,7 +46,11 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
     let on = true;
     martService
       .appearances()
-      .then((m) => on && setMap(m))
+      .then((m) => {
+        if (!on) return;
+        setMap(m.frames);
+        setBands(m.bands);
+      })
       .catch(() => undefined); // a frame is decoration: never block the hall for it
     martService
       .pins()
@@ -66,6 +71,7 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
   const value = useMemo(
     () => ({
       of: (profileId: string) => map.get(profileId) ?? null,
+      bandOf: (profileId: string) => bands.get(profileId) ?? null,
       pinsOf: (profileId: string) => pins.get(profileId) ?? [],
       titleOf: (profileId: string) => titles.get(profileId) ?? null,
       awardsOf: (profileId: string) => awards.get(profileId) ?? NO_AWARDS,
@@ -74,7 +80,7 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
       officerOf: (profileId: string) => seats.get(profileId) ?? null,
       refresh,
     }),
-    [map, pins, titles, awards, winners, officers, seats, refresh],
+    [map, bands, pins, titles, awards, winners, officers, seats, refresh],
   );
   return <AppearanceContext.Provider value={value}>{children}</AppearanceContext.Provider>;
 }
