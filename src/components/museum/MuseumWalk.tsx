@@ -12,7 +12,7 @@ import { useTheme } from '../../app/themeContext';
 import { KIND_NAME, kindOf } from '../../lib/events';
 import { consoleFor } from '../../lib/museum';
 import { awardLine, layoutWalk, planRooms, plaqueBy, plaqueOrigin, roomMakers, stopLine, STOP_SPACING, type MuseumParts, type WalkLayout, type WalkRoom, type WalkStop } from '../../lib/museumWalk';
-import { exhibitPath } from '../../lib/publicUrl';
+import { stopPath } from '../../lib/curation';
 import { dateRange } from '../../lib/seasons';
 import { cssVarReader } from '../../lib/sprites';
 import { useReducedMotion } from '../../lib/useReducedMotion';
@@ -22,6 +22,7 @@ import { DialogueBox } from '../dialogue/DialogueBox';
 import { HandheldShell } from '../shell/HandheldShell';
 import { drawIris, IRIS_FRAMES } from '../world/world';
 import { ExhibitArt } from './ExhibitArt';
+import { PortraitArt } from './PortraitArt';
 import { Ribbon } from './Ribbon';
 import { useWalk } from './useWalk';
 import { buildWalkAssets, drawWalk, drawWalkHero, PIP_OFFSET, propSpots, WALK_H, type WalkAssets, type WalkHero } from './walkWorld';
@@ -171,7 +172,7 @@ export default function MuseumWalk({ parts, room, at, onRoom }: Props) {
       const s = layout.stops[i];
       if (!s) return;
       onRoom(layout.rooms[s.room]!.id, s.exhibit.project_id); // Back returns to this exhibit
-      navigate(exhibitPath(s.exhibit.project_id));
+      navigate(stopPath(s.exhibit));
     },
     [layout, navigate, onRoom],
   );
@@ -462,16 +463,16 @@ function StopView({ stop, current, lit, mount, onPick, onOpen }: { stop: WalkSto
             }
       }
     >
-      <Link to={exhibitPath(e.project_id)} className="walk-console" tabIndex={-1} aria-hidden="true" onClick={current ? follow : undefined}>
-        <ExhibitArt project={p} console={consoleFor(e.project_id, e.console)} featured={e.featured} />
+      <Link to={stopPath(e)} className="walk-console" tabIndex={-1} aria-hidden="true" onClick={current ? follow : undefined}>
+        {e.portrait ? <PortraitArt card={e.portrait.card} scale={0.5} /> : <ExhibitArt project={p} console={consoleFor(e.project_id, e.console)} featured={e.featured} />}
       </Link>
       <div className="walk-plaque">
         <h3 className="walk-plaque-title">
-          <Link to={exhibitPath(e.project_id)} className="walk-plaque-link" tabIndex={current ? undefined : -1} onClick={current ? follow : undefined}>
+          <Link to={stopPath(e)} className="walk-plaque-link" tabIndex={current ? undefined : -1} onClick={current ? follow : undefined}>
             {p.title}
           </Link>
         </h3>
-        {by && <p className="m-0">by {by}</p>}
+        {e.portrait ? e.portrait.note && <q className="m-0 walk-origin">{e.portrait.note}</q> : by && <p className="m-0">by {by}</p>}
         {stop.awards.map((a) => (
           <p key={`${a.award.place ?? a.award.name}-${a.award.track ?? ''}-${a.event ?? ''}`} className="walk-award m-0">
             <Ribbon award={a.award} />

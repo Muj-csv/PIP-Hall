@@ -12,6 +12,7 @@ import type { PlannedRoom } from './museumWalk';
 import { officerUsernames } from './officers';
 import { showcaseRooms, type MuseumData } from './showcase';
 import { DEFAULT_WINGS } from './wings';
+import { NO_CURATION } from './curation';
 
 export type RoomsLoad = { status: 'loading' } | { status: 'error' } | { status: 'ready'; rooms: PlannedRoom[]; events: MuseumEvent[]; data: MuseumData };
 
@@ -22,7 +23,8 @@ export function loadMuseumData(): Promise<MuseumData> {
     museumService.wings().catch(() => [...DEFAULT_WINGS]),
     eventService.museumEvents().catch(() => []),
     archiveService.list().catch(() => []),
-  ]).then(([exhibits, wings, events, archive]) => ({ exhibits, wings, events, archive }));
+    museumService.curation().catch(() => NO_CURATION),
+  ]).then(([exhibits, wings, events, archive, curation]) => ({ exhibits, wings, events, archive, curation }));
 }
 
 export function useShowcaseRooms(attempt = 0): RoomsLoad {

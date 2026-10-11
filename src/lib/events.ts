@@ -35,6 +35,8 @@ export interface Award {
   track: string | null;
   note?: string;
   project_id: string;
+  /** An admin hung the winner in the Museum (D-133); missing before that update, when every winner hung. */
+  hung?: boolean;
 }
 
 /** An event's submission, as an exhibit (it hangs in the event's room), with its track. */
@@ -91,14 +93,15 @@ export function winnersOf(e: Pick<MuseumEvent, 'awards' | 'entries' | 'tracks'>)
 }
 
 /**
- * The Museum shows an event's winners only (D-130): an entry hangs in its room once it has won a
- * place or an award there (awards are public only once announced). Its other entries stay on their
- * makers' cards. The archive adds its own exhibits afterwards (withArchive); a room left with
+ * The Museum shows an event's winners only (D-130), and since D-133 only those an admin hung: an
+ * entry hangs in its room once it has won a place or an award there (awards are public only once
+ * announced) and an admin has hung it. Its other entries stay on their makers' cards. The archive adds its own exhibits afterwards (withArchive); a room left with
  * nothing on show is not drawn (rule 7).
  */
 export function curatedEvents(events: readonly MuseumEvent[]): MuseumEvent[] {
   return events.map((e) => {
-    const won = new Set(e.awards.map((a) => a.project_id));
+    // Since D-133 only the winners an admin hung; every award still shows on its plaques.
+    const won = new Set(e.awards.filter((a) => a.hung !== false).map((a) => a.project_id));
     return { ...e, entries: e.entries.filter((x) => won.has(x.project_id)) };
   });
 }

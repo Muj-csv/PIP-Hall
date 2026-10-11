@@ -86,7 +86,7 @@ Everything below is live in v1.0. Decision numbers (D-…) point to [`docs/DECIS
 | | A **screen picture** per project, shown on its Museum console (D-092) |
 | | Tag **collaborators** on a project; they accept or decline, and the card credits them after approval (D-089) |
 | | Submit for review; edits to a live card are re-reviewed while the approved version stays public (ADR-002) |
-| **Museum** | Featured projects, event winners and the archive, as rooms and exhibits on two circles, a walk or a list; every exhibit has its own shareable page (D-069, D-073, D-083, D-129, D-130) |
+| **Museum** | Curated by the admins end to end: featured projects, the event winners they hang, featured members' badges with a curator's note, and the archive, in rooms the admins order, sign and close; as rooms and exhibits on two circles, a walk or a list; every exhibit has its own shareable page (D-069, D-073, D-083, D-129, D-130, D-133) |
 | | Five original **console frames**; the maker picks one or one is picked automatically; the screen tilts toward the pointer, layers shift in 3D, and it boots up when it scrolls into view (D-091) |
 | | **App previews**: the member's screenshot, else GitHub's preview of the repo, else a drawn pixel cover (D-092) |
 | | **Made by**: an exhibit shows the badge of everyone who made it (D-090) |

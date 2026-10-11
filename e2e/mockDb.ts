@@ -30,6 +30,13 @@ export interface MockDb {
   museumEntries?: Row[];
   /** The curated Museum (D-130): projects an admin featured {project_id, member_id}. */
   museumFeatures?: Row[];
+  /** The Museum curated end to end (D-133): winners an admin hung {season_key, project_id} (left
+   *  undefined, every announced winner hangs, as before the update), curator's notes {member_id, note},
+   *  the rooms as arranged {key, sign, hidden}, and hand-picked wing exhibits {wing, project_id}. */
+  hungWinners?: Row[];
+  portraitNotes?: Row[];
+  museumRooms?: Row[];
+  wingPicks?: Row[];
   /** Paths uploaded to the project-covers bucket (screen pictures, D-092). */
   coverUploads?: string[];
   /** PIP MART (mirrors supabase/migrations/*_pip_mart.sql). */
@@ -367,12 +374,17 @@ export async function handleDb(route: Route, db: MockDb, user: DbUser): Promise<
   }
 
   const inHall = (id: string) => db.published.some((r) => r.profile_id === id);
-  /** Announced winners (D-116): on show in the Museum without a feature (D-130). */
-  const wonIds = () => new Set((db.awards ?? []).filter((w) => (db.seasons ?? []).some((x) => x.key === w.season_key && x.announced_at)).map((w) => String(w.project_id)));
+  /** Announced winners (D-116). */
+  const announced = () => (db.awards ?? []).filter((w) => (db.seasons ?? []).some((x) => x.key === w.season_key && x.announced_at));
+  const wonIds = () => new Set(announced().map((w) => String(w.project_id)));
+  /** Whether an admin hung a winner (D-133); before that update every announced winner hung. */
+  const isHung = (season: unknown, project: unknown) => (db.hungWinners ? db.hungWinners.some((h) => h.season_key === season && h.project_id === project) : true);
+  /** Winners on show: announced and hung. */
+  const hungIds = () => new Set(announced().filter((w) => isHung(w.season_key, w.project_id)).map((w) => String(w.project_id)));
   /** On show in the curated Museum (D-130): featured or a winner (not mine), or a published archive exhibit. */
   const onShowFor = (id: string, me: string | null) =>
     (db.museumFeatures ?? []).some((f) => f.project_id === id && f.member_id !== me) ||
-    (wonIds().has(id) && !(db.submissions ?? []).some((x) => x.project_id === id && x.member_id === me)) ||
+    (hungIds().has(id) && !(db.submissions ?? []).some((x) => x.project_id === id && x.member_id === me)) ||
     (db.archive ?? []).some((x) => x.id === id && x.published);
   // V2-10: an archive exhibit's event as people say it, and crediting a linked member once.
   const arcLabel = (a: Row): string | null => {
@@ -592,9 +604,97 @@ export async function handleDb(route: Route, db: MockDb, user: DbUser): Promise<
           offered: (db.museumEntries ?? []).some((e) => e.project_id === p.id),
           featured: (db.museumFeatures ?? []).some((f) => f.project_id === p.id),
           won: wonIds().has(String(p.id)),
+          hung: hungIds().has(String(p.id)),
         })),
       );
     return (await json(200, rows)), true;
+  }
+
+  // ---- V2-20: the Museum curated end to end (mirrors 20261011000000_museum_control.sql).
+  if (url.pathname === '/rest/v1/rpc/museum_curation') {
+    const onShowIds = (id: unknown) => onShowFor(String(id), null);
+    return (
+      (await json(200, {
+        rooms: [...(db.museumRooms ?? [])],
+        portraits: [...db.published]
+          .filter((c) => c.is_featured)
+          .sort((a, b) => Number(a.member_no) - Number(b.member_no))
+          .map((c) => ({ member_id: c.profile_id, note: String((db.portraitNotes ?? []).find((n) => n.member_id === c.profile_id)?.note ?? '') })),
+        picks: (db.wingPicks ?? []).filter((k) => onShowIds(k.project_id)),
+      })),
+      true
+    );
+  }
+  if (url.pathname === '/rest/v1/rpc/admin_museum_winners') {
+    if (!admin) return (await err(403, '42501', 'NOT_ADMIN')), true;
+    const out = (db.seasons ?? [])
+      .filter((x) => x.announced_at && (db.awards ?? []).some((a) => a.season_key === x.key))
+      .sort((a, b) => String(b.announced_at).localeCompare(String(a.announced_at)))
+      .map((x) => {
+        const awards = (db.awards ?? []).filter((a) => a.season_key === x.key);
+        const ids = [...new Set(awards.map((a) => String(a.project_id)))];
+        return {
+          season_key: x.key,
+          event: x.name,
+          announced_at: x.announced_at,
+          winners: ids.map((id) => {
+            const sub = (db.submissions ?? []).find((r) => r.season_key === x.key && r.project_id === id);
+            const c = db.published.find((r) => r.profile_id === sub?.member_id);
+            const p = (((c?.card as Row | undefined)?.projects as Row[] | undefined) ?? []).find((q) => q.id === id);
+            return {
+              project_id: id,
+              title: p?.title ?? 'A project',
+              username: c?.username ?? null,
+              full_name: (c?.card as Row | undefined)?.full_name ?? null,
+              awards: awards.filter((a) => a.project_id === id).map(({ place, name, track }) => ({ place, name, track })),
+              live: Boolean(p),
+              hung: isHung(x.key, id),
+            };
+          }),
+        };
+      });
+    return (await json(200, out)), true;
+  }
+  if (url.pathname === '/rest/v1/rpc/admin_hang_winner' || url.pathname === '/rest/v1/rpc/admin_hang_event') {
+    if (!admin) return (await err(403, '42501', 'NOT_ADMIN')), true;
+    const b = body() as { p_season: string; p_project?: string; p_on: boolean };
+    const announcedHere = announced().filter((a) => a.season_key === b.p_season);
+    if (announcedHere.length === 0) return (await err(400, 'P0001', b.p_project ? 'NOT_A_WINNER' : 'NOT_ANNOUNCED')), true;
+    const ids = b.p_project ? [b.p_project] : [...new Set(announcedHere.map((a) => String(a.project_id)))];
+    if (b.p_project && !announcedHere.some((a) => a.project_id === b.p_project)) return (await err(400, 'P0001', 'NOT_A_WINNER')), true;
+    // The first admin hang turns the old "every winner hangs" into an explicit list.
+    db.hungWinners ??= announced().map((a) => ({ season_key: a.season_key, project_id: a.project_id }));
+    db.hungWinners = db.hungWinners.filter((h) => !(h.season_key === b.p_season && ids.includes(String(h.project_id))));
+    if (b.p_on) db.hungWinners.push(...ids.map((project_id) => ({ season_key: b.p_season, project_id })));
+    const n = db.hungWinners.filter((h) => h.season_key === b.p_season).length;
+    return (await json(200, b.p_project ? Boolean(b.p_on) : n)), true;
+  }
+  if (url.pathname === '/rest/v1/rpc/admin_set_portrait') {
+    if (!admin) return (await err(403, '42501', 'NOT_ADMIN')), true;
+    const b = body() as { p_member: string; p_note: string };
+    const note = (b.p_note ?? '').trim();
+    if (note.length > 140) return (await err(400, 'P0001', 'BAD_NOTE')), true;
+    db.portraitNotes = (db.portraitNotes ?? []).filter((n) => n.member_id !== b.p_member);
+    if (note) db.portraitNotes.push({ member_id: b.p_member, note });
+    return (await json(200, null)), true;
+  }
+  if (url.pathname === '/rest/v1/rpc/admin_save_rooms') {
+    if (!admin) return (await err(403, '42501', 'NOT_ADMIN')), true;
+    const { p_rooms } = body() as { p_rooms: { key: string; sign: string | null; hidden: boolean }[] };
+    const KEY = /^(winners|members|all|archive|(event|wing):[a-z0-9][a-z0-9-]{1,23})$/;
+    if (!Array.isArray(p_rooms) || p_rooms.some((r) => !KEY.test(r.key) || (r.sign && (r.sign.trim().length < 2 || r.sign.trim().length > 30))) || new Set(p_rooms.map((r) => r.key)).size !== p_rooms.length)
+      return (await err(400, 'P0001', 'BAD_ROOMS')), true;
+    db.museumRooms = p_rooms.map((r) => ({ key: r.key, sign: r.sign?.trim() || null, hidden: Boolean(r.hidden) }));
+    return (await json(200, null)), true;
+  }
+  if (url.pathname === '/rest/v1/rpc/admin_set_wing_picks') {
+    if (!admin) return (await err(403, '42501', 'NOT_ADMIN')), true;
+    const { p_wing, p_projects } = body() as { p_wing: string; p_projects: string[] };
+    if (!(db.wings ?? []).some((w) => w.key === p_wing)) return (await err(400, 'P0001', 'NO_SUCH_WING')), true;
+    if (p_projects.length > 60) return (await err(400, 'P0001', 'TOO_MANY')), true;
+    if (p_projects.some((id) => !onShowFor(id, null))) return (await err(400, 'P0001', 'NOT_ON_SHOW')), true;
+    db.wingPicks = [...(db.wingPicks ?? []).filter((k) => k.wing !== p_wing), ...[...new Set(p_projects)].map((project_id) => ({ wing: p_wing, project_id }))];
+    return (await json(200, null)), true;
   }
   if (url.pathname === '/rest/v1/rpc/admin_feature_project') {
     if (!admin) return (await err(403, '42501', 'NOT_ADMIN')), true;
@@ -741,7 +841,7 @@ export async function handleDb(route: Route, db: MockDb, user: DbUser): Promise<
       .map((x) => ({
         ...withPhase(x, false),
         entries: entriesOf(x.key),
-        awards: x.announced_at ? (db.awards ?? []).filter((a) => a.season_key === x.key).map(({ id, place, name, track, note, project_id }) => ({ id, place, name, track, note, project_id })) : [],
+        awards: x.announced_at ? (db.awards ?? []).filter((a) => a.season_key === x.key).map(({ id, place, name, track, note, project_id }) => ({ id, place, name, track, note, project_id, hung: isHung(x.key, project_id) })) : [],
       }));
     return (await json(200, out)), true;
   }
@@ -920,7 +1020,7 @@ export async function handleDb(route: Route, db: MockDb, user: DbUser): Promise<
     const row = db.wings.find((w) => w.key === b.p_key);
     const kind = (row?.kind as string) ?? 'tags';
     const tags = kind === 'tags' ? [...new Map((b.p_tags ?? []).map((t) => t.trim()).filter(Boolean).map((t) => [t.toLowerCase(), t])).values()] : [];
-    if (kind === 'tags' && (tags.length === 0 || tags.length > 12)) return (await err(400, 'P0001', 'BAD_TAGS')), true;
+    if (kind === 'tags' && tags.length > 12) return (await err(400, 'P0001', 'BAD_TAGS')), true; // none: a hand-picked wing (D-133)
     const next = { key: b.p_key, kind, name: b.p_name.trim(), note: (b.p_note ?? '').trim(), tags, sort: b.p_sort ?? 100, active: b.p_active ?? true, style: b.p_style ?? (row?.style as string) ?? 'arcade' };
     if (row) Object.assign(row, next);
     else db.wings.push(next);

@@ -9,8 +9,10 @@ import { archiveAsExhibit, archiveAward, archiveCredit, archiveOrigin, byYear, t
 import { creditLine } from './collab';
 import { awardLabel, awardOrder, entriesByTrack, kindOf, type Award, type EventKind, type MuseumEvent } from './events';
 import { wingStyle, type RoomStyle, type Wing, type WingRoom } from './wings';
+import { arrangeRooms, MEMBERS_ROOM } from './curation';
+import type { MuseumCuration } from '../types/museum';
 
-export type RoomKind = 'winners' | 'event' | 'wing' | 'all' | 'archive';
+export type RoomKind = 'winners' | 'event' | 'members' | 'wing' | 'all' | 'archive';
 
 /** A place or award on a plaque, with the event it was won at. */
 export interface PlaqueAward {
@@ -32,7 +34,7 @@ export interface PlannedGroup {
 }
 
 export interface PlannedRoom {
-  /** 'winners', 'event:<key>', 'wing:<key>', 'all' or 'archive'. */
+  /** 'winners', 'event:<key>', 'members', 'wing:<key>', 'all' or 'archive'. */
   id: string;
   kind: RoomKind;
   name: string;
@@ -55,6 +57,10 @@ export interface MuseumParts {
   /** Every exhibit, members' and the archive's: featured projects first, then this visit's order. */
   everything: { featured: readonly Exhibit[]; rest: readonly Exhibit[] };
   archive: readonly ArchiveExhibit[];
+  /** The featured members' portraits (D-133), as exhibits; the Featured Members room hangs them. */
+  members?: readonly Exhibit[];
+  /** How the admins arranged the rooms (D-133): their order, signs and which are shut. */
+  curation?: Pick<MuseumCuration, 'rooms'>;
 }
 
 /** Every announced award, by the project that won it, with its event: plaques show them in any room. */
@@ -92,7 +98,8 @@ function merge(stops: PlannedStop[]): PlannedStop[] {
   return out;
 }
 
-/** The rooms in walking order. Rooms with nothing on show are left out; their doors stay shut. */
+/** The rooms in walking order (the Winners' Hall, each event, Featured Members, each wing, All exhibits,
+ *  the Archive), or as the admins arranged them. Rooms with nothing on show are left out; their doors stay shut. */
 export function planRooms(parts: MuseumParts): PlannedRoom[] {
   const won = awardsByProject(parts.events, parts.archive);
   const stop = (exhibit: Exhibit): PlannedStop => ({ exhibit, awards: won.get(exhibit.project_id) ?? [] });
@@ -125,6 +132,10 @@ export function planRooms(parts: MuseumParts): PlannedRoom[] {
     });
   }
 
+  if (parts.members && parts.members.length > 0) {
+    rooms.push({ id: MEMBERS_ROOM, kind: 'members', name: 'Featured Members', style: 'lab', groups: [{ title: null, sub: null, stops: parts.members.map((exhibit) => ({ exhibit, awards: [] })) }] });
+  }
+
   for (const { wing, exhibits } of parts.wings) {
     rooms.push({ id: `wing:${wing.key}`, kind: 'wing', name: wing.name, style: wingStyle(wing), wing, groups: [{ title: null, sub: null, stops: exhibits.map(stop) }] });
   }
@@ -149,7 +160,9 @@ export function planRooms(parts: MuseumParts): PlannedRoom[] {
     groups: byYear(parts.archive).map(({ year, items }) => ({ title: String(year), sub: null, stops: items.map((a) => stop(archiveAsExhibit(a))) })),
   });
 
-  return rooms.filter((r) => r.groups.some((g) => g.stops.length > 0));
+  const open = rooms.filter((r) => r.groups.some((g) => g.stops.length > 0));
+  // The admins' order and signs; shut rooms are left out (D-133).
+  return parts.curation ? arrangeRooms(open, parts.curation) : open;
 }
 
 // ---------------------------------------------------------------- the corridor
@@ -293,7 +306,7 @@ export function roomFromParams(params: URLSearchParams): string | null {
   const wing = params.get('wing');
   if (wing) return `wing:${wing}`;
   const room = params.get('room');
-  return room === 'winners' || room === 'all' || room === 'archive' ? room : null;
+  return room === 'winners' || room === MEMBERS_ROOM || room === 'all' || room === 'archive' ? room : null;
 }
 
 // ---------------------------------------------------------------- words
@@ -316,6 +329,8 @@ export function stopLine(layout: Pick<WalkLayout, 'rooms' | 'stops'>, i: number)
   const s = layout.stops[i];
   if (!s) return '';
   const room = layout.rooms[s.room]!;
+  const face = s.exhibit.portrait;
+  if (face) return `${room.name}, ${s.nth} of ${room.count}: ${s.exhibit.full_name}.${face.note ? ` “${face.note}”` : ''} OPEN opens their profile.`;
   const by = plaqueBy(s.exhibit);
   const won = s.awards[0] ? ` ${awardLine(s.awards[0])}.` : '';
   return `${room.name}, ${s.nth} of ${room.count}: ${s.exhibit.project.title}${by ? `, by ${by}` : ''}.${won} OPEN visits it.`;

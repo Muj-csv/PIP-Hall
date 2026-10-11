@@ -909,6 +909,22 @@
 .museum-circles .circles-console .exhibit-view {
   width: 100%;
 }
+/* A featured member's portrait (V2-20): their badge at a whole-pixel scale (PortraitArt). */
+.portrait-art {
+  position: relative;
+  display: block;
+  margin-inline: auto;
+}
+.portrait-hang {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: calc(var(--p) * 56);
+  transform-origin: 0 0;
+}
+.circles-portrait {
+  position: absolute;
+}
 
 /* ---------------------------------------------------------------- badge (brief §13) */
 .slot {
@@ -2258,6 +2274,21 @@ textarea.pixel-input {
   display: grid;
   gap: 12px;
   height: 100%;
+  align-content: start;
+}
+/* The Featured Members room in the list view (V2-20): each badge above its plaque. */
+.members-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 24px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.portrait-frame {
+  display: grid;
+  gap: 12px;
+  justify-items: center;
   align-content: start;
 }
 /* Each exhibit hangs in an original PIXENDO console (D-091); consoles are physical objects, so they

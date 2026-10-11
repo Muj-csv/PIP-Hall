@@ -5,10 +5,20 @@
 import type { ConsoleKind } from '../lib/sprites';
 import { DEFAULT_WINGS, parseWings, type RoomStyle, type Wing } from '../lib/wings';
 import type { PublishedCardRow } from '../types/card';
-import type { AdminMuseumProject, Affiliation, Exhibit, MuseumSummaryRow, MyMuseum } from '../types/museum';
+import type { AdminMuseumProject, AdminWinnerEvent, Affiliation, Exhibit, MuseumCuration, MuseumSummaryRow, MyMuseum, RoomLayout } from '../types/museum';
+import { NO_CURATION, parseCuration } from '../lib/curation';
 import { requireSupabase } from './supabase';
 
 const useSupabase = import.meta.env.VITE_DATA_SOURCE === 'supabase';
+
+/** A function this database doesn't have yet (its migration not run): the app carries on without it. */
+const missing = (error: { code?: string; message?: string }, fn: string) => error.code === 'PGRST202' || new RegExp(fn).test(error.message ?? '');
+
+/** The fixture's curation: the featured sample members hang as portraits, nothing else arranged. */
+async function fixtureCuration(): Promise<MuseumCuration> {
+  const mod = await import('../data/sample-cards.json');
+  return { ...NO_CURATION, portraits: (mod.default as PublishedCardRow[]).filter((c) => c.is_featured).map((c) => ({ member_id: c.profile_id, note: '' })) };
+}
 
 async function fixtureExhibits(): Promise<Exhibit[]> {
   const mod = await import('../data/sample-cards.json');
@@ -45,6 +55,18 @@ export const museumService = {
     return parseWings(data);
   },
 
+  /** How the admins arranged the Museum (D-133): rooms, featured members' notes, hand-picked wing
+   *  exhibits. Before that update, nothing arranged. */
+  async curation(): Promise<MuseumCuration> {
+    if (!useSupabase) return fixtureCuration();
+    const { data, error } = await requireSupabase().rpc('museum_curation');
+    if (error) {
+      if (missing(error, 'museum_curation')) return NO_CURATION;
+      throw error;
+    }
+    return parseCuration(data);
+  },
+
   async mine(): Promise<MyMuseum> {
     const { data, error } = await requireSupabase().rpc('my_museum');
     if (error) throw error;
@@ -70,6 +92,45 @@ export const museumService = {
     const { data, error } = await requireSupabase().rpc('admin_feature_project', { p_project: projectId, p_on: on });
     if (error) throw error;
     return Boolean(data);
+  },
+
+  /** Admins: every announced event's winners, and whether each hangs (D-133). */
+  async winners(): Promise<AdminWinnerEvent[]> {
+    const { data, error } = await requireSupabase().rpc('admin_museum_winners');
+    if (error) throw error;
+    return (data ?? []) as AdminWinnerEvent[];
+  },
+
+  /** Admins: hangs one winner of an event in the Museum, or takes it down. */
+  async hangWinner(seasonKey: string, projectId: string, on: boolean): Promise<boolean> {
+    const { data, error } = await requireSupabase().rpc('admin_hang_winner', { p_season: seasonKey, p_project: projectId, p_on: on });
+    if (error) throw error;
+    return Boolean(data);
+  },
+
+  /** Admins: hangs every winner of an event, or takes them all down. Returns how many hang. */
+  async hangEvent(seasonKey: string, on: boolean): Promise<number> {
+    const { data, error } = await requireSupabase().rpc('admin_hang_event', { p_season: seasonKey, p_on: on });
+    if (error) throw error;
+    return Number(data ?? 0);
+  },
+
+  /** Admins: the curator's note under a featured member's badge; empty takes it away. */
+  async setPortrait(memberId: string, note: string): Promise<void> {
+    const { error } = await requireSupabase().rpc('admin_set_portrait', { p_member: memberId, p_note: note });
+    if (error) throw error;
+  },
+
+  /** Admins: the rooms in their order, with their signs and which are shut. */
+  async saveRooms(rooms: readonly RoomLayout[]): Promise<void> {
+    const { error } = await requireSupabase().rpc('admin_save_rooms', { p_rooms: rooms.map((r) => ({ key: r.key, sign: r.sign, hidden: r.hidden })) });
+    if (error) throw error;
+  },
+
+  /** Admins: the exhibits hung in a wing by hand, in order. */
+  async setWingPicks(wingKey: string, projectIds: readonly string[]): Promise<void> {
+    const { error } = await requireSupabase().rpc('admin_set_wing_picks', { p_wing: wingKey, p_projects: projectIds });
+    if (error) throw error;
   },
 
   /** Picks the console one of my exhibits hangs in; null goes back to automatic. Never resets review. */
@@ -180,7 +241,16 @@ export function museumErrorMessage(e: unknown): string {
   const msg = (e as { message?: string })?.message ?? '';
   if (/NO_MUSEUM_ACCESS/.test(msg)) return 'Your account doesn’t have Museum access. An admin can add it.';
   if (/NOT_LIVE/.test(msg)) return 'Only projects on an approved card can go in the Museum.';
+  if (/admin_museum_winners|admin_hang_|admin_set_portrait|admin_save_rooms|admin_set_wing_picks|museum_curation/.test(msg)) return 'This needs the Museum controls update (20261011000000_museum_control.sql). See the deploy guide.';
   if (/admin_feature_project|admin_museum_projects|PGRST202/.test(msg)) return 'Featuring projects needs the curated Museum update. See the deploy guide.';
+  if (/NOT_A_WINNER/.test(msg)) return 'Only a project that won at an announced event can hang as a winner.';
+  if (/NOT_ANNOUNCED/.test(msg)) return 'That event’s results aren’t announced yet.';
+  if (/BAD_NOTE/.test(msg)) return 'A curator’s note is at most 140 characters.';
+  if (/NO_SUCH_MEMBER/.test(msg)) return 'That member isn’t in the hall any more.';
+  if (/BAD_ROOMS/.test(msg)) return 'A room’s sign needs 2–30 characters. Check the signs and try again.';
+  if (/NOT_ON_SHOW/.test(msg)) return 'Only exhibits on show can be picked for a wing. One of them left the Museum; reload and try again.';
+  if (/TOO_MANY/.test(msg)) return 'A wing holds at most 60 hand-picked exhibits.';
+  if (/NO_SUCH_WING/.test(msg)) return 'That wing is gone. Reload the wings.';
   if (/NOT_YOURS/.test(msg)) return 'That project isn’t on your card.';
   if (/NOT_IN_MUSEUM/.test(msg)) return 'Put the project in the Museum first, then pick its console.';
   if (/BAD_CONSOLE/.test(msg)) return 'That console isn’t one of the five. Pick another.';

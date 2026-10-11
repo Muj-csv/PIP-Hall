@@ -15,7 +15,8 @@ export type NotificationType =
   | 'MEMBER_FEATURED'
   | 'AWARD_WON'
   | 'ARCHIVE_CREDITED'
-  | 'ARCHIVE_CLAIM_DECLINED';
+  | 'ARCHIVE_CLAIM_DECLINED'
+  | 'EXHIBIT_ADDED';
 
 export interface HallNotification {
   id: number;
@@ -95,7 +96,9 @@ export function notificationLine(n: HallNotification, me: string | null): Line |
     case 'ACHIEVEMENT_UNLOCKED':
       return { text: `Achievement unlocked: ${n.title ?? 'a new one'}!`, to: mine };
     case 'MEMBER_FEATURED':
-      return { text: 'You’re featured in the hall!', to: mine };
+      return { text: 'You’re featured! Your badge hangs in the Museum’s Featured Members room.', to: '/museum?room=members' };
+    case 'EXHIBIT_ADDED':
+      return { text: `${quoted(n.title)} now hangs in the Museum.`, to: n.target_id ? exhibitPath(n.target_id) : '/museum' };
     case 'AWARD_WON':
       return {
         text: `${quoted(n.title)} won ${awardLabel({ place: n.place ?? null, name: n.award ?? null, track: n.track ?? null })}${n.event ? ` at ${n.event}` : ''}!`,

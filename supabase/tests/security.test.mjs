@@ -698,7 +698,7 @@ try {
   await expectOk(c, '…and visitors read it', 'anon', `select museum_wings() as w`, [], (r) => r.rows[0].w.find((w) => w.key === 'web').note === 'Things you can open in a browser.');
   await expectOk(c, 'an admin opens a new wing; tags are tidied (trimmed, no repeats)', ADMIN, `select admin_save_wing('mobile','Mobile Wing','',array[' Kotlin ','kotlin','Swift',''],20,true)`, []);
   await expectSu(c, '…as a tag wing', `select kind, tags from museum_wings where key='mobile'`, [], (r) => r.rows[0].kind === 'tags' && r.rows[0].tags.join() === 'Kotlin,Swift');
-  await expectErr(c, 'a tag wing needs a tag', ADMIN, `select admin_save_wing('empty','Empty Wing','',array[]::text[],20,true)`, [], /BAD_TAGS/);
+  await expectOk(c, 'a wing with no tools is a hand-picked wing (D-133)', ADMIN, `select admin_save_wing('empty','Empty Wing','',array[]::text[],20,false)`, []);
   await expectErr(c, '…and at most 12', ADMIN, `select admin_save_wing('big','Big Wing','',(select array_agg('t' || g) from generate_series(1,13) g),20,true)`, [], /BAD_TAGS/);
   await expectErr(c, 'a bad key is refused', ADMIN, `select admin_save_wing('Bad Key!','Wing','',array['x'],20,true)`, [], /BAD_KEY/);
   await expectErr(c, 'a name must fit the sign', ADMIN, `select admin_save_wing('x1','X','',array['x'],20,true)`, [], /BAD_NAME/);
@@ -1448,6 +1448,147 @@ try {
   await c.query(CURATED);
   await expectSu(c, '…and only on its first run', `select count(*)::int as n from museum_features`, [], (r) => r.rows[0].n === entriesA.length);
 
+  console.log('the Museum curated end to end: hung winners, portraits, rooms, picked wings (D-133)');
+  const CONTROL = readFileSync(join(here, '..', 'migrations', '20261011000000_museum_control.sql'), 'utf8');
+  const season = (await c.query(`select a.season_key as k from event_awards a join hall_seasons s on s.key = a.season_key and s.announced_at is not null
+                                  where a.project_id = $1 limit 1`, [P1])).rows[0]?.k;
+  if (season) ok('A’s project P1 won at an announced event');
+  else bad('A’s project P1 won at an announced event', season);
+  await as(c, ADMIN, `select admin_feature_project($1, false)`, [P1]); // on show as a winner only from here on
+  const winnerNews = await added(P1);
+  // Every migration ran when the database was set up, before any event had results: run this one's
+  // first run again, now that there are winners.
+  await c.query(`drop table museum_hung_winners cascade`);
+  await c.query(CONTROL);
+  await expectSu(c, 'on its first run, every winner already on show is hung', `select count(*)::int as n from museum_hung_winners where season_key=$1 and project_id=$2`, [season, P1], (r) => r.rows[0].n === 1);
+  if ((await added(P1)) === winnerNews) ok('…no news for winners hung by the first run');
+  else bad('…no news for winners hung by the first run', { before: winnerNews, after: await added(P1) });
+  const onShowSu = async (id) => (await c.query(`select museum_on_show($1) as s`, [id])).rows[0].s;
+  if (await onShowSu(P1)) ok('…so the winner is still on show');
+  else bad('…so the winner is still on show');
+
+  for (const t of ['museum_hung_winners', 'museum_portraits', 'museum_rooms', 'museum_wing_picks']) {
+    await expectErr(c, `visitors cannot read ${t}`, 'anon', `select * from ${t}`, [], /permission denied/);
+    await expectErr(c, `…nor write it as a member`, A, `delete from ${t}`, [], /permission denied/);
+  }
+  for (const [what, sql, params] of [
+    ['hang a winner', `select admin_hang_winner($1, $2, true)`, [season, P1]],
+    ['hang an event', `select admin_hang_event($1, true)`, [season]],
+    ['read the winners list', `select admin_museum_winners()`, []],
+    ['write a portrait note', `select admin_set_portrait($1, 'hi')`, [A]],
+    ['arrange the rooms', `select admin_save_rooms('[]'::jsonb)`, []],
+    ['pick a wing’s exhibits', `select admin_set_wing_picks('web', '{}')`, []],
+  ]) {
+    await expectErr(c, `a member cannot ${what}`, A, sql, params, /NOT_ADMIN/);
+    await expectErr(c, `…nor can visitors`, 'anon', sql, params, /permission denied/);
+  }
+  await expectOk(c, 'anyone reads the curation', 'anon', `select museum_curation() as m`, [], (r) => Array.isArray(r.rows[0].m.rooms) && Array.isArray(r.rows[0].m.portraits) && Array.isArray(r.rows[0].m.picks));
+
+  // Winners hang when an admin hangs them; the results themselves stay.
+  await expectOk(c, 'the event’s awards say the winner hangs', 'anon', `select museum_events() as e`, [], (r) =>
+    r.rows[0].e.find((x) => x.key === season)?.awards.some((a) => a.project_id === P1 && a.hung === true));
+  await expectOk(c, 'the admin sees the winners, hung and on their maker’s card', ADMIN, `select admin_museum_winners() as w`, [], (r) => {
+    const w = r.rows[0].w.find((x) => x.season_key === season)?.winners.find((x) => x.project_id === P1);
+    return w?.hung === true && w.live === true && w.awards.length > 0 && typeof w.title === 'string' && w.username;
+  });
+  await expectOk(c, 'an admin takes the winner down', ADMIN, `select admin_hang_winner($1, $2, false) as on`, [season, P1], (r) => r.rows[0].on === false);
+  if (!(await onShowSu(P1))) ok('…it is no longer on show');
+  else bad('…it is no longer on show');
+  await expectOk(c, '…its award says so', 'anon', `select museum_events() as e`, [], (r) =>
+    r.rows[0].e.find((x) => x.key === season)?.awards.some((a) => a.project_id === P1 && a.hung === false));
+  await expectOk(c, '…its maker still wears the ribbon', 'anon', `select hall_awards() as h`, [], (r) => r.rows[0].h.some((x) => x.profile_id === A && x.awards.some((a) => a.project_id === P1)));
+  await expectSu(c, '…and is still a Champion', `select earned_titles($1) as t`, [A], (r) => r.rows[0].t.includes('champion'));
+  await expectOk(c, '…opening it stamps nothing', G[2], `select stamp_exhibit($1) as s`, [P1], (r) => r.rows[0].s === false);
+  await expectOk(c, 'the admin’s project list says it won but does not hang', ADMIN, `select admin_museum_projects() as p`, [], (r) => {
+    const x = r.rows[0].p.find((y) => y.project_id === P1);
+    return x?.won === true && x.hung === false;
+  });
+  await expectOk(c, 'an admin hangs it again', ADMIN, `select admin_hang_winner($1, $2, true) as on`, [season, P1], (r) => r.rows[0].on === true);
+  if (await onShowSu(P1)) ok('…it is back on show');
+  else bad('…it is back on show');
+  const hungNews = await added(P1);
+  if (hungNews <= winnerNews + 1 && hungNews >= 1) ok('…and is news once: a new exhibit by its maker');
+  else bad('…and is news once: a new exhibit by its maker', { winnerNews, hungNews });
+  await expectSu(c, '…credited to its maker', `select count(*)::int as n from hall_events where event_type='EXHIBIT_ADDED' and target_id=$1 and actor_id=$2`, [P1, A], (r) => r.rows[0].n === 1);
+  await expectOk(c, '…and in its maker’s bell, with its title', A, `select my_notifications(50) as n`, [], (r) => r.rows[0].n.items.some((x) => x.type === 'EXHIBIT_ADDED' && x.target_id === P1 && x.title));
+  await as(c, ADMIN, `select admin_hang_winner($1, $2, false)`, [season, P1]);
+  await as(c, ADMIN, `select admin_hang_winner($1, $2, true)`, [season, P1]);
+  if ((await added(P1)) === hungNews) ok('hanging it a second time is not news again');
+  else bad('hanging it a second time is not news again', await added(P1));
+  await expectErr(c, 'only a winner of an announced event can hang', ADMIN, `select admin_hang_winner($1, $2, true)`, [season, other.id], /NOT_A_WINNER/);
+  await expectOk(c, 'an admin takes down every winner of an event at once', ADMIN, `select admin_hang_event($1, false) as n`, [season], (r) => r.rows[0].n === 0);
+  await expectOk(c, '…and hangs them all again', ADMIN, `select admin_hang_event($1, true) as n`, [season], (r) => r.rows[0].n >= 1);
+  await expectErr(c, 'an event with no announced results cannot hang', ADMIN, `select admin_hang_event('no-such-event', true)`, [], /NOT_ANNOUNCED/);
+
+  // Curator counts hung winners only.
+  const shownNow = async (id) => (await c.query(`select count(*)::int as n from (
+      select f.project_id from museum_features f where f.member_id = $1 and f.project_id = any (live_project_ids($1))
+      union select a.project_id from award_makers() w join event_awards a on a.id = w.award_id
+             join museum_hung_winners h on h.season_key = a.season_key and h.project_id = a.project_id where w.member_id = $1
+      union select x.exhibit_id from archive_credits() x where x.member_id = $1) s`, [id])).rows[0].n;
+  if ((await curatorOf(A)) === ((await shownNow(A)) >= 3)) ok('Curator counts my projects on show: featured, hung winners and the archive');
+  else bad('Curator counts my projects on show: featured, hung winners and the archive', { curator: await curatorOf(A), shown: await shownNow(A) });
+
+  // Featured members hang as portraits, with a curator's note.
+  await as(c, ADMIN, `select set_featured($1, true)`, [G[1]]);
+  await expectOk(c, 'a featured member is in the Featured Members room', 'anon', `select museum_curation() as m`, [], (r) => r.rows[0].m.portraits.some((p) => p.member_id === G[1] && p.note === ''));
+  await expectOk(c, 'an admin writes their curator’s note', ADMIN, `select admin_set_portrait($1, '  Built the first kiosk.  ')`, [G[1]]);
+  await expectOk(c, '…which everyone reads, trimmed', 'anon', `select museum_curation() as m`, [], (r) => r.rows[0].m.portraits.some((p) => p.member_id === G[1] && p.note === 'Built the first kiosk.'));
+  await expectErr(c, 'a note is at most 140 characters', ADMIN, `select admin_set_portrait($1, $2)`, [G[1], 'x'.repeat(141)], /BAD_NOTE/);
+  await expectErr(c, 'a note needs a member', ADMIN, `select admin_set_portrait(gen_random_uuid(), 'hi')`, [], /NO_SUCH_MEMBER/);
+  await as(c, ADMIN, `select set_featured($1, false)`, [G[1]]);
+  await expectOk(c, 'unfeatured, the member leaves the room', 'anon', `select museum_curation() as m`, [], (r) => !r.rows[0].m.portraits.some((p) => p.member_id === G[1]));
+  await as(c, ADMIN, `select set_featured($1, true)`, [G[1]]);
+  await expectOk(c, '…and featured again, comes back with the note', 'anon', `select museum_curation() as m`, [], (r) => r.rows[0].m.portraits.some((p) => p.member_id === G[1] && p.note === 'Built the first kiosk.'));
+  await as(c, ADMIN, `select admin_set_portrait($1, '')`, [G[1]]);
+  await expectSu(c, 'an empty note takes it away', `select count(*)::int as n from museum_portraits where member_id=$1`, [G[1]], (r) => r.rows[0].n === 0);
+  await as(c, ADMIN, `select admin_set_portrait($1, 'Gone with the account.')`, [A]);
+
+  // The rooms, as the admins arrange them.
+  await expectOk(c, 'an admin arranges the rooms', ADMIN, `select admin_save_rooms($1::jsonb)`, [JSON.stringify([{ key: 'archive', sign: '  The Vault ' }, { key: 'winners', hidden: true }, { key: `event:${season}` }, { key: 'members' }])]);
+  await expectOk(c, '…everyone reads them in that order, signs trimmed', 'anon', `select museum_curation() as m`, [], (r) => {
+    const rooms = r.rows[0].m.rooms;
+    return rooms.map((x) => x.key).join() === `archive,winners,event:${season},members` && rooms[0].sign === 'The Vault' && rooms[1].hidden === true && rooms[2].sign === null && rooms[2].hidden === false;
+  });
+  for (const [why, rooms] of [
+    ['an unknown room', [{ key: 'attic' }]],
+    ['a room twice', [{ key: 'all' }, { key: 'all' }]],
+    ['a one-letter sign', [{ key: 'all', sign: 'x' }]],
+    ['a hidden flag that is not true or false', [{ key: 'all', hidden: 'yes' }]],
+    ['not a list', { key: 'all' }],
+  ]) await expectErr(c, `the rooms refuse ${why}`, ADMIN, `select admin_save_rooms($1::jsonb)`, [JSON.stringify(rooms)], /BAD_ROOMS/);
+  await expectOk(c, 'saving no rooms puts them back as they were', ADMIN, `select admin_save_rooms('[]'::jsonb)`, []);
+  await expectOk(c, '…nothing arranged', 'anon', `select museum_curation() as m`, [], (r) => r.rows[0].m.rooms.length === 0);
+
+  // Wings: a wing with no tools holds only the exhibits an admin picks.
+  await expectOk(c, 'an admin opens a wing with no tools', ADMIN, `select admin_save_wing('picked-x', 'Curators Pick', '', '{}', 50, true, 'garden')`, []);
+  await expectOk(c, '…and hangs exhibits in it by hand', ADMIN, `select admin_set_wing_picks('picked-x', $1::uuid[])`, [[P1, arc]]);
+  await expectOk(c, '…which everyone reads, in order', 'anon', `select museum_curation() as m`, [], (r) => r.rows[0].m.picks.filter((p) => p.wing === 'picked-x').map((p) => p.project_id).join() === [P1, arc].join());
+  const offShow = (await c.query(`select x->>'id' as id from published_cards c, jsonb_array_elements(c.card->'projects') x
+                                   where x->>'id' is not null and not museum_on_show((x->>'id')::uuid) limit 1`)).rows[0]?.id;
+  await expectErr(c, 'only exhibits on show can be picked', ADMIN, `select admin_set_wing_picks('picked-x', $1::uuid[])`, [[offShow]], /NOT_ON_SHOW/);
+  await expectErr(c, '…in a wing that exists', ADMIN, `select admin_set_wing_picks('no-wing', '{}')`, [], /NO_SUCH_WING/);
+  await expectErr(c, '…at most 60 of them', ADMIN, `select admin_set_wing_picks('picked-x', array_fill(gen_random_uuid(), array[61]))`, [], /TOO_MANY/);
+  await as(c, ADMIN, `select admin_hang_winner($1, $2, false)`, [season, P1]);
+  await expectOk(c, 'a picked exhibit taken off show leaves the wing', 'anon', `select museum_curation() as m`, [], (r) => {
+    const ids = r.rows[0].m.picks.filter((p) => p.wing === 'picked-x').map((p) => p.project_id);
+    return !ids.includes(P1) && ids.includes(arc);
+  });
+  await as(c, ADMIN, `select admin_hang_winner($1, $2, true)`, [season, P1]);
+  await expectErr(c, 'a tag wing still takes at most 12 tools', ADMIN, `select admin_save_wing('web', 'Web Wing', '', $1::text[], 10, true, null)`, [Array.from({ length: 13 }, (_, i) => `t${i}`)], /BAD_TAGS/);
+
+  // Older migrations bring automatic winners back; running this one again restores the curation.
+  await as(c, ADMIN, `select admin_hang_winner($1, $2, false)`, [season, P1]);
+  await c.query(CURATED);
+  if (await onShowSu(P1)) ok('re-running the curated Museum migration shows every winner again…');
+  else bad('re-running the curated Museum migration shows every winner again…');
+  await c.query(CONTROL);
+  await c.query(CONTROL);
+  if (!(await onShowSu(P1))) ok('…and this one, run twice, hangs only what the admins hung');
+  else bad('…and this one, run twice, hangs only what the admins hung');
+  await expectOk(c, '…keeping the picks and portraits', 'anon', `select museum_curation() as m`, [], (r) => r.rows[0].m.picks.some((p) => p.wing === 'picked-x' && p.project_id === arc));
+  await as(c, ADMIN, `select admin_hang_winner($1, $2, true)`, [season, P1]);
+
   console.log('account deletion');
   await expectErr(c, 'anon cannot call delete_my_account', 'anon', `select delete_my_account()`, [], /permission denied/);
   await expectOk(c, 'member deletes own account', B, `select delete_my_account()`, []);
@@ -1458,6 +1599,7 @@ try {
   await as(c, ADMIN, `select admin_feature_project((x->>'id')::uuid, true) from published_cards c, jsonb_array_elements(c.card->'projects') x where c.profile_id=$1 limit 1`, [A]);
   await expectOk(c, 'a member deletes their account', A, `select delete_my_account()`, []);
   await expectSu(c, '…and their featured projects went with them', `select count(*)::int as n from museum_features where member_id=$1`, [A], (r) => r.rows[0].n === 0);
+  await expectSu(c, '…and their curator’s note', `select count(*)::int as n from museum_portraits where member_id=$1`, [A], (r) => r.rows[0].n === 0);
 } finally {
   await c.end();
   await db.stop();
