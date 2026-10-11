@@ -1,6 +1,6 @@
 # PIP-Hall v2, part two: the Museum, hackathons, and a hall that comes alive
 
-Status: **V2-9, V2-10, V2-10b, V2-11, V2-12, V2-13 and V2-15 built** (2026-10-08; V2-15 pulled forward with the calmer hall, D-126); V2-14 next. Owner changes between phases: **the two circles** (the hall and the Museum, D-129; in the hall, the badge's back, D-132) and **the curated Museum** (featured projects, winners and the archive only, D-130), 2026-10-09. Follows `V2-LIVING-HALL.md` (V2-0 to V2-8, all built). No deadline (D-093). Decisions: D-106 to D-120 (the owner's answers, 2026-10-07), D-123 (the officers' space, 2026-10-08); build details D-121, D-122, D-124, D-125, D-127, D-128; the calmer hall D-126. Rules: `CLAUDE.md` → Product rules.
+Status: **V2-9, V2-10, V2-10b, V2-11, V2-12, V2-13 and V2-15 built** (2026-10-08; V2-15 pulled forward with the calmer hall, D-126). **Next: the owner's round of 2026-10-11, V2-20 to V2-22** (a Museum the admins curate end to end, My Card made clear, Pip's new look and the affiliation looks), then V2-14. Owner changes between phases: **the two circles** (the hall and the Museum, D-129; in the hall, the badge's back, D-132) and **the curated Museum** (featured projects, winners and the archive only, D-130), 2026-10-09. Follows `V2-LIVING-HALL.md` (V2-0 to V2-8, all built). No deadline (D-093). Decisions: D-106 to D-120 (the owner's answers, 2026-10-07), D-123 (the officers' space, 2026-10-08); build details D-121, D-122, D-124, D-125, D-127, D-128; the calmer hall D-126. Rules: `CLAUDE.md` → Product rules.
 
 ## Why this round
 
@@ -134,6 +134,53 @@ Built as planned (details: D-128). #23 found one thing and made the rest diagnos
 - **#23 Server check:** why the live server functions error (the badge download did; link previews may too). Needs from the owner: what `the-pip-hall.vercel.app/api/og/hall` shows, or that function's log in Vercel.
 - **SQL:** Mentor in `earned_titles()`; the new Missions in `mission_met()` and `complete_mission()`.
 - Budget: ≤ 4 KB gzipped JS.
+
+### The owner's round (2026-10-11): V2-20 to V2-22, before V2-14
+
+Everyone shares their card and projects in the hall; the Museum is where the admins choose what is shown. My Card should be easy for a first-time member, with what you *say* (information) apart from how your badge *looks* (customizing). Pip and two frames take their look from the two logos the owner shared (a blue diamond with a ring; a red block with cat eyes), inspired, never copied. Decisions: D-133 (the Museum), D-134 (My Card), D-135 (Pip and the affiliation looks). Order: V2-20, V2-21, V2-22; each one SQL first where there is SQL, then stop and report.
+
+#### V2-20 · The Museum, curated end to end (P0)
+
+**Loop:** an admin picks a project, a winner or a member → it hangs in a room with a plaque → visitors find it there and stamp it in their Passport → its maker is told (bell) and it shows on their profile → the admins keep the Museum fresh.
+
+- **Nothing hangs by itself** (D-133).
+  - **Featured projects:** as now (Admin → Museum → Feature).
+  - **Winners:** announcing results no longer hangs them. Admin → Museum → Winners lists every placed or awarded project per event, with **Hang** / **Take down** and **Hang all from this event**. Ribbons, the Champion title and the results news still come from the results; only the Museum waits for the admin. On the first run, winners already on show stay hung, so nothing disappears.
+  - **The archive:** as now (publish in Admin → Archive).
+  - **Featured Members** (a new room): members an admin features (the existing Feature switch) hang as their badges in a portrait room, each with an optional curator's note (up to 140 characters). Their profile says they are in it. Unfeaturing takes them down.
+  - **Rooms:** Admin → Museum → Rooms lists every room (Winners' Hall, each event, Featured Members, each wing, All exhibits, the Archive): rename a room's sign, move it up or down, hide or show it. A hidden room keeps its exhibits; its door is shut. A wing can be **hand-picked** (the admin ticks which exhibits on show hang there) as well as filled from tools, as wings are now.
+  - **Members' offers stay suggestions:** they lead Admin → Museum, marked as suggested by their maker; nothing hangs until an admin features it.
+  - Admin → Museum gets its own tabs: Suggestions · Projects · Winners · Members · Rooms (the Archive and Wings keep theirs).
+- The circles, the walk, the list, the kiosk, the placards and the posters all show exactly the same set.
+- **SQL:** hung winners (seeded with the winners on show today), member portraits with their notes, the rooms' layout (sign, place, hidden), hand-picked wing exhibits; `museum_on_show()`, `museum_exhibits()`, stamps and imports, the Curator title and "a new exhibit" news follow the new rule; admin functions; security tests.
+- **Budget:** ≤ 4 KB gzipped, all in the lazy Museum and Admin chunks (0 on the home page); no extra request on `/museum` (the layout and portraits come with the exhibits).
+
+#### V2-21 · My Card, made clear (P0)
+
+**Loop:** open My Card → see where you are → fill one tab while the live badge changes as you type → Submit → the status says what happens next → once approved, come back to Customize.
+
+- **Layout** (D-134): the live badge always in view, with Flip, Save draft, Submit and the card's status in plain words. Beside it four tabs:
+  - **Info:** name, role, position, department, tagline, photo, links, skills.
+  - **Projects:** GitHub repos, add your own, order, team mates, suggest to the Museum (members with Museum access).
+  - **Customize:** frame, title, plate and the band (V2-22), everything you can wear in one place. Buying stays in the PIP MART, which links "Wear it in My Card".
+  - **Account:** signed in as, Settings, sign out.
+- **First time:** a 3-step guide (Info → Projects → Submit) with Next buttons; each tab shows ✓ when its required fields are done; Customize says it opens once the card is approved.
+- **Errors:** Submit opens the first tab with a problem; each tab says how many fields need attention (in words, not by colour).
+- Unsaved changes survive switching tabs; leaving the page still asks. The tab is in the address (`/edit?tab=customize`) so the Mart and the bell can link straight to it.
+- **Phones:** the badge folds into a small preview at the top (tap for the big one), the tabs scroll sideways, Save and Submit stay at the bottom.
+- No SQL. **Budget:** ≤ 3 KB gzipped (the editor is a lazy chunk); no new requests (Customize uses the Mart's calls, made when the tab opens).
+
+#### V2-22 · Pip's new look and the affiliation looks (P1)
+
+**Loop:** an admin tags a member with an affiliation → the member finds its frame and pin in My Card → Customize → they wear them and choose their band → everyone in the hall sees it on their badge.
+
+- **Pip** (D-135), from the two logos, inspired and not copied: a blue diamond body, a white ring for a face, red cat eyes, the antenna bulb kept; no letters, no exact logo shapes. Every pose and every place Pip appears: the hall, the Museum walk, the dialogue portrait, the Mart's unboxing, the kiosk, the badge PNG and the posters. Two new colour tokens (a deep blue, a signal red) in `tokens.json`, checked for contrast by day and by night.
+- **Two new frames,** named for their look, never for anyone: **Diamond** (blue rails, a white ring line, diamond studs, ring corners) and **Cat-eye** (red rails, white stepped trim, cat-eye corners). In Admin → Affiliations an admin gives an affiliation its frame (Member, Diamond or Cat-eye) and its pin; the label the frame prints is the affiliation's name as the admin typed it, so names stay data (D-029, D-067 stand).
+- **Two new pins:** a diamond in a ring and a cat-eye block, in the new blue and red, for affiliations and in the admin's badge builder.
+- **Who gets them:** members tagged with the affiliation, free; each member chooses whether to wear the frame and show the pin. Nobody else can get them.
+- **The band:** from everything a member has earned (affiliation pins, admin badges, award ribbons, an officer seat) they pick up to 3, in their order, in My Card → Customize; the rest stay on the profile's Proof panel. Until they choose, the band shows what it shows today.
+- **SQL:** the two frames and an affiliation's pin; the member's band (up to 3, each checked as earned); the public card read includes the band; security tests.
+- **Budget:** ≤ 4 KB gzipped (sprites and the band picker); sprites drawn once into canvases, as now.
 
 ### V2-14 · The world reacts (#26, #9 sky) (P1)
 
