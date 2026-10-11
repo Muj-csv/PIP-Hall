@@ -1,6 +1,6 @@
 # PIP-Hall v2, part two: the Museum, hackathons, and a hall that comes alive
 
-Status: **V2-9, V2-10, V2-10b, V2-11, V2-12, V2-13 and V2-15 built** (2026-10-08; V2-15 pulled forward with the calmer hall, D-126); **the owner's round of 2026-10-11, V2-20 to V2-22** (a Museum the admins curate end to end, My Card made clear, Pip's new look and the affiliation looks) **and V2-23** (exhibits you can play) **built**. **Next: V2-14.** Owner changes between phases: **the two circles** (the hall and the Museum, D-129; in the hall, the badge's back, D-132) and **the curated Museum** (featured projects, winners and the archive only, D-130), 2026-10-09. Follows `V2-LIVING-HALL.md` (V2-0 to V2-8, all built). No deadline (D-093). Decisions: D-106 to D-120 (the owner's answers, 2026-10-07), D-123 (the officers' space, 2026-10-08); build details D-121, D-122, D-124, D-125, D-127, D-128; the calmer hall D-126. Rules: `CLAUDE.md` → Product rules.
+Status: **V2-9, V2-10, V2-10b, V2-11, V2-12, V2-13 and V2-15 built** (2026-10-08; V2-15 pulled forward with the calmer hall, D-126); **the owner's round of 2026-10-11, V2-20 to V2-22** (a Museum the admins curate end to end, My Card made clear, Pip's new look and the affiliation looks) **and V2-23** (exhibits you can play) **built**. **Next: V2-24, the Rotunda** (planned 2026-10-11, waiting for the owner's go and the choice of where it lives), then V2-14. Owner changes between phases: **the two circles** (the hall and the Museum, D-129; in the hall, the badge's back, D-132) and **the curated Museum** (featured projects, winners and the archive only, D-130), 2026-10-09. Follows `V2-LIVING-HALL.md` (V2-0 to V2-8, all built). No deadline (D-093). Decisions: D-106 to D-120 (the owner's answers, 2026-10-07), D-123 (the officers' space, 2026-10-08); build details D-121, D-122, D-124, D-125, D-127, D-128; the calmer hall D-126. Rules: `CLAUDE.md` → Product rules.
 
 ## Why this round
 
@@ -204,6 +204,64 @@ Built 2026-10-11: migration `20261013000000_playable_exhibits.sql` (the three li
 - Keyboard and screen readers: Play, PRESS START, Eject and Walk there are buttons or links with their purpose in words; focus moves to PRESS START when the title screen is on and back to Play on Eject, and a status line says what happened; the comic is an ordered list of three steps; the title screen is drawn with real text and hidden from screen readers, since the same words are on the plaque.
 - **SQL:** `projects.story_problem`, `story_built`, `story_result` (each null or 1 to 90 characters; members write their own, like the description); `build_card()` adds them to each project as `story`; security tests.
 - **Budget:** ≤ 5 KB gzipped, all in the lazy Museum, Exhibit and My Card chunks (0 on the home page, except the hall reading `?walk=`); no new requests (the lines ride the card the Museum already reads).
+
+#### V2-24 · The Rotunda: the Museum in the round (P0, planned)
+
+The owner's brief: a Museum that leaves a panel in awe. The idea comes from a screenshot of a journal app whose pages stand on a curved wall around the viewer, the open page large in the middle (the layout idea only; nothing copied). In PIXENDO it becomes a **rotunda**, the round gallery old museums built for panoramas: you stand in the middle, the exhibits hang around the wall, you turn to look, and you ride up to the next floor for the next room. Everything is drawn in the app's own retro style, from tokens (D-137).
+
+**Loop:** a visitor opens the Museum (or walks past the kiosk) → the lights come on around the wall, and they spin it, ride a floor up, open an exhibit → it clicks into place and opens like a journal; Play boots its cartridge (V2-23) → the Passport stamps what they opened, exactly as an exhibit's page does → new winners hung and new rooms bring them back, and at the next showcase it is on the big screen.
+
+**What it looks like**
+- **The wall:** a ring of exhibits on the inside of a cylinder, all facing the visitor. The one in front is flat and largest, and the rest turn away and recede to either side (CSS 3D: each frame `rotateY(θ)` then pushed back to the wall's radius). Each exhibit hangs in a pixel frame with stepped corners and a hard 4px ink shadow (no rounding, no blur), its picture as the exhibit shows it (the screenshot, GitHub's preview, else the pixel cover), and a small brass plate with the title.
+- **The room:** the wall and floor take the room's style tokens (`museum.<style>-wall`, `-wall-shade`, `-pattern`, `-floor`, `-floor-alt` for arcade, lab, library, garden and trophy), so each floor looks different, and DAY/NIGHT recolours them. A stepped spotlight cone (`museum.light`, dark as `museum.light-off`) hangs over each frame, and the floor shows each frame's reflection faded in a pixel dither (where the browser supports reflections; elsewhere just the floor).
+- **The plate up top:** `MUSEUM · Winners' Hall · 12 exhibits` in the display font, like the journal's "70 pages".
+- **The controls under it:** pixel buttons ◀ ▶, ▲ ▼ for floors (with an elevator dial: `▲ 2F WINNERS' HALL ▼`), **OPEN**, **Share** and **List view**. Every button is 44px.
+
+**The moments (the demo, in order)**
+1. **Doors open.** Arriving, the rotunda is dark, then the spotlights come on one by one around the ring (60 ms steps), the one in front last and brightest. It happens once per visit.
+2. **It turns with weight.** Drag, flick, the wheel or ← → all turn the ring on the hall's own spring (D-031: one `requestAnimationFrame` loop, hand-written; no library). A flick carries it several frames, and it always settles with one exhibit square in front (a detent). The turn wraps round when the room has enough exhibits to close the ring.
+3. **Floors.** Rooms stack as floors in the admins' room order (D-133). ▲ ▼ (or PageUp/PageDown) rides the camera up or down: the old ring slides away, the next room's walls change colour, and its lights come on. The dial shows where you are.
+4. **It opens like a journal.** OPEN, Enter or a tap on the front exhibit swings it forward and opens it as a two-page spread (4 stepped frames, 240 ms):
+   - **left page:** its cartridge and console (Play → PRESS START, V2-23);
+   - **right page:** the making-of comic, or the description, then the plaque, Made by and the QR.
+   **Visit the exhibit** goes to its full page. Opening stamps the Passport, and Esc or Close puts it back on the wall. The address keeps it, so Back works and a shared link reopens it: `?view=rotunda&room=…&at=<id>&open=1`.
+5. **The kiosk.** `/booth`'s Museum tour plays on the rotunda: it turns one exhibit every 8 seconds with the plaque and QR beside it, a touch takes over, and it plays on after a minute untouched (as now).
+
+**Rules it keeps**
+- **Retro, not glossy:** original frames and floors in `sprites.ts`, stepped corners, hard shadows, stepped motion where it signals something (lights, the spread), no blur and no rounded cards. Positions are rounded to whole pixels at rest so the frame edges stay sharp.
+- **Honest when small:** with a few exhibits the wall is a shallow arc, not a closed ring, and nothing is added to fill it (rule 7). An empty room has no floor, as rooms with nothing have no door today.
+- **Accessibility:** the ring is a listbox with `aria-activedescendant`, like the circles' arcs (D-129); only the front exhibit and 4 either side are in the page. A status line reads "Exhibit 3 of 12 on the Winners' Hall floor: Tide Tables, by Ada Lovelace". The spread is a dialog that takes focus and gives it back. Vertical swipes still scroll the page; floors change with ▲ ▼. The List view stays one tap away.
+- **Reduced motion:** the lights are simply on, turns and floor changes cut to the next place, and the spread opens without the swing.
+
+**Where it lives (the owner decides before the build)**
+- **Recommended:** the rotunda becomes the Museum's default view, replacing the Museum's circles (D-129 there; the hall keeps its circles on the badge's back), with **Walk the Museum** and **List view** beside it. Very narrow screens keep opening the list first (D-119), with a link to the rotunda.
+- **Or:** a fourth view beside the circles, walk and list.
+- **The kiosk tour uses it** either way.
+
+**Not in this phase**
+- **A phone as the kiosk's remote:** scan a code and turn the big screen from your phone. It needs a live channel between the two screens and its own security plan, so it gets a plan of its own if wanted.
+- **Sound:** the turntable click and the lights' chime wait for V2-18 and stay silent until then.
+
+**Build notes**
+- A pure `lib/rotunda.ts` (unit-tested): angle per exhibit from the count, the arc or ring, the release target after a flick, the detent, wrap-around, which exhibits are in view, and floor order from the curation.
+- `components/museum/Rotunda.tsx` on one `requestAnimationFrame` loop that writes only transforms, and `RotundaSpread.tsx` (it reuses `CartridgePlayer` and `MakingOfComic`).
+- **Data:** the data the Museum already reads (`museum_curation()`, the exhibits, the archive): no new requests.
+
+**SQL:** none.
+
+**Budget:** ≤ 8 KB gzipped, all in a lazy Rotunda chunk (CSS included); 0 KB on the home page. At most 13 frames are drawn and only their pictures load, lazily. Per frame: one spring step and at most 13 transform writes. **Check:** 60 fps on a mid-range phone profile (4× CPU throttle) with 30 exhibits, recorded in a performance trace.
+
+**Acceptance (evidence in `docs/build/evidence/rotunda/`)**
+- **Screenshots:** desktop, phone and the kiosk on the 1920 × 1080 showcase screen, by DAY and NIGHT.
+- **Each moment tested in e2e:**
+  - lights on;
+  - a flick settles on an exhibit;
+  - ▲ ▼ change floors in the admins' order;
+  - OPEN shows the spread, Play works in it, and Esc closes it;
+  - the address reopens it;
+  - the Passport is stamped.
+- **Accessibility tests:** the keyboard path end to end, the status line, and reduced motion.
+- **Performance:** the perf trace.
 
 ### V2-14 · The world reacts (#26, #9 sky) (P1)
 
