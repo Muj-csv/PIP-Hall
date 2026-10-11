@@ -14,6 +14,8 @@ export interface Affiliation {
   /** An officers' team for one term (V2-10b, D-123), and the day that term ends. */
   officers?: boolean;
   term_ends?: string | null;
+  /** The logo an admin uploaded (V2-22, D-135): a Storage path in the affiliation-logos bucket. */
+  logo_path?: string | null;
 }
 
 export interface Exhibit {

@@ -14,19 +14,14 @@ import {
   CARD_PALETTE,
   DOODLE_PALETTE,
   FRAME_DOODLES,
-  GEM_SPRITES,
-  RIBBON_PALETTES,
-  RIBBON_PIN_SPRITES,
-  OFFICER_PIN,
-  OFFICER_PIN_PALETTE,
-  GEM_TONE_PALETTES,
   RANK_GEMS,
   SPR,
 } from "../../lib/sprites";
 import { frameStyleVars, isFrameStyle } from "../../lib/rewards";
-import type { Pin } from "../../types/mart";
-import { awardLabel, ribbonOf, type HallAward } from "../../lib/events";
-import { officerLabel, type Officer } from "../../lib/officers";
+import type { BandItem } from "../../types/mart";
+import { bandLabel, defaultBand } from "../../lib/band";
+import { BandPin } from "./BandPin";
+import { publicImageUrl } from "../../services/storageService";
 import { rankOf, type Rank } from "../../lib/rank";
 import { placeStickers } from "../../lib/stickers";
 import { memberQrUrl, serialFor } from "../../lib/publicUrl";
@@ -61,14 +56,10 @@ interface Props {
 
 /** The frame the badge wears (E2), read by the holder on both faces. */
 const FrameContext = createContext<Appearance | null>(null);
-/** Admin-made badges pinned on the band (D-087). */
-const PinsContext = createContext<Pin[]>([]);
-/** Ribbons for places and awards won at hall events (D-116), newest first. */
-const RibbonsContext = createContext<HallAward[]>([]);
-/** The holder's current officer seat (D-123), if any. */
-const OfficerContext = createContext<Officer | null>(null);
-/** At most this many ribbons ride the strip; the profile's Proof panel lists them all. */
-const MAX_RIBBONS = 2;
+/** What rides the holder's top strip, in order: the band the member chose (V2-22, D-134), or the
+ *  one the hall picks (their officer seat, ribbons won at events, admin-made badges). The profile's
+ *  Proof panel lists everything. */
+const BandContext = createContext<readonly BandItem[]>([]);
 
 export function MemberCard({
   card,
@@ -86,9 +77,11 @@ export function MemberCard({
   const appearances = useAppearance();
   const worn = appearances.of(card.profile_id);
   const look = appearance === undefined ? worn : appearance;
+  const chosen = appearances.bandOf(card.profile_id);
   const pins = appearances.pinsOf(card.profile_id);
   const ribbons = appearances.awardsOf(card.profile_id);
   const officer = appearances.officerOf(card.profile_id);
+  const band = useMemo(() => chosen ?? defaultBand(officer, ribbons, pins), [chosen, officer, ribbons, pins]);
   const titled = title === undefined ? appearances.titleOf(card.profile_id) : title;
   // A border designed in /admin (D-087) draws as 'custom' with its tones as CSS variables.
   const designed = look?.style && isFrameStyle(look.style) ? look.style : null;
@@ -103,9 +96,7 @@ export function MemberCard({
   };
   return (
     <FrameContext.Provider value={look}>
-      <PinsContext.Provider value={pins}>
-      <RibbonsContext.Provider value={ribbons}>
-      <OfficerContext.Provider value={officer}>
+      <BandContext.Provider value={band}>
       <div
         className="badge"
         data-flipped={flipped}
@@ -149,18 +140,15 @@ export function MemberCard({
           <CardBack card={card} tab={tab} onOpen={onOpen} />
         </div>
       </div>
-      </OfficerContext.Provider>
-      </RibbonsContext.Provider>
-      </PinsContext.Provider>
+      </BandContext.Provider>
     </FrameContext.Provider>
   );
 }
 
 function Holder({ children }: { children: React.ReactNode }) {
   const look = useContext(FrameContext);
-  const pins = useContext(PinsContext);
-  const ribbons = useContext(RibbonsContext).slice(0, MAX_RIBBONS);
-  const officer = useContext(OfficerContext);
+  const band = useContext(BandContext);
+  const logo = publicImageUrl("affiliation-logos", look?.logo ?? null);
   const designedDoodle = look?.style && isFrameStyle(look.style) ? look.style.doodle : null;
   const ornament = designedDoodle ? (designedDoodle === "none" ? undefined : FRAME_DOODLES[designedDoodle]) : look ? FRAME_DOODLES[look.frame] : undefined;
   // A perk frame prints its affiliation (e.g. ACM MEMBER) where the holder says PIXENDO.
@@ -168,33 +156,21 @@ function Holder({ children }: { children: React.ReactNode }) {
   return (
     <div className="holder">
       <span className="hole" />
-      {pins.length + ribbons.length + (officer ? 1 : 0) > 0 && (
-        // Admin-made badges (D-087) ride the holder's top strip like enamel pins beside the clip,
-        // after the ribbons won at hall events (D-116).
+      {band.length > 0 && (
+        // The band (D-134): officer seat, ribbons (D-116), affiliation pins (the logo, D-135) and
+        // admin-made badges (D-087) ride the holder's top strip like enamel pins beside the clip.
         <span className="holder-pins" role="list" aria-label="Badges">
-          {officer && (
-            <span role="listitem" title={officerLabel(officer)}>
-              <SpriteCanvas sprite={OFFICER_PIN} palette={OFFICER_PIN_PALETTE} className="pin-ribbon" />
-              <span className="sr-only">Officer: {officerLabel(officer)}</span>
-            </span>
-          )}
-          {ribbons.map((a) => {
-            const label = `${awardLabel(a)} at ${a.event}`;
-            const kind = ribbonOf(a);
-            return (
-              <span key={`${a.event_key}-${a.place ?? a.name}-${a.track ?? ""}`} role="listitem" title={label}>
-                <SpriteCanvas sprite={RIBBON_PIN_SPRITES[kind]} palette={RIBBON_PALETTES[kind]} className="pin-ribbon" />
-                <span className="sr-only">{label}</span>
-              </span>
-            );
-          })}
-          {pins.map((p) => (
-            <span key={p.key} role="listitem" title={p.name}>
-              <SpriteCanvas sprite={GEM_SPRITES[p.gem] ?? GEM_SPRITES.star!} palette={GEM_TONE_PALETTES[p.tone] ?? GEM_TONE_PALETTES.gold!} className="pin-gem" />
-              <span className="sr-only">{p.name}</span>
+          {band.map((item) => (
+            <span key={item.ref} role="listitem" title={bandLabel(item)}>
+              <BandPin item={item} />
+              <span className="sr-only">{bandLabel(item)}</span>
             </span>
           ))}
         </span>
+      )}
+      {logo && (
+        // An affiliation frame carries the logo its admin uploaded (D-135), never one from the code.
+        <img className="holder-logo" src={logo} alt="" draggable={false} />
       )}
       <span
         className="holder-print"
@@ -205,12 +181,14 @@ function Holder({ children }: { children: React.ReactNode }) {
       </span>
       {ornament ? (
         <>
-          <SpriteCanvas
-            sprite={ornament.sprite}
-            palette={ornament.palette}
-            className="doodle"
-            style={{ top: 6, left: 6 }}
-          />
+          {!logo && (
+            <SpriteCanvas
+              sprite={ornament.sprite}
+              palette={ornament.palette}
+              className="doodle"
+              style={{ top: 6, left: 6 }}
+            />
+          )}
           <SpriteCanvas
             sprite={ornament.sprite}
             palette={ornament.palette}

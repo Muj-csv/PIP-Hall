@@ -39,9 +39,14 @@ export interface MockDb {
   wingPicks?: Row[];
   /** Paths uploaded to the project-covers bucket (screen pictures, D-092). */
   coverUploads?: string[];
-  /** PIP MART (mirrors supabase/migrations/*_pip_mart.sql). */
+  /** PIP MART (mirrors supabase/migrations/*_pip_mart.sql). `appearance` rows carry the band a
+   *  member chose (V2-22): `band` undefined or null lets the hall pick. */
   inventory?: Row[];
   appearance?: Row[];
+  /** V2-22 (D-135): paths uploaded to the affiliation-logos bucket, and the picture the fake Storage
+   *  serves for any logo (a test image made by the spec, never a real organization's logo). */
+  logoUploads?: string[];
+  logoPng?: Buffer;
   /** Borders and badges designed in Admin → Rewards (D-087). */
   customItems?: Row[];
   customBadges?: Row[];
@@ -1179,18 +1184,52 @@ export async function handleDb(route: Route, db: MockDb, user: DbUser): Promise<
   const perksOf = (id: string) =>
     (db.memberAffiliations ?? [])
       .filter((m) => m.member_id === id)
-      .map((m) => (db.affiliations ?? []).find((a) => a.key === m.key && a.frame_key === 'member'))
+      .map((m) => (db.affiliations ?? []).find((a) => a.key === m.key && a.frame_key))
       .filter((a): a is Row => Boolean(a))
-      .map((a) => ({ key: a.key, name: a.name, label: perkLabel(String(a.name)) }));
+      .map((a) => ({ key: a.key, name: a.name, design: a.frame_key, logo: a.logo_path ?? null, label: a.frame_key === 'member' ? perkLabel(String(a.name)) : String(a.name).trim() }));
   const validFrame = (id: string) => {
     const a = (db.appearance ?? []).find((r) => r.member_id === id);
     if (!a?.frame) return null;
     if (a.frame === 'member') {
       const p = perksOf(id).find((x) => x.key === a.frame_affiliation);
-      return p ? { frame: 'member', label: p.label } : null;
+      return p ? { frame: p.design, label: p.label, logo: p.logo, affiliation: p.key } : null;
     }
     const item = allItems().find((m) => m.key === a.frame);
     return owns(id, String(a.frame)) ? { frame: a.frame, label: null, style: item?.style ?? null } : null;
+  };
+  // ---- V2-22 the band (mirrors 20261012000100_affiliation_looks.sql): everything a member could
+  // wear on it, and the picks they made that are still theirs.
+  const bandItems = (id: string): Row[] => {
+    const today = new Date(Date.now() + 8 * 3600_000).toISOString().slice(0, 10);
+    const mine = (db.memberAffiliations ?? []).filter((m) => m.member_id === id);
+    const aff = (key: unknown) => (db.affiliations ?? []).find((a) => a.key === key);
+    const officers = mine.flatMap((m) => {
+      const a = aff(m.key);
+      return a?.officers && (!a.term_ends || String(a.term_ends) >= today) ? [{ ref: `officer:${a.key}`, kind: 'officer', key: a.key, team: a.name, position: m.position ?? null }] : [];
+    });
+    const awards: Row[] = [];
+    (db.awards ?? []).forEach((a, i) => {
+      const ev = (db.seasons ?? []).find((x) => x.key === a.season_key);
+      if (!ev?.announced_at) return;
+      for (const m of makersOf(a)) if (m.id === id) awards.push({ ref: `award:e${i + 1}`, kind: 'award', event_key: ev.key, event: ev.name, place: a.place ?? null, name: a.name ?? null, track: a.track ?? null, project_id: a.project_id, title: m.title, at: ev.announced_at });
+    });
+    const pins = mine.flatMap((m) => {
+      const a = aff(m.key);
+      return a?.logo_path ? [{ ref: `pin:${a.key}`, kind: 'pin', key: a.key, name: a.name, logo: a.logo_path }] : [];
+    });
+    const badges = (db.memberAchievements ?? [])
+      .filter((m) => m.member_id === id)
+      .map((m) => (db.customBadges ?? []).find((b) => b.key === m.key))
+      .filter((b): b is Row => Boolean(b))
+      .reverse()
+      .map((b) => ({ ref: `badge:${b.key}`, kind: 'badge', key: b.key, name: b.name, gem: b.gem, tone: b.tone }));
+    return [...officers, ...awards, ...pins, ...badges];
+  };
+  const chosenBand = (id: string): Row[] | null => {
+    const picks = (db.appearance ?? []).find((r) => r.member_id === id)?.band as string[] | null | undefined;
+    if (!picks) return null;
+    const items = bandItems(id);
+    return picks.flatMap((r) => items.filter((i) => i.ref === r));
   };
   const frameInSeason = (key: string) => {
     const holders = (db.seasons ?? []).filter((x) => (x.frame as Row | null)?.key === key);
@@ -1207,6 +1246,8 @@ export async function handleDb(route: Route, db: MockDb, user: DbUser): Promise<
         .map((m) => ({ limited_until: (db.seasons ?? []).find((x) => (x.frame as Row | null)?.key === m.key && x === liveSeason())?.ends_on ?? null, key: m.key, kind: m.kind ?? 'frame', name: m.name, description: m.description, price: m.price, for_sale: m.for_sale, style: m.style, owned: owns(userId, String(m.key)) })),
       perks: perksOf(userId),
       equipped: { frame: a?.frame ?? null, affiliation: a?.frame_affiliation ?? null, title: a?.title ?? null, plate: a?.plate ?? null },
+      band: a?.band ?? null,
+      band_items: bandItems(userId),
     })), true;
   }
   // ---- V2-5 titles and plates (mirrors 20261006000800_identity.sql).
@@ -1287,14 +1328,27 @@ export async function handleDb(route: Route, db: MockDb, user: DbUser): Promise<
     if (!inHall(userId)) return (await err(400, 'P0001', 'NOT_ELIGIBLE')), true;
     if (p_frame === 'member' && !perksOf(userId).some((p) => p.key === p_affiliation)) return (await err(400, 'P0001', 'NO_SUCH_PERK')), true;
     if (p_frame && p_frame !== 'member' && !owns(userId, p_frame)) return (await err(400, 'P0001', 'NOT_OWNED')), true;
-    db.appearance = (db.appearance ?? []).filter((r) => r.member_id !== userId);
-    db.appearance.push({ member_id: userId, frame: p_frame, frame_affiliation: p_frame === 'member' ? p_affiliation : null });
+    setLook(userId, { frame: p_frame, frame_affiliation: p_frame === 'member' ? p_affiliation : null });
+    return (await json(200, null)), true;
+  }
+  if (url.pathname === '/rest/v1/rpc/set_band') {
+    const { p_band } = body() as { p_band: string[] | null };
+    if (!userId) return (await err(401, '42501', 'permission denied for function set_band')), true;
+    if (!inHall(userId)) return (await err(400, 'P0001', 'NOT_ELIGIBLE')), true;
+    if (p_band) {
+      if (p_band.length > 3) return (await err(400, 'P0001', 'TOO_MANY')), true;
+      if (new Set(p_band).size !== p_band.length) return (await err(400, 'P0001', 'TWICE')), true;
+      const refs = bandItems(userId).map((i) => i.ref);
+      if (p_band.some((r) => !refs.includes(r))) return (await err(400, 'P0001', 'NOT_EARNED')), true;
+    }
+    setLook(userId, { band: p_band });
     return (await json(200, null)), true;
   }
   if (url.pathname === '/rest/v1/rpc/card_appearances') {
     const out = db.published.flatMap((c) => {
       const v = validFrame(String(c.profile_id));
-      return v ? [{ profile_id: c.profile_id, ...v }] : [];
+      const band = chosenBand(String(c.profile_id));
+      return v || band ? [{ profile_id: c.profile_id, ...(v ?? {}), ...(band ? { band } : {}) }] : [];
     });
     return (await json(200, out)), true;
   }
@@ -1357,8 +1411,19 @@ export async function handleDb(route: Route, db: MockDb, user: DbUser): Promise<
   if (url.pathname === '/rest/v1/rpc/admin_set_affiliation_frame') {
     if (!admin) return (await err(403, '42501', 'NOT_ADMIN')), true;
     const { p_key, p_frame } = body() as { p_key: string; p_frame: string | null };
+    if (p_frame && !['member', 'diamond', 'cateye'].includes(p_frame)) return (await err(400, 'P0001', 'NO_SUCH_FRAME')), true;
     const a = (db.affiliations ?? []).find((r) => r.key === p_key);
-    if (a) a.frame_key = p_frame;
+    if (!a) return (await err(400, 'P0001', 'NO_SUCH_AFFILIATION')), true;
+    a.frame_key = p_frame;
+    return (await json(200, null)), true;
+  }
+  if (url.pathname === '/rest/v1/rpc/admin_set_affiliation_logo') {
+    if (!admin) return (await err(403, '42501', 'NOT_ADMIN')), true;
+    const { p_key, p_path } = body() as { p_key: string; p_path: string | null };
+    if (p_path && !new RegExp(`^${userId}/[0-9a-f-]{36}\\.(png|webp)$`).test(p_path)) return (await err(400, 'P0001', 'BAD_PATH')), true;
+    const a = (db.affiliations ?? []).find((r) => r.key === p_key);
+    if (!a) return (await err(400, 'P0001', 'NO_SUCH_AFFILIATION')), true;
+    a.logo_path = p_path;
     return (await json(200, null)), true;
   }
 
@@ -1463,6 +1528,22 @@ export async function handleDb(route: Route, db: MockDb, user: DbUser): Promise<
     return (await json(200, prefixes.map((name) => ({ name })))), true;
   }
 
+  // V2-22: only admins upload logos, into their own folder; any admin may delete one; everyone sees them.
+  const logo = url.pathname.match(/^\/storage\/v1\/object\/(public\/)?affiliation-logos(?:\/(.+))?$/);
+  if (logo) {
+    if (logo[1] && method === 'GET') return (await route.fulfill({ status: 200, contentType: 'image/png', body: db.logoPng ?? TINY_PNG })), true;
+    if (method === 'POST' && logo[2]) {
+      if (!admin || !logo[2].startsWith(`${userId}/`)) return (await err(403, '403', 'new row violates row-level security policy')), true;
+      (db.logoUploads ??= []).push(logo[2]);
+      return (await json(200, { Key: `affiliation-logos/${logo[2]}`, Id: crypto.randomUUID() })), true;
+    }
+    if (method === 'DELETE') {
+      if (!admin) return (await err(403, '403', 'new row violates row-level security policy')), true;
+      const prefixes: string[] = body().prefixes ?? [];
+      db.logoUploads = (db.logoUploads ?? []).filter((p) => !prefixes.includes(p));
+      return (await json(200, prefixes.map((name) => ({ name })))), true;
+    }
+  }
   const upload = url.pathname.match(/^\/storage\/v1\/object\/(avatars|project-covers)\/(.+)$/);
   if (upload && method === 'POST') {
     const [, bucket, path] = upload as unknown as [string, string, string];

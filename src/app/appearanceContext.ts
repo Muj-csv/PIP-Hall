@@ -2,10 +2,12 @@ import { createContext, useContext } from 'react';
 import type { HallAward } from '../lib/events';
 import type { Officer } from '../lib/officers';
 import type { HallTitle } from '../lib/titles';
-import type { Appearance, Pin } from '../types/mart';
+import type { Appearance, BandItem, Pin } from '../types/mart';
 
 interface AppearanceValue {
   of: (profileId: string) => Appearance | null;
+  /** The band this member chose, in their order (V2-22); null until they choose (the hall picks). */
+  bandOf: (profileId: string) => BandItem[] | null;
   /** Admin-made badges pinned on this member's card (D-087), newest first, at most three. */
   pinsOf: (profileId: string) => Pin[];
   /** Titles earned, the one worn and its plate (D-101); null before they load or when off. */
@@ -24,6 +26,7 @@ interface AppearanceValue {
 
 export const AppearanceContext = createContext<AppearanceValue>({
   of: () => null,
+  bandOf: () => null,
   pinsOf: () => [],
   titleOf: () => null,
   awardsOf: () => [],

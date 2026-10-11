@@ -3,7 +3,7 @@
 
 import { requireSupabase } from './supabase';
 
-export type ImageBucket = 'avatars' | 'project-covers';
+export type ImageBucket = 'avatars' | 'project-covers' | 'affiliation-logos';
 
 export function publicImageUrl(bucket: ImageBucket, path: string | null): string | null {
   if (!path) return null;
@@ -26,4 +26,18 @@ export async function uploadImage(bucket: ImageBucket, ownerId: string, image: B
     .upload(path, image, { contentType: image.type, cacheControl: '31536000', upsert: false });
   if (error) throw error;
   return path;
+}
+
+/** An affiliation's logo (V2-22, D-135): a PNG or WebP up to 512 KB, uploaded by an admin into their
+ *  own folder of the affiliation-logos bucket, kept as it is (no re-encoding: the logo's edges stay). */
+export const LOGO_MAX_BYTES = 512 * 1024;
+export async function uploadLogo(adminId: string, file: Blob): Promise<string> {
+  if (file.type !== 'image/png' && file.type !== 'image/webp') throw new Error('LOGO_TYPE');
+  if (file.size > LOGO_MAX_BYTES) throw new Error('LOGO_SIZE');
+  return uploadImage('affiliation-logos', adminId, file);
+}
+
+/** Deletes a file that nothing points at anymore. Best effort: a leftover file harms no one. */
+export async function removeImage(bucket: ImageBucket, path: string): Promise<void> {
+  await requireSupabase().storage.from(bucket).remove([path]);
 }
