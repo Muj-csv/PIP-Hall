@@ -2,7 +2,7 @@
 
 import type { ArchiveExhibit } from '../lib/archive';
 import type { ConsoleKind } from '../lib/sprites';
-import type { PublicProject } from './card';
+import type { PublicCard, PublicProject } from './card';
 
 /** An admin-entered label, e.g. an organization or "CS Student" (D-067). */
 export interface Affiliation {
@@ -29,6 +29,42 @@ export interface Exhibit {
   project: PublicProject;
   /** Set for a past project from the archive (V2-10, D-118): its makers, event and award. */
   archive?: ArchiveExhibit;
+  /** Set for a member hung in the Featured Members room (V2-20, D-133): their badge and the curator's
+   *  note. Its project_id is `member:<username>`, never a project's. */
+  portrait?: { card: PublicCard; note: string };
+}
+
+/** How the admins arranged one room (D-133): the sign on its door (null: its own name), and whether it is shut. */
+export interface RoomLayout {
+  key: string;
+  sign: string | null;
+  hidden: boolean;
+}
+
+/** museum_curation(): the rooms as arranged, the featured members' notes, and the hand-picked wing exhibits. */
+export interface MuseumCuration {
+  rooms: RoomLayout[];
+  portraits: { member_id: string; note: string }[];
+  picks: { wing: string; project_id: string }[];
+}
+
+/** Admin → Museum → Winners (D-133): one winning project of an announced event. */
+export interface AdminWinner {
+  project_id: string;
+  title: string;
+  username: string | null;
+  full_name: string | null;
+  awards: { place: 1 | 2 | 3 | null; name: string | null; track: string | null }[];
+  /** Still on its maker's approved card (only then does it show, even when hung). */
+  live: boolean;
+  hung: boolean;
+}
+
+export interface AdminWinnerEvent {
+  season_key: string;
+  event: string;
+  announced_at: string;
+  winners: AdminWinner[];
 }
 
 export interface MyMuseum {
@@ -55,8 +91,10 @@ export interface AdminMuseumProject {
   /** Its maker offered it (the editor's Museum panel). */
   offered: boolean;
   featured: boolean;
-  /** It won at an announced event, so it is on show anyway. */
+  /** It won at an announced event. */
   won: boolean;
+  /** It hangs as a winner (an admin hung it, D-133); missing before that update. */
+  hung?: boolean;
 }
 
 /** Admin → Affiliations: one member with Museum access. */

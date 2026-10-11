@@ -11,7 +11,8 @@ import { plaqueBy, planRooms, type MuseumParts, type PlaqueAward, type PlannedRo
 import { exhibitPath, exhibitUrl, publicOrigin } from './publicUrl';
 import { dateRange } from './seasons';
 import { wingRooms, type Wing, type WingContext } from './wings';
-import type { Exhibit } from '../types/museum';
+import type { Exhibit, MuseumCuration } from '../types/museum';
+import { picksByWing } from './curation';
 
 /** A hall event's case in the Winners' Hall. */
 export const eventCase = (e: MuseumEvent): TrophyCase => ({
@@ -30,6 +31,8 @@ export interface MuseumData {
   wings: readonly Wing[];
   events: readonly MuseumEvent[];
   archive: readonly ArchiveExhibit[];
+  /** museum_curation() (D-133): the rooms as arranged and the hand-picked wing exhibits. */
+  curation?: MuseumCuration;
 }
 
 /** The kiosk's pace: seconds per exhibit and per badge, the minute untouched before it plays on,
@@ -49,12 +52,13 @@ export function showcaseRooms(d: MuseumData, ctx: WingContext = {}): PlannedRoom
   const parts: MuseumParts = {
     trophies,
     events,
-    wings: wingRooms(d.wings, everything, ctx).map((r) => {
+    wings: wingRooms(d.wings, everything, { ...ctx, picks: d.curation ? picksByWing(d.curation) : ctx.picks }).map((r) => {
       const o = fixed(r.exhibits);
       return { wing: r.wing, exhibits: [...o.featured, ...o.rest] };
     }),
     everything: fixed(everything),
     archive: d.archive,
+    curation: d.curation,
   };
   return planRooms(parts);
 }

@@ -98,7 +98,10 @@ export function ProfileScreen({ card, onBack, onShowQr, reward = null, hall = []
         </p>
         {c.is_featured && (
           <p className="m-0 font-display tracking-[0.06em]">
-            <span aria-hidden="true">★ </span>FEATURED
+            <span aria-hidden="true">★ </span>FEATURED{' '}
+            <Link to="/museum?room=members" className="font-body text-caption tracking-normal underline decoration-2">
+              In the Museum’s Featured Members room
+            </Link>
           </p>
         )}
         {c.tagline && <p className="m-0">{c.tagline}</p>}

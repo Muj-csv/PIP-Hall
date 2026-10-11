@@ -47,7 +47,10 @@ describe('notificationLine', () => {
   });
   it('sends achievements and featuring to your own badge when known', () => {
     expect(notificationLine(n({ type: 'ACHIEVEMENT_UNLOCKED', title: 'Explorer' }), 'ada')).toEqual({ text: 'Achievement unlocked: Explorer!', to: '/member/ada' });
-    expect(notificationLine(n({ type: 'MEMBER_FEATURED' }), null)?.to).toBe('/');
+    expect(notificationLine(n({ type: 'MEMBER_FEATURED' }), null)).toEqual({ text: 'You’re featured! Your badge hangs in the Museum’s Featured Members room.', to: '/museum?room=members' });
+  });
+  it('tells a maker their project now hangs in the Museum (D-133)', () => {
+    expect(notificationLine(n({ type: 'EXHIBIT_ADDED', target_id: 'p1', title: 'Kite' }), 'ada')).toEqual({ text: '“Kite” now hangs in the Museum.', to: '/museum/p1' });
   });
   it('tells a winner what their project won, and where, and leads to the exhibit', () => {
     expect(notificationLine(n({ type: 'AWARD_WON', target_id: 'p1', title: 'Kite', event: 'Spring Hackathon', place: 1 }), 'ada')).toEqual({ text: '“Kite” won 1st place at Spring Hackathon!', to: '/museum/p1' });

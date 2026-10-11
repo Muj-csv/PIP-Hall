@@ -1,6 +1,7 @@
-// The Museum as two circles (D-129, D-130): its rooms on one arc (the Winners' Hall, each event,
-// each wing, All exhibits, the Archive), the chosen room's exhibits on the other, and between them
-// the chosen exhibit on its console beside its plaque, with VISIT. Changing the room turns the
+// The Museum as two circles (D-129, D-130, D-133): its rooms on one arc (the Winners' Hall, each event,
+// Featured Members, each wing, All exhibits, the Archive, or as the admins arranged them), the chosen
+// room's exhibits on the other, and between them the chosen exhibit on its console beside its plaque,
+// with VISIT (a featured member: their badge, the curator's note and OPEN PROFILE). Changing the room turns the
 // exhibits' arc over to that room. MOVE walks exhibit by exhibit, on into the next room at the end
 // of one; ROOM goes to the next room. The walk and the list are one link away. A lazy chunk, with
 // its own animation loop (the page has no other).
@@ -11,7 +12,8 @@ import { SLOT_SPACING, slotX } from '../../lib/carousel';
 import { arcDots, circlesCentre, circlesLayout, panelBox, type Arc, type CirclesLayout } from '../../lib/circles';
 import { consoleFor } from '../../lib/museum';
 import { awardLine, planRooms, plaqueBy, plaqueOrigin, type MuseumParts, type PlannedRoom, type RoomKind } from '../../lib/museumWalk';
-import { exhibitPath, memberPath } from '../../lib/publicUrl';
+import { memberPath } from '../../lib/publicUrl';
+import { stopPath } from '../../lib/curation';
 import { roomStops } from '../../lib/showcase';
 import { cssVarReader } from '../../lib/sprites';
 import { useReducedMotion } from '../../lib/useReducedMotion';
@@ -20,6 +22,8 @@ import { QuestArt } from '../circles/QuestArt';
 import { UNIT_PX, useCarousel } from '../carousel/useCarousel';
 import { HandheldShell } from '../shell/HandheldShell';
 import { ExhibitArt } from './ExhibitArt';
+import { PortraitArt } from './PortraitArt';
+import { PixelAvatar } from '../cards/PixelAvatar';
 import { Ribbon } from './Ribbon';
 
 interface Props {
@@ -31,7 +35,7 @@ interface Props {
   onRoom: (id: string, at?: string) => void;
 }
 
-const GLYPH: Readonly<Record<RoomKind, string>> = { winners: '♛', event: '⚑', wing: '▣', all: '✶', archive: '▤' };
+const GLYPH: Readonly<Record<RoomKind, string>> = { winners: '♛', event: '⚑', members: '☺', wing: '▣', all: '✶', archive: '▤' };
 const MOVE = { group: 'Move between exhibits', prev: 'Previous exhibit', next: 'Next exhibit' };
 /** Rooms carry their names under their doors, so their arc spaces them wider when side by side. */
 const ROOM_SPACING = 96;
@@ -184,7 +188,7 @@ export default function MuseumCircles({ parts, room, at, onRoom }: Props) {
     const s = stopsOf[roomIndexRef.current]?.[exIndexRef.current];
     if (!r || !s) return;
     onRoom(r.id, s.exhibit.project_id); // Back returns to this exhibit
-    navigate(exhibitPath(s.exhibit.project_id));
+    navigate(stopPath(s.exhibit));
   }, [rooms, stopsOf, roomIndexRef, exIndexRef, onRoom, navigate]);
 
   const onKeyDown = (e: React.KeyboardEvent) => {
@@ -216,7 +220,7 @@ export default function MuseumCircles({ parts, room, at, onRoom }: Props) {
             <span aria-hidden="true">{GLYPH[current.kind]} </span>
             {current.name}{' '}
             <span className="room-banner-count">
-              · {stops.length} {stops.length === 1 ? 'exhibit' : 'exhibits'}
+              · {stops.length} {current.kind === 'members' ? (stops.length === 1 ? 'member' : 'members') : stops.length === 1 ? 'exhibit' : 'exhibits'}
             </span>
           </p>
         )}
@@ -256,10 +260,18 @@ export default function MuseumCircles({ parts, room, at, onRoom }: Props) {
                 count={stops.length}
                 index={ei}
                 near={exDial.near}
-                optionLabel={(i) => `${stops[i]!.exhibit.project.title}, exhibit ${i + 1} of ${stops.length}${stops[i]!.awards.length ? `, ${awardLine(stops[i]!.awards[0]!)}` : ''}`}
+                optionLabel={(i) =>
+                  stops[i]!.exhibit.portrait
+                    ? `${stops[i]!.exhibit.full_name}, member ${i + 1} of ${stops.length}`
+                    : `${stops[i]!.exhibit.project.title}, exhibit ${i + 1} of ${stops.length}${stops[i]!.awards.length ? `, ${awardLine(stops[i]!.awards[0]!)}` : ''}`
+                }
                 renderOption={(i) => (
                   <span className="arc-tile quest-tile">
-                    <QuestArt project={stops[i]!.exhibit.project} className="quest-thumb" />
+                    {stops[i]!.exhibit.portrait ? (
+                      <PixelAvatar username={stops[i]!.exhibit.username} name={stops[i]!.exhibit.full_name} avatarPath={stops[i]!.exhibit.avatar_path} />
+                    ) : (
+                      <QuestArt project={stops[i]!.exhibit.project} className="quest-thumb" />
+                    )}
                     {stops[i]!.awards.length > 0 && (
                       <span className="quest-no" aria-hidden="true">
                         ♛
@@ -273,7 +285,35 @@ export default function MuseumCircles({ parts, room, at, onRoom }: Props) {
                 moved={exDial.moved}
                 register={registerExhibits}
               />
-              {stop && (
+              {stop?.exhibit.portrait && (
+                <>
+                  <div
+                    className="circles-portrait"
+                    style={{ left: centre.badge.left, top: Math.max(0, centre.panel.mid - Math.round((352 * centre.badge.scale) / 2)) }}
+                  >
+                    <PortraitArt key={stop.exhibit.project_id} card={stop.exhibit.portrait.card} scale={centre.badge.scale as 0.5 | 0.75 | 1} />
+                  </div>
+                  <section className="quest-panel" style={panelBox(centre)} aria-labelledby="museum-plaque-title">
+                    <p className="quest-count m-0">
+                      FEATURED MEMBER {ei + 1}/{stops.length}
+                    </p>
+                    <h3 id="museum-plaque-title" className="quest-title m-0">
+                      {stop.exhibit.full_name}
+                    </h3>
+                    {stop.exhibit.portrait.card.card.role && <p className="quest-facts m-0">{stop.exhibit.portrait.card.card.role}</p>}
+                    {stop.exhibit.portrait.note && (
+                      <q className="quest-desc m-0">
+                        <span className="sr-only">Curator’s note: </span>
+                        {stop.exhibit.portrait.note}
+                      </q>
+                    )}
+                    <button type="button" className="pixel-btn quest-view" data-variant="primary" onClick={visit}>
+                      <span aria-hidden="true">▶ </span>OPEN PROFILE<span className="sr-only"> of {stop.exhibit.full_name}</span>
+                    </button>
+                  </section>
+                </>
+              )}
+              {stop && !stop.exhibit.portrait && (
                 <>
                   <div className="circles-console" style={{ left: centre.badge.left, width: centre.badge.width, top: centre.panel.mid }}>
                     <ExhibitArt key={stop.exhibit.project_id} project={stop.exhibit.project} console={consoleFor(stop.exhibit.project_id, stop.exhibit.console)} featured={stop.exhibit.featured} eager />

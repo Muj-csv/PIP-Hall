@@ -10,6 +10,8 @@ export type WingKind = 'featured' | 'collab' | 'tags' | 'officers';
 /** What a wing's rule needs to know beyond the exhibit: who the current officers are (D-123). */
 export interface WingContext {
   officers?: ReadonlySet<string>;
+  /** Exhibits the admins hung in a wing by hand (D-133), by wing key, in their order. */
+  picks?: ReadonlyMap<string, readonly string[]>;
 }
 
 export interface Wing {
@@ -82,7 +84,15 @@ export interface WingRoom {
 
 /** The wings that have something on show, in the curators' order, each with its exhibits. */
 export function wingRooms(wings: readonly Wing[], exhibits: readonly Exhibit[], ctx: WingContext = {}): WingRoom[] {
-  return wings.map((wing) => ({ wing, exhibits: exhibits.filter((e) => inWing(e, wing, ctx)) })).filter((r) => r.exhibits.length > 0);
+  const byId = new Map(exhibits.map((e) => [e.project_id, e]));
+  return wings
+    .map((wing) => {
+      // The admins' picks first, in their order (D-133), then what the wing's rule brings in.
+      const picked = (ctx.picks?.get(wing.key) ?? []).flatMap((id) => byId.get(id) ?? []);
+      const ids = new Set(picked.map((e) => e.project_id));
+      return { wing, exhibits: [...picked, ...exhibits.filter((e) => !ids.has(e.project_id) && inWing(e, wing, ctx))] };
+    })
+    .filter((r) => r.exhibits.length > 0);
 }
 
 /** The wings an exhibit hangs in, and up to `n` other exhibits from them, for "more like this". */
@@ -107,6 +117,7 @@ export function wingRule(w: Pick<Wing, 'kind' | 'tags'>): string {
   if (w.kind === 'featured') return 'Exhibits by members the curators featured.';
   if (w.kind === 'collab') return 'Projects made by more than one member of the hall.';
   if (w.kind === 'officers') return 'Projects by the hall’s current officers, as named by its admins.';
+  if (w.tags.length === 0) return 'Exhibits the curators picked for this wing.';
   return `Projects built with ${w.tags.slice(0, 6).join(', ')}${w.tags.length > 6 ? '…' : ''}.`;
 }
 
