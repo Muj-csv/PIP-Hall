@@ -35,6 +35,10 @@ test('an exhibit has its own page: plaque, maker, neighbours, and a pixel cover 
   await expect(page).toHaveURL(/\/museum\/sample-player-\d-\d$/);
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(`${title} · Museum`);
   await expect(page).toHaveTitle(`${title} · Museum · PIP-Hall`);
+  // The console waits for its cartridge (V2-23): the label shows the pixel cover, and so does the
+  // screen once it is played.
+  await expect(page.locator('.cartridge .cart-cover')).toHaveCount(4);
+  await page.getByRole('button', { name: `Play ${title}` }).click();
   await expect(page.locator('.exhibit-diorama')).toBeVisible();
   await expect(page.getByText(/Made by Sample Player/)).toBeVisible();
   await expect(page.getByRole('button', { name: 'Share' })).toBeVisible();

@@ -398,6 +398,12 @@ function ExhibitFrame({ exhibit: e, awards, event }: { exhibit: Exhibit; awards?
             <span className="text-text-secondary">· No.{String(e.member_no).padStart(3, '0')}</span>
           </p>
         )}
+        {/* The cartridge waits on the exhibit's own page (V2-23); the plaque points there. */}
+        <p className="m-0">
+          <Link to={exhibitPath(e.project_id)} className="pixel-btn exhibit-play" aria-describedby={id}>
+            <span aria-hidden="true">▶ </span>Play
+          </Link>
+        </p>
       </div>
     </article>
   );

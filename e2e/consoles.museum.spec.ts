@@ -57,7 +57,10 @@ test('a maker picks a console for an exhibit; visitors see it; automatic is the 
   await expect(exhibits(visitor).first().locator('.exhibit-frame')).toHaveAttribute('data-console', 'arcade');
   await exhibits(visitor).first().getByRole('link', { name: 'Tide Tables' }).click();
   await expect(visitor.getByText('On show on a PIXENDO Arcade')).toBeVisible();
-  await expect(visitor.locator('.exhibit-frame')).toHaveAttribute('data-on', 'true'); // booted once seen
+  // On its own page the console waits for its cartridge (V2-23): off until it is played.
+  await expect(visitor.locator('.exhibit-frame')).not.toHaveAttribute('data-on');
+  await visitor.getByRole('button', { name: 'Play Tide Tables' }).click();
+  await expect(visitor.locator('.exhibit-frame')).toHaveAttribute('data-on', 'true');
   await ctx.close();
 
   await pick.selectOption('');

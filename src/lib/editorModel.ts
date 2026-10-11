@@ -5,6 +5,7 @@ import type { EmoteKind } from '../components/dialogue/Emote';
 import type { AuthUser } from '../services/authService';
 import type { PublicCard } from '../types/card';
 import type { CardForm, DraftProfile, DraftProject, MyCard, ProfileStatus } from '../types/draft';
+import { storyOf } from './story';
 import { suggestUsername } from './validate';
 
 export function formFrom(mine: MyCard, user: AuthUser): CardForm {
@@ -65,6 +66,7 @@ export function previewCard(form: CardForm, mine: MyCard, user: AuthUser): Publi
         tech_stack: p.tech_stack,
         source: p.source,
         project_date: p.project_date,
+        story: storyOf(p),
       })),
     },
   };
@@ -110,6 +112,7 @@ export function cardFromDraft(profile: DraftProfile, projects: DraftProject[], s
         tech_stack: p.tech_stack,
         source: p.source,
         project_date: p.project_date,
+        story: storyOf(p),
       })),
     },
   };

@@ -44,6 +44,10 @@ export interface DraftProject {
   stars: number | null;
   tech_stack: string[];
   project_date: string | null;
+  /** The making-of comic (V2-23, D-136): the problem, what we built, what happened (each ≤ 90). */
+  story_problem?: string | null;
+  story_built?: string | null;
+  story_result?: string | null;
 }
 
 /** What the editor holds while the member types. Strings stay strings until save. */

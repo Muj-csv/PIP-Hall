@@ -1669,6 +1669,33 @@ try {
   await expectOk(c, '…which leaves nothing to say about the badge', 'anon', `select card_appearances() as a`, [], (r) => !r.rows[0].a.some((x) => x.profile_id === A));
   await expectOk(c, 'the frame’s title and plate stay as they were', A, `select my_mart() as m`, [], (r) => r.rows[0].m.band === null && 'title' in r.rows[0].m.equipped);
 
+  console.log('exhibits you can play: the making-of comic (D-136)');
+  // Older migrations re-run above bring an older build_card back: run this one again, twice.
+  const PLAY = readFileSync(join(here, '..', 'migrations', '20261013000000_playable_exhibits.sql'), 'utf8');
+  await c.query(PLAY);
+  await c.query(PLAY);
+  const [S1, S2] = (await c.query(`select id from projects where profile_id=$1 order by sort_order, created_at`, [A])).rows.map((r) => r.id);
+  const storyOf = async (id) => (await c.query(`select x->'story' as s from published_cards c, jsonb_array_elements(c.card->'projects') x where x->>'id' = $1`, [id])).rows[0]?.s;
+  await expectOk(c, 'a member writes the three lines on their own project', A,
+    `update projects set story_problem=' Nobody could find a free study room. ', story_built='A map of the free rooms, live.', story_result='Forty students used it in week one.' where id=$1 returning id`, [S1], (r) => r.rowCount === 1);
+  await expectSu(c, '…which sends the card back to review, like any edit', `select status from profiles where id=$1`, [A], (r) => r.rows[0].status === 'draft');
+  await expectErr(c, 'a line is at most 90 characters', A, `update projects set story_built=$2 where id=$1`, [S1, 'x'.repeat(91)], /check constraint/);
+  await expectErr(c, 'a line is not blank', A, `update projects set story_result='   ' where id=$1`, [S1], /check constraint/);
+  await expectOk(c, 'another member cannot write them on someone else’s project', B, `update projects set story_problem='Hacked' where id=$1 returning id`, [S1], (r) => r.rowCount === 0);
+  await expectErr(c, 'visitors cannot write them', 'anon', `update projects set story_problem='Hacked' where id=$1`, [S1], /permission denied/);
+  if ((await storyOf(S1)) == null) ok('the public card keeps the approved version until the next approval');
+  else bad('the public card keeps the approved version until the next approval', await storyOf(S1));
+  await as(c, A, `select submit_for_review()`);
+  await as(c, ADMIN, `select approve_profile($1)`, [A]);
+  await expectOk(c, 'once approved, visitors read the comic, trimmed', 'anon', `select x->'story' as s from published_cards c, jsonb_array_elements(c.card->'projects') x where x->>'id' = $1`, [S1], (r) =>
+    r.rows[0].s.problem === 'Nobody could find a free study room.' && r.rows[0].s.built === 'A map of the free rooms, live.' && r.rows[0].s.result === 'Forty students used it in week one.');
+  if (S2 && (await storyOf(S2)) === null) ok('a project without lines has no story');
+  else bad('a project without lines has no story', S2 && (await storyOf(S2)));
+  await expectOk(c, 'one line is enough for a story', A, `update projects set story_problem=null, story_built=null where id=$1 returning id`, [S1], (r) => r.rowCount === 1);
+  await expectSu(c, '…the others stay empty', `select x->'story' as s from jsonb_array_elements(build_card($1)->'projects') x where x->>'id' = $2`, [A, S1], (r) => r.rows[0].s.problem === null && r.rows[0].s.result === 'Forty students used it in week one.');
+  await as(c, A, `select submit_for_review()`);
+  await as(c, ADMIN, `select approve_profile($1)`, [A]);
+
   console.log('account deletion');
   await expectErr(c, 'anon cannot call delete_my_account', 'anon', `select delete_my_account()`, [], /permission denied/);
   await expectOk(c, 'member deletes own account', B, `select delete_my_account()`, []);

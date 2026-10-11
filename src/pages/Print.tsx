@@ -13,6 +13,7 @@ import { QrCode } from '../components/cards/QrCode';
 import { Ribbon } from '../components/museum/Ribbon';
 import { awardsByProject, awardLine, roomParams } from '../lib/museumWalk';
 import { publicOrigin } from '../lib/publicUrl';
+import { comicPanels } from '../lib/story';
 import { placardsFor, printPath, printTarget, roomStops, sheets, type Placard } from '../lib/showcase';
 import { useShowcaseRooms } from '../lib/useShowcaseRooms';
 
@@ -128,6 +129,7 @@ export default function Print() {
 
 function PlacardCard({ p }: { p: Placard }) {
   const site = publicOrigin().replace(/^https?:\/\//, '');
+  const story = comicPanels(p.exhibit.project.story);
   return (
     <article className="placard" aria-labelledby={`placard-${p.exhibit.project_id}`}>
       <p className="placard-kicker">PIXENDO MUSEUM · {p.roomName}</p>
@@ -147,7 +149,18 @@ function PlacardCard({ p }: { p: Placard }) {
           ))}
         </ul>
       )}
-      {p.exhibit.project.description && !p.note && <p className="placard-desc">{p.exhibit.project.description}</p>}
+      {!p.note &&
+        (story.length > 0 ? (
+          <ol className="placard-story" aria-label="How it was made">
+            {story.map((l) => (
+              <li key={l.key}>
+                <b>{l.heading}:</b> {l.text}
+              </li>
+            ))}
+          </ol>
+        ) : (
+          p.exhibit.project.description && <p className="placard-desc">{p.exhibit.project.description}</p>
+        ))}
       {p.note && (
         <q className="placard-note">
           <span className="sr-only">Judges’ note: </span>

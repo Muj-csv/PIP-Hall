@@ -70,7 +70,7 @@ test('after connecting, the verified handle shows and the callback syncs it to t
   const log = await mockSupabase(page, { user: { ...MEMBER, github: 'octocat' }, githubRepos: [] });
   await page.goto('/auth/callback?next=%2Fedit%3Ftab%3Dprojects');
   await expect(page).toHaveURL(/\/edit\?tab=projects$/);
-  await expect(page.getByRole('region', { name: 'Projects' })).toContainText('Public repos of @octocat');
+  await expect(page.getByRole('region', { name: 'Projects', exact: true })).toContainText('Public repos of @octocat');
   await expect(page.locator('.preview-stage .sticker').first()).toHaveText('✓ GITHUB');
   expect(log.requests).toContain('POST /rest/v1/rpc/sync_github_identity');
 });

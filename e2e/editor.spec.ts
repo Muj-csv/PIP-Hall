@@ -21,7 +21,7 @@ const repo = (id: number, name: string, language: string, stars: number) => ({
 });
 const REPOS = [repo(1, 'hello-world', 'TypeScript', 42), repo(2, 'spoon-knife', 'HTML', 12), repo(3, 'linguist', 'Ruby', 7), repo(4, 'octo-site', 'CSS', 1)];
 
-const projects = (page: Page) => page.getByRole('region', { name: 'Projects' });
+const projects = (page: Page) => page.getByRole('region', { name: 'Projects', exact: true });
 /** My Card's tabs (D-134): Info, Projects, Customize, Account. Their names carry "✓ (done)" or "· 2 to fix". */
 const tab = (page: Page, name: string) => page.getByRole('tab', { name: new RegExp(`^${name}`) });
 

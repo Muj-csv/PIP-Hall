@@ -8,7 +8,8 @@ import { requireSupabase } from './supabase';
 
 const PROFILE_COLUMNS =
   'id, username, full_name, tagline, bio, role, org_position, department, avatar_path, github_username, linkedin_url, portfolio_url, public_email, show_email, email_updates, skills, status, review_note, is_featured, username_locked, member_no';
-const PROJECT_COLUMNS = 'id, source, github_repo_id, title, description, cover_path, project_url, github_url, language, stars, tech_stack, project_date, sort_order';
+const PROJECT_COLUMNS =
+  'id, source, github_repo_id, title, description, cover_path, project_url, github_url, language, stars, tech_stack, project_date, sort_order, story_problem, story_built, story_result';
 
 type ProjectRow = Omit<DraftProject, 'key'> & { id: string; sort_order: number };
 
@@ -27,6 +28,9 @@ export function projectRow(p: DraftProject, sortOrder: number) {
     tech_stack: p.tech_stack,
     project_date: p.project_date,
     sort_order: sortOrder,
+    story_problem: blankToNull(p.story_problem),
+    story_built: blankToNull(p.story_built),
+    story_result: blankToNull(p.story_result),
   };
 }
 
@@ -57,6 +61,7 @@ export function profileRow(form: CardForm, opts: { includeUsername: boolean }) {
  */
 export const PROJECT_UPDATE_COLUMNS = [
   'title', 'description', 'cover_path', 'project_url', 'github_url', 'language', 'stars', 'tech_stack', 'project_date', 'sort_order',
+  'story_problem', 'story_built', 'story_result',
 ] as const;
 
 export type ProjectUpdate = Pick<ReturnType<typeof projectRow>, (typeof PROJECT_UPDATE_COLUMNS)[number]>;

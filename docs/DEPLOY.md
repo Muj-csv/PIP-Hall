@@ -97,6 +97,12 @@ Both are safe to run again (they only add columns and replace functions).
 1. Supabase **SQL editor:** run `supabase/migrations/20261006000300_project_collaborators.sql`. Safe to run again.
 2. Check: a member opens **My card → Collaborators**, tags another member of the hall on a project; that member sees the request in their own **Collaborators** panel and accepts. After the owner's next approval, the project's public card lists them.
 
+## Exhibits you can play (V2-23, D-136)
+
+1. Supabase **SQL editor:** run `supabase/migrations/20261013000000_playable_exhibits.sql` (after the V2-22 one) **before** merging the app update. Run it as one query with nothing selected. Safe to run again. If it stops with "This database is missing an earlier migration", nothing was changed: run `20261012000100_affiliation_looks.sql` first, then this one. If you ever re-run an older migration that rebuilds `build_card()` (init, image paths, Museum or collaborators), run this one again after it.
+2. Nothing to set up in the app: every exhibit already has its cartridge and team wall.
+3. Check: a member opens **My card → Projects**, opens **Making-of comic (optional)** under a project, writes the three lines (up to 90 characters each), saves and submits; an admin approves. On that exhibit's page (`/museum/<id>`): **▶ Play** slots the cartridge in and boots the console to the title screen; **PRESS START** opens the live project (else the code); **Eject** takes it out. Under it, **How it was made** shows the three panels; **Made by** hangs the makers' badges on one rail, and **Walk there** takes Pip to that badge in the hall. The kiosk and the placards show the three lines instead of the description.
+
 ## Pip's new look, the affiliation looks and the band (V2-22, D-134, D-135)
 
 1. Supabase **SQL editor:** run `supabase/migrations/20261012000000_affiliation_logos_storage.sql` (the public **affiliation-logos** bucket: only admins upload, PNG or WebP up to 512 KB), then `supabase/migrations/20261012000100_affiliation_looks.sql` (after the V2-20 one), **before** merging the app update. Run each as one query with nothing selected. Both are safe to run again. If the second stops with "This database is missing an earlier migration", nothing was changed: run `20261011000000_museum_control.sql` first, then this one.

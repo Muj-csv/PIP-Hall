@@ -20,6 +20,7 @@ import { awardLine, plaqueBy, plaqueOrigin } from '../lib/museumWalk';
 import { hallUrl, memberQrUrl } from '../lib/publicUrl';
 import { BOOTH, checkinUrl, placardUrl, tourStops, type ShowcaseStop } from '../lib/showcase';
 import { SPR, WORLD_OVERRIDES, WORLD_PALETTE } from '../lib/sprites';
+import { comicPanels } from '../lib/story';
 import { useCards } from '../lib/useCards';
 import { useShowcaseRooms } from '../lib/useShowcaseRooms';
 import { showcaseService, type CheckinEvent } from '../services/showcaseService';
@@ -243,6 +244,7 @@ function TourSlide({ stop, nth, count, live }: { stop: ShowcaseStop; nth: number
   const by = plaqueBy(e);
   const origin = plaqueOrigin(e);
   const note = stop.awards.map((a) => a.award.note?.trim()).find(Boolean);
+  const story = comicPanels(e.project.story); // the maker's three lines read better than the blurb
   return (
     <section className="booth-slide" aria-labelledby="booth-title" aria-live={live ? 'polite' : 'off'}>
       <div className="booth-art">
@@ -273,7 +275,18 @@ function TourSlide({ stop, nth, count, live }: { stop: ShowcaseStop; nth: number
             {note}
           </q>
         )}
-        {e.project.description && !note && <p className="booth-desc">{e.project.description}</p>}
+        {!note &&
+          (story.length > 0 ? (
+            <ol className="booth-story" aria-label="How it was made">
+              {story.map((l) => (
+                <li key={l.key}>
+                  <b>{l.heading}:</b> {l.text}
+                </li>
+              ))}
+            </ol>
+          ) : (
+            e.project.description && <p className="booth-desc">{e.project.description}</p>
+          ))}
         <div className="booth-qr">
           <QrCode value={placardUrl(e.project_id, stop.room)} title={`QR code for ${e.project.title}`} />
           <p>

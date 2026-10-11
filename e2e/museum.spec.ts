@@ -109,7 +109,7 @@ test('without Museum access the editor has no Museum panel', async ({ page }) =>
   const db = hall();
   await mockSupabase(page, { user: ME, db, githubRepos: [] });
   await page.goto('/edit?tab=projects');
-  await expect(page.getByRole('region', { name: 'Projects' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Projects', exact: true })).toBeVisible();
   await expect(page.getByRole('region', { name: 'Museum' })).toHaveCount(0);
 });
 

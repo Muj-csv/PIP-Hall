@@ -3,9 +3,11 @@
 // diorama (D-083): the console tilts in 3D toward the pointer while the pixel cover's layers (sky,
 // hill, ground, emblem) shift by depth, under a hard-edged spotlight. An uploaded cover tilts as one
 // layer with a glint. The pointer only sets two CSS variables, so nothing re-renders while it moves.
-// The console boots (screen flicker, LED on) the first time it scrolls into view.
+// The console boots (screen flicker, LED on) the first time it scrolls into view. On an exhibit's
+// own page (V2-23, D-136) it waits for its cartridge instead: the screen is off until it is played,
+// blinks the PIXENDO wordmark while it boots, then shows the picture with the title screen over it.
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { previewFor } from '../../lib/preview';
 import { COVER_PALETTE, consoleArt, coverLayers, spriteSize, type ConsoleKind, type Rect } from '../../lib/sprites';
 import { publicImageUrl } from '../../services/storageService';
@@ -53,9 +55,13 @@ interface Props {
   console: ConsoleKind;
   eager?: boolean;
   featured?: boolean;
+  /** Played from a cartridge (V2-23): the screen off, booting, or on. Left out, it boots once seen. */
+  power?: 'off' | 'boot' | 'on';
+  /** Drawn over the picture while the console is on (the title screen). */
+  children?: ReactNode;
 }
 
-export function ExhibitArt({ project, console: kind, eager = false, featured = false }: Props) {
+export function ExhibitArt({ project, console: kind, eager = false, featured = false, power, children }: Props) {
   const preview = previewFor(project, publicImageUrl('project-covers', project.cover_path));
   const [failed, setFailed] = useState<string | null>(null);
   const picture = preview.kind !== 'pixel' && failed !== preview.src ? preview : null;
@@ -63,7 +69,8 @@ export function ExhibitArt({ project, console: kind, eager = false, featured = f
   const art = consoleArt(kind);
   const { w, h } = spriteSize(art.sprite);
   const ref = useRef<HTMLDivElement>(null);
-  const on = useSeen(ref);
+  const seen = useSeen(ref);
+  const on = power ? power !== 'off' : seen;
   return (
     <div className="exhibit-view" onPointerMove={tilt} onPointerLeave={settle}>
       <div className="console-bay">
@@ -76,8 +83,16 @@ export function ExhibitArt({ project, console: kind, eager = false, featured = f
           style={{ ['--cw' as string]: w, ['--ch' as string]: h }}
         >
           <SpriteCanvas sprite={art.sprite} palette={art.palette} className="console-body" />
-          <div className="exhibit-stage" data-preview={picture?.kind ?? 'pixel'} style={place(art.screen, w, h)}>
-            {picture ? (
+          <div className="exhibit-stage" data-preview={picture?.kind ?? 'pixel'} data-power={power} style={place(art.screen, w, h)}>
+            {power === 'off' ? (
+              <div className="exhibit-art screen-off" aria-hidden="true">
+                <span>INSERT CARTRIDGE</span>
+              </div>
+            ) : power === 'boot' ? (
+              <div className="exhibit-art screen-boot" aria-hidden="true">
+                <span>PIXENDO</span>
+              </div>
+            ) : picture ? (
               <img
                 src={picture.src}
                 alt=""
@@ -93,6 +108,7 @@ export function ExhibitArt({ project, console: kind, eager = false, featured = f
                 ))}
               </div>
             )}
+            {power === 'on' && children}
             <i className="exhibit-glint" aria-hidden="true" />
             <i className="exhibit-spot" aria-hidden="true" />
             <i className="console-scan" aria-hidden="true" />

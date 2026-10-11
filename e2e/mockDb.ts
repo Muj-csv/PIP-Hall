@@ -161,7 +161,7 @@ export function emptyDb(githubHandle: string | null = null): MockDb {
   return { profiles: [], projects: [], published: [], uploads: [], githubHandle };
 }
 
-const PROJECT_UPDATABLE = new Set(['title', 'description', 'cover_path', 'project_url', 'github_url', 'language', 'stars', 'tech_stack', 'project_date', 'sort_order']);
+const PROJECT_UPDATABLE = new Set(['title', 'description', 'cover_path', 'project_url', 'github_url', 'language', 'stars', 'tech_stack', 'project_date', 'sort_order', 'story_problem', 'story_built', 'story_result']);
 
 const CONTENT = ['username', 'full_name', 'tagline', 'bio', 'role', 'org_position', 'department', 'avatar_path', 'linkedin_url', 'portfolio_url', 'public_email', 'show_email', 'skills'];
 
@@ -188,6 +188,13 @@ export function filterRows(rows: Row[], url: URL): Row[] {
 
 const USERNAME = /^[a-z0-9][a-z0-9_-]{2,19}$/;
 
+/** The making-of comic's lines as build_card() publishes them (V2-23): trimmed, null when none. */
+function storyOf(r: Row): Row | null {
+  const line = (k: string) => (typeof r[k] === 'string' ? (r[k] as string).trim() : null);
+  if (r.story_problem == null && r.story_built == null && r.story_result == null) return null;
+  return { problem: line('story_problem'), built: line('story_built'), result: line('story_result') };
+}
+
 /** What build_card() would snapshot. */
 function buildCard(db: MockDb, p: Row): Row {
   const projects = db.projects
@@ -205,6 +212,7 @@ function buildCard(db: MockDb, p: Row): Row {
       tech_stack: r.tech_stack ?? [],
       source: r.source ?? 'manual',
       project_date: r.project_date ?? null,
+      story: storyOf(r),
     }));
   const pick = (k: string) => p[k] ?? null;
   return {
