@@ -45,7 +45,7 @@ test('a sparse hall keeps the map closed and says how close it is', async ({ pag
   const box = page.locator('.dialogue').filter({ hasText: 'The map opens when 30 members have projects' });
   await expect(box).toContainText('Right now:');
   await expect(page.locator('.net-svg')).toHaveCount(0);
-  await expect(box.getByRole('link', { name: 'TAG A TEAMMATE' })).toHaveAttribute('href', '/edit#collaborators');
+  await expect(box.getByRole('link', { name: 'TAG A TEAMMATE' })).toHaveAttribute('href', '/edit?tab=projects#collaborators');
 });
 
 test('a dense hall opens the map: people, projects and shared skills, with plain lists', async ({ page }) => {

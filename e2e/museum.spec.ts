@@ -62,7 +62,7 @@ test('a member offers a project, an admin features it; visitors see it as approv
   const db = hall();
   grantMuseum(db);
   await mockSupabase(page, { user: ME, db, githubRepos: [] });
-  await page.goto('/edit');
+  await page.goto('/edit?tab=projects');
   const panel = page.getByRole('region', { name: 'Museum' });
   await panel.getByLabel(/Offer Tide Tables to the Museum/).check();
   await expect(panel.getByRole('status')).toHaveText('Tide Tables is offered to the Museum. An admin decides what hangs.');
@@ -108,8 +108,8 @@ test('a member offers a project, an admin features it; visitors see it as approv
 test('without Museum access the editor has no Museum panel', async ({ page }) => {
   const db = hall();
   await mockSupabase(page, { user: ME, db, githubRepos: [] });
-  await page.goto('/edit');
-  await expect(page.getByRole('region', { name: 'Who you are' })).toBeVisible();
+  await page.goto('/edit?tab=projects');
+  await expect(page.getByRole('region', { name: 'Projects' })).toBeVisible();
   await expect(page.getByRole('region', { name: 'Museum' })).toHaveCount(0);
 });
 
@@ -129,7 +129,7 @@ test('the panel lists the approved card: a project removed from the draft stays 
   db.museumFeatures = [{ project_id: P2, member_id: ME.id }];
   db.projects = db.projects.filter((p) => p.id !== P2); // edited out of the draft, not yet re-approved
   await mockSupabase(page, { user: ME, db, githubRepos: [] });
-  await page.goto('/edit');
+  await page.goto('/edit?tab=projects');
   const panel = page.getByRole('region', { name: 'Museum' });
   await expect(panel.getByLabel(/Offer Pixel Diary to the Museum/)).toBeChecked();
   await expect(panel.getByLabel(/Offer Pixel Diary to the Museum/)).toHaveAccessibleName(/featured: on show/);

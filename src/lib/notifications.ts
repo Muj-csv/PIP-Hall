@@ -74,7 +74,7 @@ export interface Line {
 }
 
 /** Where the editor lists collaboration requests. */
-export const COLLAB_PATH = '/edit#collaborators';
+export const COLLAB_PATH = '/edit?tab=projects#collaborators'; // My Card's Projects tab (D-134)
 
 const quoted = (t: string | null) => (t ? `“${t}”` : 'a project');
 

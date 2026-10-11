@@ -22,6 +22,8 @@ const repo = (id: number, name: string, language: string, stars: number) => ({
 const REPOS = [repo(1, 'hello-world', 'TypeScript', 42), repo(2, 'spoon-knife', 'HTML', 12), repo(3, 'linguist', 'Ruby', 7), repo(4, 'octo-site', 'CSS', 1)];
 
 const projects = (page: Page) => page.getByRole('region', { name: 'Projects' });
+/** My Card's tabs (D-134): Info, Projects, Customize, Account. Their names carry "✓ (done)" or "· 2 to fix". */
+const tab = (page: Page, name: string) => page.getByRole('tab', { name: new RegExp(`^${name}`) });
 
 test.skip(({ isMobile }) => isMobile, 'editor flows run on desktop; layout is covered by screenshots');
 
@@ -41,7 +43,9 @@ test('full path: pick 3 repos, add a manual project, add a photo, submit → pen
   await skills.fill('TypeScript');
   await skills.press('Enter');
 
-  // Pick three repos.
+  // Pick three repos, in the Projects tab.
+  await tab(page, 'Projects').click();
+  await expect(page).toHaveURL(/\/edit\?tab=projects$/);
   for (const name of ['hello-world', 'spoon-knife', 'linguist']) await projects(page).getByRole('checkbox', { name: new RegExp(name) }).check();
   await expect(page.getByRole('list', { name: 'Projects on your card' }).getByRole('listitem')).toHaveCount(3);
 
@@ -54,7 +58,10 @@ test('full path: pick 3 repos, add a manual project, add a photo, submit → pen
   await manual.getByRole('button', { name: 'Add project' }).click();
   await expect(page.getByRole('list', { name: 'Projects on your card' }).getByRole('listitem')).toHaveCount(4);
 
-  // Photo: cropped and resized in the browser, previewed on the badge before upload.
+  // Photo (back in Info: nothing typed is lost by switching tabs): cropped and resized in the
+  // browser, previewed on the badge before upload.
+  await tab(page, 'Info').click();
+  await expect(page.getByLabel('Role')).toHaveValue('Frontend dev · design systems');
   await page.locator('[data-field="photo"] input[type=file]').setInputFiles({ name: 'me.png', mimeType: 'image/png', buffer: TINY_PNG });
   await page.getByRole('button', { name: 'Use this photo' }).click();
   await expect(page.locator('.preview-stage img.photo')).toHaveAttribute('src', /^blob:/);
@@ -113,11 +120,13 @@ test('invalid fields show errors under them and focus moves to the first one', a
   await expect(page.getByLabel('Name on the badge')).toHaveAttribute('aria-invalid', 'true');
   await expect(page.getByText('Your name goes on the badge.')).toBeVisible();
   await expect(page.getByText('Use your LinkedIn link, like https://www.linkedin.com/in/you.')).toBeVisible();
+  // The tab says so in words, not only by colour.
+  await expect(tab(page, 'Info')).toHaveAccessibleName('Info · 2 to fix');
 });
 
 test('a rate-limited GitHub says when it resets, and manual projects still work', async ({ page }) => {
   await mockSupabase(page, { user: USER, githubRepos: { rateLimitedUntil: new Date(Date.now() + 30 * 60 * 1000) } });
-  await page.goto('/edit');
+  await page.goto('/edit?tab=projects');
   await expect(projects(page).getByRole('alert')).toContainText('hourly limit');
   await expect(projects(page).getByRole('alert')).toContainText('It resets at');
   await page.getByRole('button', { name: '+ Add a project by hand' }).click();
@@ -128,7 +137,7 @@ test('a rate-limited GitHub says when it resets, and manual projects still work'
 
 test('a member without public repos is pointed to the manual form', async ({ page }) => {
   await mockSupabase(page, { user: USER, githubRepos: [] });
-  await page.goto('/edit');
+  await page.goto('/edit?tab=projects');
   await expect(projects(page)).toContainText('No public repos yet');
 });
 
@@ -154,7 +163,7 @@ test('a full card of 6 can swap a project (removals are saved first)', async ({ 
   db.profiles.push({ id: USER.id, username: 'octocat', full_name: 'Test Member', tagline: null, bio: null, role: null, org_position: null, department: null, avatar_path: null, github_username: 'octocat', linkedin_url: null, portfolio_url: null, public_email: null, show_email: false, email_updates: false, skills: [], status: 'draft', review_note: null, is_featured: false, username_locked: false, member_no: null });
   for (let i = 0; i < 6; i++) db.projects.push({ id: `p${i}`, profile_id: USER.id, source: 'manual', github_repo_id: null, title: `Quest ${i}`, description: null, cover_path: null, project_url: null, github_url: null, language: null, stars: null, tech_stack: [], project_date: null, sort_order: i });
   await mockSupabase(page, { user: USER, db, githubRepos: REPOS });
-  await page.goto('/edit');
+  await page.goto('/edit?tab=projects');
   await expect(projects(page).getByRole('checkbox', { name: /hello-world/ })).toBeDisabled();
   await page.getByRole('button', { name: 'Remove Quest 0' }).click();
   await projects(page).getByRole('checkbox', { name: /hello-world/ }).check();
@@ -293,7 +302,7 @@ test('reordering saved GitHub projects on an approved card saves (only updatable
     db.projects.push({ id: `p${i}`, profile_id: USER.id, source: 'github', github_repo_id: r.id, title: r.name, description: r.description, cover_path: null, project_url: null, github_url: r.html_url, language: r.language, stars: r.stargazers_count, tech_stack: [], project_date: null, sort_order: i });
   }
   const log = await mockSupabase(page, { user: USER, db, githubRepos: REPOS });
-  await page.goto('/edit');
+  await page.goto('/edit?tab=projects');
   await page.getByRole('button', { name: 'Move spoon-knife up' }).click();
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.getByRole('status').filter({ hasText: /Saved/ }).first()).toBeVisible();
@@ -302,29 +311,114 @@ test('reordering saved GitHub projects on an approved card saves (only updatable
   expect(log.requests.filter((r) => r.startsWith('PATCH /rest/v1/projects'))).toHaveLength(2);
 });
 
-test('a new member is guided step by step: welcome, progress, and GO jumps to the field', async ({ page }) => {
+test('a new member is guided in three steps: Info, Projects, then send it; GO opens the tab at the field', async ({ page }) => {
   await mockSupabase(page, { user: { ...USER, github: undefined }, db: emptyDb(null), githubRepos: [] });
   await page.goto('/edit');
   const guide = page.getByRole('region', { name: 'Make your card' });
   const bar = guide.getByRole('progressbar', { name: 'Card setup' });
   await expect(guide).toContainText('Welcome to PIP-Hall!');
-  // Username and name come pre-filled from the Google account.
-  await expect(bar).toHaveAttribute('aria-valuenow', '2');
-  await expect(guide.locator('li[aria-current="step"]')).toContainText('Say what you do');
+  await expect(guide.locator('li')).toHaveCount(3);
+  await expect(bar).toHaveAttribute('aria-valuetext', '0 of 3 steps done');
+  // Username and name come pre-filled from the Google account: Info still needs a role and a bio.
+  const step = guide.locator('li[aria-current="step"]');
+  await expect(step).toContainText('Info');
+  await expect(step).toContainText('Still to add: a role and a bio. Optional: a photo, a few skills.');
 
-  await guide.getByRole('button', { name: 'Go to say what you do' }).click();
+  await guide.getByRole('button', { name: 'Go to info' }).click();
   await expect(page.getByLabel('Role')).toBeFocused();
   await page.getByLabel('Role').fill('Frontend dev');
-  await guide.getByRole('button', { name: 'Go to say what you do' }).click();
+  await guide.getByRole('button', { name: 'Go to info' }).click();
   await expect(page.getByLabel('Bio')).toBeFocused(); // role done: now the bio
   await page.getByLabel('Bio').fill('Builds pixel things.');
-  await expect(bar).toHaveAttribute('aria-valuenow', '3');
-  await expect(guide.locator('li[aria-current="step"]')).toContainText('Add a project');
+  await expect(bar).toHaveAttribute('aria-valuetext', '1 of 3 steps done');
+  await expect(tab(page, 'Info')).toHaveAccessibleName('Info (done)');
+  await expect(step).toContainText('Projects');
+
+  // Next: Projects opens the next tab; GO to Projects lands in the repo picker.
+  await page.getByRole('button', { name: 'Next: Projects' }).click();
+  await expect(tab(page, 'Projects')).toHaveAttribute('aria-selected', 'true');
+  await expect(tab(page, 'Projects')).toBeFocused();
+  await expect(page).toHaveURL(/\/edit\?tab=projects$/);
+  await tab(page, 'Info').click();
+  await guide.getByRole('button', { name: 'Go to projects' }).click();
+  await expect(tab(page, 'Projects')).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('[data-field="repos"]')).toBeInViewport();
+  // Connect GitHub waits for a save (it leaves the page), so focus goes to the tab, not a dead button.
+  await expect(page.getByRole('button', { name: 'Connect GitHub' })).toBeDisabled();
+  await expect(tab(page, 'Projects')).toBeFocused();
+
+  await page.getByRole('button', { name: '+ Add a project by hand' }).click();
+  await page.locator('.manual-form').getByLabel('Title').fill('Pixel Quest');
+  await page.locator('.manual-form').getByRole('button', { name: 'Add project' }).click();
+  await expect(bar).toHaveAttribute('aria-valuetext', '2 of 3 steps done');
+  await expect(guide).toContainText('2 of 3 steps done · ready to send');
+  // The last Next goes to the Submit button.
+  await page.getByRole('button', { name: 'Next: send it for review' }).click();
+  await expect(page.getByRole('button', { name: 'Save and submit for review' })).toBeFocused();
 
   // The guide can be folded away, and says so.
   await guide.getByRole('button', { name: 'Hide guide' }).click();
   await expect(guide.locator('#guide-steps')).toHaveCount(0);
   await expect(guide.getByRole('button', { name: 'Show guide' })).toHaveAttribute('aria-expanded', 'false');
+});
+
+test('My Card’s tabs: arrow keys move between them, the tab is in the address, and Customize waits for approval', async ({ page }) => {
+  await mockSupabase(page, { user: USER, db: emptyDb('octocat'), githubRepos: REPOS });
+  await page.goto('/edit');
+  const tabs = page.getByRole('tablist', { name: 'My card' });
+  await expect(tabs.getByRole('tab')).toHaveText(['Info', 'Projects', 'Customize', 'Account']);
+  await expect(tab(page, 'Info')).toHaveAttribute('aria-selected', 'true');
+  await page.getByLabel('Role').fill('Designer');
+
+  await tab(page, 'Info').focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(tab(page, 'Projects')).toBeFocused();
+  await expect(tab(page, 'Projects')).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('tabpanel', { name: /^Projects/ })).toBeVisible();
+  await expect(page).toHaveURL(/\?tab=projects$/);
+  await page.keyboard.press('End');
+  await expect(tab(page, 'Account')).toBeFocused();
+  await expect(page.getByRole('region', { name: 'Account' })).toContainText('member@example.org');
+  await page.keyboard.press('ArrowRight'); // wraps around
+  await expect(tab(page, 'Info')).toBeFocused();
+  await expect(page).toHaveURL(/\/edit$/);
+  await expect(page.getByLabel('Role')).toHaveValue('Designer'); // unsaved, still there
+
+  // Switching tabs is not leaving: no "Leave without saving?" until the page changes.
+  await tab(page, 'Customize').click();
+  await expect(page.getByRole('alertdialog')).toHaveCount(0);
+  await expect(page.getByRole('tabpanel', { name: /^Customize/ })).toContainText('PIP MART');
+
+  // A link straight to a tab.
+  await page.goto('/edit?tab=account');
+  await expect(tab(page, 'Account')).toHaveAttribute('aria-selected', 'true');
+});
+
+test('Submit opens the first tab with a problem, and each tab says how many fields need a look', async ({ page }) => {
+  const db = emptyDb('octocat');
+  await mockSupabase(page, { user: USER, db, githubRepos: [] });
+  await page.goto('/edit?tab=projects');
+  await page.getByRole('button', { name: '+ Add a project by hand' }).click();
+  await page.locator('.manual-form').getByLabel('Title').fill('Pixel Quest');
+  await page.locator('.manual-form').getByRole('button', { name: 'Add project' }).click();
+  await page.getByRole('list', { name: 'Projects on your card' }).getByLabel('Title').fill('');
+  await tab(page, 'Info').click();
+  await page.getByLabel('Name on the badge').fill('');
+  await tab(page, 'Projects').click();
+
+  await page.getByRole('button', { name: 'Save and submit for review' }).click();
+  await expect(tab(page, 'Info')).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByLabel('Name on the badge')).toBeFocused();
+  await expect(tab(page, 'Info')).toHaveAccessibleName('Info · 1 to fix');
+  await expect(tab(page, 'Projects')).toHaveAccessibleName('Projects · 1 to fix');
+  await expect(page.locator('.editor-actions[data-at="side"] .notice')).toHaveText('! A few fields need a look. They’re marked with ! in Info.');
+
+  await page.getByLabel('Name on the badge').fill('Test Member');
+  await page.getByRole('button', { name: 'Save and submit for review' }).click();
+  await expect(tab(page, 'Projects')).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('list', { name: 'Projects on your card' }).getByLabel('Title')).toBeFocused();
+  await expect(tab(page, 'Info')).toHaveAccessibleName('Info');
+  expect(db.profiles).toHaveLength(0); // nothing was sent
 });
 
 test('the sign-in page explains the three steps before you start', async ({ page }) => {

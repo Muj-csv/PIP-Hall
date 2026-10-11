@@ -60,7 +60,7 @@ test('the bell shows what’s new, marks it seen, and each line goes where you c
 
   await bell.click();
   await items.nth(1).getByRole('link').click();
-  await expect(page).toHaveURL(/\/edit#collaborators$/);
+  await expect(page).toHaveURL(/\/edit\?tab=projects#collaborators$/);
   await expect(page.getByRole('region', { name: 'Notifications' })).toBeHidden();
 });
 

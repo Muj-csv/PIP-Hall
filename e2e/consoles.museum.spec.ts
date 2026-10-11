@@ -33,7 +33,7 @@ test('a maker picks a console for an exhibit; visitors see it; automatic is the 
   const db = hall();
   grantMuseum(db);
   await mockSupabase(page, { user: ME, db, githubRepos: [] });
-  await page.goto('/edit');
+  await page.goto('/edit?tab=projects');
   const panel = page.getByRole('region', { name: 'Museum' });
   // No picker until the project is in the Museum.
   await expect(panel.getByLabel('Console for Tide Tables')).toHaveCount(0);
