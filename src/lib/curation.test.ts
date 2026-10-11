@@ -86,7 +86,7 @@ describe('the Museum, curated end to end (D-133)', () => {
     expect(shown!.entries.map((x) => x.project_id)).toEqual(['a']);
     expect(shown!.awards).toHaveLength(2);
     // Before the update, awards carry no flag: every winner hangs, as under D-130.
-    const old = curatedEvents([{ ...e, awards: e.awards.map(({ hung: _h, ...a }) => a) }]);
+    const old = curatedEvents([{ ...e, awards: e.awards.map((a) => ({ ...a, hung: undefined })) }]);
     expect(old[0]!.entries.map((x) => x.project_id)).toEqual(['a', 'b']);
   });
 });
