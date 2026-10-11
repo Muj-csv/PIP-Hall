@@ -4235,6 +4235,13 @@ a.net-node:focus {
   height: auto;
   image-rendering: pixelated;
 }
+.booth-story {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding-left: 1.4em;
+  font-size: clamp(16px, 2.3vh, 26px);
+}
 .booth-note {
   display: block;
   font-size: clamp(16px, 2.3vh, 26px);
@@ -4445,6 +4452,12 @@ a.net-node:focus {
   display: block;
   font-style: italic;
 }
+.placard-story {
+  display: grid;
+  gap: 1mm;
+  margin: 0;
+  padding-left: 5mm;
+}
 .placard-desc {
   display: -webkit-box;
   overflow: hidden;
@@ -4648,4 +4661,334 @@ a.net-node:focus {
 .band-choice .pin-logo,
 .band-picks .pin-logo {
   width: 20px;
+}
+
+/* ---------------------------------------------------------------- exhibits you can play (V2-23, D-136) */
+.story-fields {
+  display: grid;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--color-surface-raised);
+  box-shadow: inset 0 0 0 2px var(--color-border);
+}
+.story-fields > summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+.story-fields[open] > summary {
+  margin-bottom: 4px;
+}
+/* Play the exhibit (D-136): the console with its cartridge docked under it. */
+.cart-player {
+  display: grid;
+  gap: 16px;
+}
+.cart-dock {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+}
+/* The screen before the cartridge is in, and the boot: dark glass, the wordmark blinking twice. */
+.screen-off,
+.screen-boot {
+  display: grid;
+  place-items: center;
+  background: var(--color-void);
+  font-family: var(--font-display);
+  letter-spacing: 0.08em;
+  color: var(--color-console-metal);
+  font-size: clamp(10px, 2.4cqw, 16px);
+}
+.screen-boot {
+  color: var(--color-console-cream);
+  font-size: clamp(16px, 6cqw, 36px);
+}
+.screen-boot span {
+  animation: boot-blink 400ms steps(1) both;
+}
+@keyframes boot-blink {
+  0%, 50% { opacity: 1; }
+  25%, 75% { opacity: 0; }
+}
+/* Played from its cartridge, the console has its own boot, so no first-sight flicker; and no
+   gallery light across the glass, so the title screen reads. */
+.exhibit-frame .exhibit-stage[data-power] > :not(.console-scan) {
+  animation: none;
+}
+.exhibit-stage[data-power] > :is(.exhibit-glint, .exhibit-spot) {
+  display: none;
+}
+/* The title screen: real text on ink plates over the picture, the credits rolling at the foot. */
+.title-screen {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  justify-items: center;
+  gap: 4px;
+  padding: 6% 4% 0;
+  text-align: center;
+  font-family: var(--font-display);
+  letter-spacing: 0.05em;
+  color: var(--color-console-cream);
+  pointer-events: none;
+  overflow: hidden;
+}
+.title-screen > span {
+  background: var(--color-console-ink);
+  padding: 2px 8px;
+  line-height: 1.15;
+}
+.ts-title {
+  max-width: 100%;
+  font-size: clamp(14px, 5.6cqw, 34px);
+  box-shadow: 4px 4px 0 var(--color-console-red);
+  overflow-wrap: anywhere;
+}
+.ts-by {
+  font-size: clamp(9px, 2.2cqw, 14px);
+}
+.ts-start {
+  align-self: end;
+  margin-bottom: 4px;
+  color: var(--color-world-coin-hi);
+  font-size: clamp(10px, 2.8cqw, 18px);
+  animation: start-blink 1.2s steps(1) infinite;
+}
+@keyframes start-blink {
+  50% { visibility: hidden; }
+}
+.title-screen > .ts-credits {
+  width: 100%;
+  height: calc(clamp(9px, 2.2cqw, 14px) * 1.3 * 2);
+  overflow: hidden;
+  padding: 0;
+  font-size: clamp(9px, 2.2cqw, 14px);
+}
+.ts-credits > span {
+  display: grid;
+  animation: credits-roll 9s steps(36) infinite;
+}
+@keyframes credits-roll {
+  from { transform: translateY(0); }
+  to { transform: translateY(-100%); }
+}
+.title-screen[data-still] .ts-start,
+.title-screen[data-still] .ts-credits > span {
+  animation: none;
+}
+/* The cartridge: an original stepped shell with grip ridges and a notch, its label drawn from the
+   exhibit (picture, title, the language's stripe, the maker's number). */
+.cartridge {
+  position: relative;
+  width: 136px;
+  padding: 24px 12px 12px;
+  background: var(--color-card-ink);
+  clip-path: polygon(0 8px, 8px 8px, 8px 0, calc(100% - 32px) 0, calc(100% - 32px) 8px, calc(100% - 8px) 8px, calc(100% - 8px) 16px, 100% 16px, 100% 100%, 0 100%);
+  cursor: pointer;
+}
+.cartridge::before {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  background: var(--color-card-metal);
+  clip-path: polygon(0 8px, 8px 8px, 8px 0, calc(100% - 32px) 0, calc(100% - 32px) 8px, calc(100% - 8px) 8px, calc(100% - 8px) 16px, 100% 16px, 100% 100%, 0 100%);
+}
+.cart-ridges {
+  position: absolute;
+  top: 8px;
+  left: 20px;
+  width: 64px;
+  height: 8px;
+  background: repeating-linear-gradient(90deg, var(--color-card-ink) 0 4px, transparent 4px 8px);
+}
+.cart-label {
+  position: relative;
+  display: grid;
+  gap: 4px;
+  padding: 12px 8px 8px;
+  background:
+    linear-gradient(var(--stripe), var(--stripe)) top / 100% 8px no-repeat,
+    var(--color-card-cream);
+  box-shadow: inset 0 0 0 2px var(--color-card-ink);
+  color: var(--color-card-ink);
+}
+.cart-art {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  background: var(--color-card-sky);
+  box-shadow: 0 0 0 2px var(--color-card-ink);
+}
+.cart-art img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.cart-cover {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+}
+.cart-name {
+  font-family: var(--font-display);
+  font-size: 15px;
+  line-height: 1.1;
+  letter-spacing: 0.03em;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.cart-meta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+.cartridge[data-inserting] {
+  animation: cart-insert 240ms steps(4) forwards;
+  cursor: default;
+}
+@keyframes cart-insert {
+  to {
+    transform: translateY(-48px);
+    opacity: 0;
+  }
+}
+/* The making-of comic (D-136): three panels in a row on wide screens, stacked on phones. */
+.comic-strip {
+  display: grid;
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+@media (min-width: 640px) {
+  .comic-strip {
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+  }
+}
+.comic-panel {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  padding: 8px;
+  background: var(--color-card-face);
+  box-shadow: inset 0 0 0 3px var(--color-card-ink), 4px 4px 0 var(--color-card-ink);
+  color: var(--color-card-ink);
+}
+.comic-art {
+  position: relative;
+  display: grid;
+  place-items: end center;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  background: var(--color-card-sky);
+  box-shadow: inset 0 0 0 2px var(--color-card-ink), inset 0 -12px 0 var(--color-card-grass);
+}
+/* Phones: each panel is a square picture beside its line, so the three fit on a screen or two. */
+@media (max-width: 639px) {
+  .comic-panel {
+    grid-template-columns: 112px minmax(0, 1fr);
+    align-items: start;
+  }
+  .comic-art {
+    aspect-ratio: 1;
+  }
+}
+.comic-panel[data-panel='built'] .comic-art {
+  background: var(--color-card-ink);
+  box-shadow: inset 0 0 0 2px var(--color-card-ink);
+}
+.comic-pip {
+  width: 48px;
+  height: 48px;
+  margin-bottom: 12px;
+  image-rendering: pixelated;
+}
+.comic-trophy {
+  width: 60px;
+  height: 60px;
+  margin-bottom: 12px;
+  image-rendering: pixelated;
+}
+.comic-star {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  image-rendering: pixelated;
+}
+.comic-bubble {
+  position: absolute;
+  top: 12%;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0 8px;
+  font-family: var(--font-display);
+  font-size: 28px;
+  line-height: 1.2;
+  background: var(--color-card-face);
+  box-shadow: inset 0 0 0 2px var(--color-card-ink);
+}
+.comic-picture {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.comic-text {
+  margin: 0;
+  display: grid;
+  gap: 2px;
+}
+.comic-text b {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: 0.04em;
+}
+/* The team wall (D-136): the makers' badges hang from one shared rail. */
+.team-wall {
+  position: relative;
+  padding-top: 20px;
+}
+.team-wall::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 8px;
+  background: var(--color-card-lanyard);
+  box-shadow: inset 0 0 0 2px var(--color-card-ink);
+}
+.team-wall > li {
+  position: relative;
+}
+.team-wall > li::before {
+  content: '';
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  width: 8px;
+  height: 12px;
+  transform: translateX(-50%);
+  background: var(--color-card-lanyard-dark);
+}
+@media (prefers-reduced-motion: reduce) {
+  .screen-boot span,
+  .ts-start,
+  .ts-credits > span,
+  .cartridge[data-inserting] {
+    animation: none;
+  }
 }

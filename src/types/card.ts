@@ -18,6 +18,15 @@ export interface PublicProject {
   project_date: string | null;
   /** Members who accepted a tag on this project, as of the approval (D-089). */
   collaborators?: Collaborator[];
+  /** The making-of comic's three lines (V2-23, D-136); null or absent when the maker wrote none. */
+  story?: ProjectStory | null;
+}
+
+/** The making-of comic (D-136): any of the three lines may be missing. */
+export interface ProjectStory {
+  problem: string | null;
+  built: string | null;
+  result: string | null;
 }
 
 /** A member of the hall credited on someone else's project. */

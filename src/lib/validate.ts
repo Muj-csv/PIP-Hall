@@ -16,6 +16,7 @@ export const LIMITS = {
   project_title: 60,
   project_description: 200,
   project_language: 30,
+  story_line: 90,
   tech_stack: 8,
   username: 20,
   review_note: 280,
@@ -57,6 +58,9 @@ export function validateProject(p: DraftProject, prefix: string, errors: FieldEr
   if ((p.language ?? '').length > LIMITS.project_language) errors[`${prefix}.language`] = tooLong('Language', LIMITS.project_language);
   if (p.tech_stack.length > LIMITS.tech_stack) errors[`${prefix}.tech_stack`] = `At most ${LIMITS.tech_stack} tags.`;
   if (p.source === 'github' && p.github_repo_id === null) errors[`${prefix}.title`] = 'This GitHub project lost its repo link. Remove it and pick it again.';
+  for (const k of ['story_problem', 'story_built', 'story_result'] as const) {
+    if ((p[k] ?? '').trim().length > LIMITS.story_line) errors[`${prefix}.${k}`] = tooLong('A line', LIMITS.story_line);
+  }
 }
 
 export function validateCard(form: CardForm, opts: { usernameLocked?: boolean } = {}): FieldErrors {

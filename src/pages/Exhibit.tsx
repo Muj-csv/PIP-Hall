@@ -8,6 +8,9 @@
 // this exhibit!", its Passport stamp, its makers, and the next exhibit in the room it hangs in. Its
 // poster (PNG) is drawn in the browser, like the badge.
 // V2-13: Connected projects lists other projects (members' and the archive's) that share a maker.
+// V2-23 (D-136): the exhibit is a cartridge you play in its console (PRESS START opens the project),
+// its plaque can be a three-panel making-of comic, and its makers hang together on one rail, each
+// with Walk there (Pip walks to their badge in the hall).
 
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
@@ -16,7 +19,8 @@ import { useAppearance } from '../app/appearanceContext';
 import { FlipBadge } from '../components/cards/BadgeStage';
 import { QrFullscreen } from '../components/cards/QrFullscreen';
 import { DialogueBox } from '../components/dialogue/DialogueBox';
-import { ExhibitArt } from '../components/museum/ExhibitArt';
+import { CartridgePlayer } from '../components/museum/CartridgePlayer';
+import { MakingOfComic } from '../components/museum/MakingOfComic';
 import { MenuPage } from '../components/shell/MenuPage';
 import { connectedProjects, creditLine, makersOf } from '../lib/collab';
 import { exhibitPath, exhibitUrl, memberPath } from '../lib/publicUrl';
@@ -140,6 +144,12 @@ export default function Exhibit() {
     [load, exhibitId],
   );
 
+  // The comic's last panel shows a trophy for the best place it won (1st beats 2nd), else Pip's jump.
+  const bestPlace = useMemo(() => {
+    const places = [...entries.flatMap((e) => e.awards.map((a) => a.place)), exhibit?.archive ? archiveAward(exhibit.archive)?.place : null].filter((x): x is 1 | 2 | 3 => x === 1 || x === 2 || x === 3);
+    return places.length ? (Math.min(...places) as 1 | 2 | 3) : null;
+  }, [entries, exhibit]);
+
   const share = async () => {
     if (!exhibit) return;
     const url = exhibitUrl(exhibit.project_id);
@@ -207,7 +217,14 @@ export default function Exhibit() {
 
       {exhibit && (
         <article className="exhibit-page" aria-labelledby="exhibit-maker">
-          <ExhibitArt project={exhibit.project} console={kind!} featured={exhibit.featured} eager />
+          <CartridgePlayer
+            key={exhibit.project_id /* the next exhibit in the room starts with its cartridge out */}
+            project={exhibit.project}
+            console={kind!}
+            featured={exhibit.featured}
+            memberNo={exhibit.archive ? null : exhibit.member_no}
+            makers={exhibit.archive ? [] : [exhibit.full_name, ...withNames]}
+          />
           <div className="exhibit-plaque">
             {exhibit.archive && <ArchivePlate exhibit={exhibit.archive} rooms={rooms} />}
             {entries.map(({ event, track, awards }) =>
@@ -304,6 +321,8 @@ export default function Exhibit() {
         </article>
       )}
 
+      {exhibit && <MakingOfComic project={exhibit.project} place={bestPlace} />}
+
       {exhibit && nextHere && (
         <nav className="menu-panel next-in-room" aria-label="Next in this room">
           <p className="m-0 font-display tracking-[0.04em]">
@@ -323,13 +342,19 @@ export default function Exhibit() {
           <h2 id="made-by-title" className="panel-title">
             Made by{makers.length > 1 ? ` · ${makers.length} makers` : ''}
           </h2>
-          <ul className="made-by-list" aria-label="Makers">
+          {/* The team wall (D-136): the makers' badges hang together from one rail. */}
+          <ul className="made-by-list team-wall" aria-label="Makers">
             {makers.map((c) => (
               <li key={c.username}>
                 <FlipBadge card={c} label={c.card.full_name} onShowQr={() => setQrCard(c)} />
-                <Link to={memberPath(c.username)} className="pixel-btn justify-self-center">
-                  Open profile<span className="sr-only"> of {c.card.full_name}</span>
-                </Link>
+                <div className="flex flex-wrap justify-center gap-space-2">
+                  <Link to={`/?walk=${encodeURIComponent(c.username)}`} className="pixel-btn" data-variant="primary">
+                    Walk there<span className="sr-only"> to {c.card.full_name} in the hall</span>
+                  </Link>
+                  <Link to={memberPath(c.username)} className="pixel-btn">
+                    Open profile<span className="sr-only"> of {c.card.full_name}</span>
+                  </Link>
+                </div>
               </li>
             ))}
           </ul>

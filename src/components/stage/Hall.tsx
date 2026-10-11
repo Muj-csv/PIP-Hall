@@ -404,6 +404,24 @@ export function Hall({ profile = null, passport = false, quest = null }: HallPro
     [go, navigate, location.search],
   );
 
+  // "Walk there" from an exhibit's team wall (V2-23, D-136): /?walk=<username> walks Pip to that
+  // member's badge once the hall has its cards, the block above it bumps, and the address is tidied.
+  // Someone not in the hall (or hidden by a search): the hall stays where it is.
+  const walkParam = params.get('walk');
+  useEffect(() => {
+    if (!walkParam || !cards.length) return;
+    const next = new URLSearchParams(params);
+    next.delete('walk');
+    setParams(next, { replace: true });
+    const i = cards.findIndex((c) => c.username === walkParam.toLowerCase());
+    const c = cards[i];
+    if (!c) return;
+    go(i);
+    if (!reduce) bumps.current.set(i, 6);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- the response to an address, like the sync below
+    setLine({ text: `Pip walks to ${titleCase(c.card.full_name)}. Tap to flip, or OPEN for the profile.` });
+  }, [walkParam, cards, params, setParams, go, reduce]);
+
   const randomPlayer = useCallback(() => {
     const l = live.current;
     if (l.mode !== 'level' || l.cards.length === 0) return;
